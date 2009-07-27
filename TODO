@@ -1,0 +1,4 @@
+- double-check all INCREF and DECREFs
+- make a get_stats function
+- handle boolean values
+- add servers after object creation (also related: set_servers)
