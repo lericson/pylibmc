@@ -1,5 +1,8 @@
 """`python-memcached`-compatible wrapper around `_pylibmc`.
 
+The interface is pretty much exactly the same as python-memcached, with some
+minor differences. If you should happen to spot any, file a bug!
+
 >>> mc = Client(["127.0.0.1"])
 >>> b = mc.behaviors
 >>> b.keys()
@@ -42,6 +45,12 @@ class BehaviorDict(dict):
 
 class Client(_pylibmc.client):
     def __init__(self, servers, *args, **kwds):
+        """Initialize a memcached client instance.
+
+        This connects to the servers in *servers*, which will default to being
+        TCP servers. If it looks like a filesystem path, a UNIX socket. If
+        prefixed with `udp:`, a UDP connection.
+        """
         addr_tups = []
         for server in servers:
             addr = server
@@ -65,13 +74,26 @@ class Client(_pylibmc.client):
         super(Client, self).__init__(addr_tups)
 
     def get_behaviors(self):
+        """Gets the behaviors from the underlying C client instance.
+
+        Reverses the integer constants for `hash` and `distribution` into more
+        understandable string values. See *set_behaviors* for info.
+        """
         behaviors = super(Client, self).get_behaviors()
         behaviors["hash"] = hashers_rvs[behaviors["hash"]]
         behaviors["distribution"] = distributions_rvs[behaviors["distribution"]]
         return BehaviorDict(self, behaviors)
 
     def set_behaviors(self, behaviors):
-        # Morph some.
+        """Sets the behaviors on the underlying C client instance.
+
+        Takes care of morphing the `hash` key, if specified, into the
+        corresponding integer constant (which the C client expects.) If,
+        however, an unknown value is specified, it's passed on to the C client
+        (where it most surely will error out.)
+
+        This also happens for `distribution`.
+        """
         behaviors = behaviors.copy()
         if behaviors.get("hash", None) in hashers:
             behaviors["hash"] = hashers[behaviors["hash"]]
