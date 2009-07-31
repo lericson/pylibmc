@@ -61,7 +61,7 @@ New in version 0.5
 ------------------
 
  - Fixed lots of memory leaks, and added support for `libmemcached` 0.23.
- - Also made the code tighter in terms of compiler pendatics.
+ - Also made the code tighter in terms of compiler pedantics.
 
 New in version 0.4
 ------------------
