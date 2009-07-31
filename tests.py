@@ -134,4 +134,5 @@ if __name__ == "__main__":
     if not is_alive(test_server):
         raise SystemExit("Test server (%r) not alive." % (test_server,))
     import doctest
-    doctest.testmod()
+    n_fail, n_run = doctest.testmod()
+    print "Ran", n_run, "tests with", n_fail, "failures."
