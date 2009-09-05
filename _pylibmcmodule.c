@@ -141,7 +141,7 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
             retval = PyBool_FromLong(PyInt_AS_LONG(retval));
             break;
         case PYLIBMC_FLAG_NONE:
-            retval = PyString_FromStringAndSize(value, (size_t)size);
+            retval = PyString_FromStringAndSize(value, (Py_ssize_t)size);
             break;
         default:
             PyErr_Format(PylibMCExc_MemcachedError,
