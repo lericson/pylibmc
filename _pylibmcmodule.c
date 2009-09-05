@@ -352,132 +352,143 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
     PyObject *key_seq, **key_objs, *retval = NULL;
     char **keys, *prefix = NULL;
     unsigned int prefix_len = 0;
+    Py_ssize_t i;
+    PyObject *key_it, *ckey;
     size_t *key_lens;
     size_t nkeys;
-    unsigned int valid_keys_len = 0;
     memcached_return rc;
 
     char curr_key[MEMCACHED_MAX_KEY];
     size_t curr_key_len, curr_val_len;
     uint32_t curr_flags;
+    char *curr_val;
 
     static char *kws[] = { "keys", "key_prefix", NULL };
 
-    if (PyArg_ParseTupleAndKeywords(args, kwds, "O|s#", kws,
-                &key_seq, &prefix, &prefix_len)) {
-        PyObject *key_it, *ckey;
-        Py_ssize_t i;
-
-        /* First clear any potential earlier mishap because we rely on it in
-         * our iteration over keys. */
-        PyErr_Clear();
-        /* Populate keys and key_lens. */
-        nkeys = PySequence_Length(key_seq);
-        keys = malloc(sizeof(char *) * nkeys);
-        key_lens = malloc(sizeof(size_t) * nkeys);
-        key_objs = malloc(sizeof(PyObject *) * nkeys);
-        if (keys == NULL || key_lens == NULL || key_objs == NULL) {
-            free(keys);
-            free(key_lens);
-            free(key_objs);
-            return PyErr_NoMemory();
-        }
-        /* Iterate through all keys and set lengths etc. */
-        i = 0;
-        key_it = PyObject_GetIter(key_seq);
-        while (!PyErr_Occurred()
-                && i < nkeys
-                && (ckey = PyIter_Next(key_it)) != NULL) {
-            PyObject *rkey;
-
-            if (!_PylibMC_CheckKey(ckey)) {
-                break;
-            } else {
-                key_lens[i] = PyString_GET_SIZE(ckey) + prefix_len;
-                if (prefix != NULL) {
-                    rkey = PyString_FromFormat("%s%s",
-                            prefix, PyString_AS_STRING(ckey));
-                    Py_DECREF(ckey);
-                } else {
-                    rkey = ckey;
-                }
-                keys[i] = PyString_AS_STRING(rkey);
-                key_objs[i++] = rkey;
-                valid_keys_len++;
-            }
-        }
-        Py_DECREF(key_it);
-
-        if (PyErr_Occurred()) {
-            free(key_lens);
-            free(keys);
-            nkeys = i;
-            for (i = 0; i < nkeys; i++)
-                Py_DECREF(key_objs[i]);
-            free(key_objs);
-            return NULL;
-        }
-
-        /* TODO Change this interface or at least provide an alternative that
-         * returns some kind of iterable which fetches keys sequentially
-         * instead of doing it all at once. The current way is grossly
-         * inefficient for larger datasets, as a dict has to be allocated that
-         * is large enough to hold all the data at once.
-         */
-        retval = PyDict_New();
-
-        if(valid_keys_len > 0) {
-            if ((rc = memcached_mget(self->mc, keys, key_lens, nkeys))
-                    == MEMCACHED_SUCCESS) {
-                char *curr_val;
-
-                while ((curr_val = memcached_fetch(
-                                self->mc, curr_key, &curr_key_len, &curr_val_len,
-                                &curr_flags, &rc)) != NULL
-                        && !PyErr_Occurred()) {
-                    if (curr_val == NULL && rc == MEMCACHED_END) {
-                        break;
-                    } else if (rc == MEMCACHED_BAD_KEY_PROVIDED
-                            || rc == MEMCACHED_NO_KEY_PROVIDED) {
-                        /* Do nothing at all. :-) */
-                    } else if (rc != MEMCACHED_SUCCESS) {
-                        Py_DECREF(retval);
-                        retval = PylibMC_ErrFromMemcached(
-                                self, "memcached_fetch", rc);
-                    } else {
-                        PyObject *val;
-
-                        /* This is safe because libmemcached's max key length
-                         * includes space for a NUL-byte. */
-                        curr_key[curr_key_len] = 0;
-                        val = _PylibMC_parse_memcached_value(
-                                curr_val, curr_val_len, curr_flags);
-                        PyDict_SetItemString(retval, curr_key + prefix_len, val);
-                        Py_DECREF(val);
-                    }
-                    free(curr_val);
-                }
-                /* Need to cleanup. */
-                if (PyErr_Occurred()) {
-                    /* Not checking rc because an exception already occured, and
-                     * we wouldn't want to mask it. */
-                    memcached_quit(self->mc);
-                }
-            } else {
-                retval = PylibMC_ErrFromMemcached(self, "memcached_mget", rc);
-            }
-        }
-
-        free(key_lens);
-        free(keys);
-        for (i = 0; i < nkeys; i++)
-            Py_DECREF(key_objs[i]);
-        free(key_objs);
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|s#", kws,
+            &key_seq, &prefix, &prefix_len)) {
+        return NULL;
     }
+
+    if ((nkeys = PySequence_Length(key_seq)) == -1) {
+        return NULL;
+    }
+
+    /* Populate keys and key_lens. */
+    keys = PyMem_New(char *, nkeys);
+    key_lens = PyMem_New(size_t, nkeys);
+    key_objs = PyMem_New(PyObject *, nkeys);
+    if (keys == NULL || key_lens == NULL || key_objs == NULL) {
+        PyMem_Free(keys);
+        PyMem_Free(key_lens);
+        PyMem_Free(key_objs);
+        return PyErr_NoMemory();
+    }
+
+    /* Clear potential previous exception, because we explicitly check for
+     * exceptions as a loop predicate. */
+    PyErr_Clear();
+
+    /* Iterate through all keys and set lengths etc. */
+    i = 0;
+    key_it = PyObject_GetIter(key_seq);
+    while (!PyErr_Occurred()
+            && i < nkeys
+            && (ckey = PyIter_Next(key_it)) != NULL) {
+        PyObject *rkey;
+
+        if (!_PylibMC_CheckKey(ckey)) {
+            break;
+        } else {
+            key_lens[i] = PyString_GET_SIZE(ckey) + prefix_len;
+            if (prefix != NULL) {
+                rkey = PyString_FromFormat("%s%s",
+                        prefix, PyString_AS_STRING(ckey));
+                Py_DECREF(ckey);
+            } else {
+                rkey = ckey;
+            }
+            keys[i] = PyString_AS_STRING(rkey);
+            key_objs[i++] = rkey;
+        }
+    }
+    Py_XDECREF(key_it);
+
+    if (i == 0) {
+        /* No usable keys to fetch. */
+        nkeys = 0;
+        goto cleanup;
+    } else if (PyErr_Occurred()) {
+        nkeys--;
+        goto cleanup;
+    }
+
+    /* TODO Make an iterator interface for getting each key separately.
+     *
+     * This would help large retrievals, as a single dictionary containing all
+     * the data at once isn't needed. (Should probably look into if it's even
+     * worth it.)
+     */
+    retval = PyDict_New();
+
+    if ((rc = memcached_mget(self->mc, keys, key_lens, nkeys))
+            != MEMCACHED_SUCCESS) {
+        PylibMC_ErrFromMemcached(self, "memcached_mget", rc);
+        goto cleanup;
+    }
+
+    while ((curr_val = memcached_fetch(
+                    self->mc, curr_key, &curr_key_len, &curr_val_len,
+                    &curr_flags, &rc)) != NULL
+            && !PyErr_Occurred()) {
+        if (curr_val == NULL && rc == MEMCACHED_END) {
+            break;
+        } else if (rc == MEMCACHED_BAD_KEY_PROVIDED
+                || rc == MEMCACHED_NO_KEY_PROVIDED) {
+            /* Do nothing at all. :-) */
+        } else if (rc != MEMCACHED_SUCCESS) {
+            PylibMC_ErrFromMemcached(self, "memcached_fetch", rc);
+            memcached_quit(self->mc);
+            goto cleanup;
+        } else {
+            PyObject *val;
+
+            /* This is safe because libmemcached's max key length
+             * includes space for a NUL-byte. */
+            curr_key[curr_key_len] = 0;
+            val = _PylibMC_parse_memcached_value(
+                    curr_val, curr_val_len, curr_flags);
+            if (val == NULL) {
+                memcached_quit(self->mc);
+                goto cleanup;
+            }
+            PyDict_SetItemString(retval, curr_key + prefix_len, val);
+            Py_DECREF(val);
+        }
+        /* Although Python prohibits you from using the libc memory allocation
+         * interface, we have to since libmemcached goes around doing
+         * malloc()... */
+        free(curr_val);
+    }
+
+    PyMem_Free(key_lens);
+    PyMem_Free(keys);
+    for (i = 0; i < nkeys; i++) {
+        Py_DECREF(key_objs[i]);
+    }
+    PyMem_Free(key_objs);
 
     /* Not INCREFing because the only two outcomes are NULL and a new dict.
      * We're the owner of that dict already, so. */
     return retval;
+cleanup:
+    Py_XDECREF(retval);
+    PyMem_Free(key_lens);
+    PyMem_Free(keys);
+    for (i = 0; i < nkeys; i++)
+        Py_DECREF(key_objs[i]);
+    PyMem_Free(key_objs);
+    return NULL;
 }
 
 /**
