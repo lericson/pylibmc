@@ -725,8 +725,9 @@ static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *self, const char *what
         PyErr_Format(PylibMCExc_MemcachedError,
                 "system error %d from %s: %s", errno, what, strerror(errno));
     /* The key exists, but it has no value */
-    } else if (error == 0) {
-        PyErr_SetString(PyExc_RuntimeError, "error == 0? " __FILE__ ":" __LINE__);
+    } else if (error == MEMCACHED_SUCCESS) {
+        PyErr_Format(PyExc_RuntimeError, "error == 0? %s:%d",
+                     __FILE__, __LINE__);
     } else { 
         PyErr_Format(PylibMCExc_MemcachedError, "error %d from %s: %s",
                 error, what, memcached_strerror(self->mc, error));
