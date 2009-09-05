@@ -72,6 +72,9 @@ class Client(_pylibmc.client):
                 stype = _pylibmc.server_type_tcp
             addr_tups.append((stype, addr, port))
         super(Client, self).__init__(addr_tups)
+        # Perfomance is generally a lot better with tcp_nodelay
+        # so set that as the default
+        self.behaviors["tcp_nodelay"] = True
 
     def get_behaviors(self):
         """Gets the behaviors from the underlying C client instance.

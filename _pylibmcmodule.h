@@ -47,6 +47,7 @@
 #define PYLIBMC_FLAG_PICKLE  (1 << 0)
 #define PYLIBMC_FLAG_INTEGER (1 << 1)
 #define PYLIBMC_FLAG_LONG    (1 << 2)
+#define PYLIBMC_FLAG_BOOL    (1 << 3)
 
 #define PYLIBMC_INC  (1 << 0)
 #define PYLIBMC_DEC  (1 << 1)

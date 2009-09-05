@@ -135,8 +135,12 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
         case PYLIBMC_FLAG_LONG:
             retval = PyInt_FromString(value, NULL, 10);
             break;
+        case PYLIBMC_FLAG_BOOL:
+            retval = PyInt_FromString(value, NULL, 10);
+            retval = PyBool_FromLong(PyInt_AS_LONG(retval));
+            break;
         case PYLIBMC_FLAG_NONE:
-            retval = PyString_FromStringAndSize(value, (Py_ssize_t)size);
+            retval = PyString_FromStringAndSize(value, (size_t)size);
             break;
         default:
             PyErr_Format(PylibMCExc_MemcachedError,
@@ -199,6 +203,9 @@ static PyObject *_PylibMC_RunSetCommand(PylibMC_Client *self,
         } else if (PyString_Check(val)) {
             store_val = val;
             Py_INCREF(store_val);
+        } else if (PyBool_Check(val)) {
+            store_flags |= PYLIBMC_FLAG_BOOL;
+            store_val = PyObject_Str(PyNumber_Int(val));
         } else if (PyInt_Check(val)) {
             store_flags |= PYLIBMC_FLAG_INTEGER;
             store_val = PyObject_Str(PyNumber_Int(val));
@@ -345,7 +352,8 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
     char **keys, *prefix = NULL;
     unsigned int prefix_len = 0;
     size_t *key_lens;
-    Py_ssize_t nkeys;
+    size_t nkeys;
+    unsigned int valid_keys_len = 0;
     memcached_return rc;
 
     char curr_key[MEMCACHED_MAX_KEY];
@@ -394,6 +402,7 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
                 }
                 keys[i] = PyString_AS_STRING(rkey);
                 key_objs[i++] = rkey;
+                valid_keys_len++;
             }
         }
         Py_DECREF(key_it);
@@ -416,44 +425,46 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
          */
         retval = PyDict_New();
 
-        if ((rc = memcached_mget(self->mc, keys, key_lens, nkeys))
-                == MEMCACHED_SUCCESS) {
-            char *curr_val;
+        if(valid_keys_len > 0) {
+            if ((rc = memcached_mget(self->mc, keys, key_lens, nkeys))
+                    == MEMCACHED_SUCCESS) {
+                char *curr_val;
 
-            while ((curr_val = memcached_fetch(
-                            self->mc, curr_key, &curr_key_len, &curr_val_len,
-                            &curr_flags, &rc)) != NULL
-                    && !PyErr_Occurred()) {
-                if (curr_val == NULL && rc == MEMCACHED_END) {
-                    break;
-                } else if (rc == MEMCACHED_BAD_KEY_PROVIDED
-                        || rc == MEMCACHED_NO_KEY_PROVIDED) {
-                    /* Do nothing at all. :-) */
-                } else if (rc != MEMCACHED_SUCCESS) {
-                    Py_DECREF(retval);
-                    retval = PylibMC_ErrFromMemcached(
-                            self, "memcached_fetch", rc);
-                } else {
-                    PyObject *val;
+                while ((curr_val = memcached_fetch(
+                                self->mc, curr_key, &curr_key_len, &curr_val_len,
+                                &curr_flags, &rc)) != NULL
+                        && !PyErr_Occurred()) {
+                    if (curr_val == NULL && rc == MEMCACHED_END) {
+                        break;
+                    } else if (rc == MEMCACHED_BAD_KEY_PROVIDED
+                            || rc == MEMCACHED_NO_KEY_PROVIDED) {
+                        /* Do nothing at all. :-) */
+                    } else if (rc != MEMCACHED_SUCCESS) {
+                        Py_DECREF(retval);
+                        retval = PylibMC_ErrFromMemcached(
+                                self, "memcached_fetch", rc);
+                    } else {
+                        PyObject *val;
 
-                    /* This is safe because libmemcached's max key length
-                     * includes space for a NUL-byte. */
-                    curr_key[curr_key_len] = 0;
-                    val = _PylibMC_parse_memcached_value(
-                            curr_val, curr_val_len, curr_flags);
-                    PyDict_SetItemString(retval, curr_key + prefix_len, val);
-                    Py_DECREF(val);
+                        /* This is safe because libmemcached's max key length
+                         * includes space for a NUL-byte. */
+                        curr_key[curr_key_len] = 0;
+                        val = _PylibMC_parse_memcached_value(
+                                curr_val, curr_val_len, curr_flags);
+                        PyDict_SetItemString(retval, curr_key + prefix_len, val);
+                        Py_DECREF(val);
+                    }
+                    free(curr_val);
                 }
-                free(curr_val);
+                /* Need to cleanup. */
+                if (PyErr_Occurred()) {
+                    /* Not checking rc because an exception already occured, and
+                     * we wouldn't want to mask it. */
+                    memcached_quit(self->mc);
+                }
+            } else {
+                retval = PylibMC_ErrFromMemcached(self, "memcached_mget", rc);
             }
-            /* Need to cleanup. */
-            if (PyErr_Occurred()) {
-                /* Not checking rc because an exception already occured, and
-                 * we wouldn't want to mask it. */
-                memcached_quit(self->mc);
-            }
-        } else {
-            retval = PylibMC_ErrFromMemcached(self, "memcached_mget", rc);
         }
 
         free(key_lens);
@@ -712,6 +723,9 @@ static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *self, const char *what
     if (error == MEMCACHED_ERRNO) {
         PyErr_Format(PylibMCExc_MemcachedError,
                 "system error %d from %s: %s", errno, what, strerror(errno));
+    /* The key exists, but it has no value */
+    } else if (error == 0) {
+        PyErr_SetString(PyExc_RuntimeError, "error == 0? " __FILE__ ":" __LINE__);
     } else { 
         PyErr_Format(PylibMCExc_MemcachedError, "error %d from %s: %s",
                 error, what, memcached_strerror(self->mc, error));
