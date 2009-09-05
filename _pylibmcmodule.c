@@ -33,6 +33,7 @@
 
 #include "_pylibmcmodule.h"
 
+
 /* {{{ _pylibmc.client implementation */
 /* {{{ Type methods */
 static PylibMC_Client *PylibMC_ClientType_new(PyTypeObject *type,
@@ -226,7 +227,6 @@ static PyObject *_PylibMC_RunSetCommand(PylibMC_Client *self,
             
             raw_val = PyString_AS_STRING(store_val);
             raw_val_len = PyString_GET_SIZE(store_val);
-            Py_DECREF(store_val);
 
             rc = f(self->mc, key, key_len, raw_val, raw_val_len, time,
                     store_flags);
@@ -244,6 +244,7 @@ static PyObject *_PylibMC_RunSetCommand(PylibMC_Client *self,
                 default:
                     PylibMC_ErrFromMemcached(self, fname, rc);
             }
+            Py_DECREF(store_val);
         }
     }
 
