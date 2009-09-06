@@ -53,6 +53,14 @@ IRC
 
 ``#sendapatch`` on ``chat.freenode.net``.
 
+Compiling on Snow Leopard
+=========================
+
+Since, for some reason, compiling Python extensions under Mac OS X 10.6 won't
+use the proper ``-arch`` flag to ``gcc``, here's how you'd do it::
+
+    $ CFLAGS="-arch x86_64" LDFLAGS="-arch x86_64" python setup.py build
+
 Change Log
 ==========
 
