@@ -12,8 +12,6 @@ if "LIBMEMCACHED_DIR" in os.environ:
 readme_text = open("README.rst", "U").read()
  
 pylibmc_ext = Extension("_pylibmc", ["_pylibmcmodule.c"],
-                        extra_compile_args=BASE_CFLAGS,
-                        extra_link_args=BASE_LDFLAGS,
                         libraries=["memcached"],
                         include_dirs=incdirs, library_dirs=libdirs)
 
