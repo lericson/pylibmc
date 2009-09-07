@@ -1,9 +1,5 @@
-import sys
 import os
 from distutils.core import setup, Extension
-
-sys.path.insert(0, os.path.dirname(__file__))
-import pylibmc
 
 incdirs = []
 libdirs = []
@@ -19,7 +15,7 @@ pylibmc_ext = Extension("_pylibmc", ["_pylibmcmodule.c"],
                         libraries=["memcached"],
                         include_dirs=incdirs, library_dirs=libdirs)
 
-setup(name=pylibmc.__name__, version=pylibmc.__version__,
+setup(name="pylibmc", version="0.7.2",
       url="http://lericson.blogg.se/code/category/pylibmc.html",
       author="Ludvig Ericson", author_email="ludvig@lericson.se",
       license="3-clause BSD <http://www.opensource.org/licenses/bsd-license.php>",
