@@ -75,6 +75,7 @@ New in version 0.7
  - Add support for the boolean datatype.
  - Improved test-runner -- now tests ``build/lib.*/_pylibmc.so`` if available,
    and reports some version information.
+ - Support for x86_64 should now work completely.
 
 New in version 0.6
 ------------------
