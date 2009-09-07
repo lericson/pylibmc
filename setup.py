@@ -15,7 +15,7 @@ pylibmc_ext = Extension("_pylibmc", ["_pylibmcmodule.c"],
                         libraries=["memcached"],
                         include_dirs=incdirs, library_dirs=libdirs)
 
-setup(name="pylibmc", version="0.6.1",
+setup(name="pylibmc", version="0.7",
       url="http://lericson.blogg.se/code/category/pylibmc.html",
       author="Ludvig Ericson", author_email="ludvig.ericson@gmail.com",
       license="3-clause BSD <http://www.opensource.org/licenses/bsd-license.php>",

@@ -64,6 +64,15 @@ use the proper ``-arch`` flag to ``gcc``, here's how you'd do it::
 Change Log
 ==========
 
+New in version 0.7
+------------------
+
+ - Restructured some of the code, which should yield better performance (if not
+   for that, it reads better.)
+ - Fixed some memory leaks.
+ - Integrated changes from `amix.dk`, which should make pylibmc work under
+   Snow Leopard.
+
 New in version 0.6
 ------------------
 
