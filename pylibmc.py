@@ -17,6 +17,7 @@ minor differences. If you should happen to spot any, file a bug!
 import _pylibmc
 
 __all__ = ["hashers", "distributions", "Client"]
+__version__ = "0.7.1"
 
 hashers = {}
 distributions = {}
