@@ -73,6 +73,8 @@ New in version 0.7
  - Integrated changes from `amix.dk`, which should make pylibmc work under
    Snow Leopard.
  - Add support for the boolean datatype.
+ - Improved test-runner -- now tests ``build/lib.*/_pylibmc.so`` if available,
+   and reports some version information.
 
 New in version 0.6
 ------------------
