@@ -187,7 +187,7 @@ static PyObject *_PylibMC_RunSetCommand(PylibMC_Client *self,
         _PylibMC_SetCommand f, char *fname, PyObject *args,
         PyObject *kwds) {
     char *key;
-    size_t key_sz;
+    Py_ssize_t key_sz;
     memcached_return rc;
     PyObject *val, *tmp;
     PyObject *retval = NULL;
@@ -294,15 +294,15 @@ static PyObject *PylibMC_Client_append(PylibMC_Client *self, PyObject *args,
 static PyObject *PylibMC_Client_delete(PylibMC_Client *self, PyObject *args) {
     PyObject *retval;
     char *key;
-    int key_len;
+    Py_ssize_t key_sz;
     unsigned int time;
     memcached_return rc;
 
     retval = NULL;
     time = 0;
-    if (PyArg_ParseTuple(args, "s#|I", &key, &key_len, &time)
-            && _PylibMC_CheckKeyStringAndSize(key, key_len)) {
-        switch (rc = memcached_delete(self->mc, key, key_len, time)) {
+    if (PyArg_ParseTuple(args, "s#|I", &key, &key_sz, &time)
+            && _PylibMC_CheckKeyStringAndSize(key, key_sz)) {
+        switch (rc = memcached_delete(self->mc, key, key_sz, time)) {
             case MEMCACHED_SUCCESS:
                 Py_RETURN_TRUE;
                 break;
@@ -325,19 +325,19 @@ static PyObject *_PylibMC_IncDec(PylibMC_Client *self, uint8_t dir,
         PyObject *args) {
     PyObject *retval;
     char *key;
-    int key_len;
+    Py_ssize_t key_sz;
     unsigned int delta;
     uint64_t result;
 
     retval = NULL;
     delta = 1;
-    if (PyArg_ParseTuple(args, "s#|I", &key, &key_len, &delta)
-            && _PylibMC_CheckKeyStringAndSize(key, key_len)) {
+    if (PyArg_ParseTuple(args, "s#|I", &key, &key_sz, &delta)
+            && _PylibMC_CheckKeyStringAndSize(key, key_sz)) {
         memcached_return (*incdec)(memcached_st *, const char *, size_t,
                 unsigned int, uint64_t *);
         incdec = (dir == PYLIBMC_INC) ? memcached_increment
                                       : memcached_decrement;
-        incdec(self->mc, key, key_len, delta, &result);
+        incdec(self->mc, key, key_sz, delta, &result);
         retval = PyLong_FromUnsignedLong((unsigned long)result);
     }
 
@@ -357,7 +357,7 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
         PyObject *kwds) {
     PyObject *key_seq, **key_objs, *retval = NULL;
     char **keys, *prefix = NULL;
-    unsigned int prefix_len = 0;
+    Py_ssize_t prefix_len = 0;
     Py_ssize_t i;
     PyObject *key_it, *ckey;
     size_t *key_lens;
@@ -376,7 +376,7 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
         return NULL;
     }
 
-    if ((nkeys = PySequence_Length(key_seq)) == -1) {
+    if ((nkeys = (size_t)PySequence_Length(key_seq)) == -1) {
         return NULL;
     }
 
@@ -406,7 +406,7 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
         if (!_PylibMC_CheckKey(ckey)) {
             break;
         } else {
-            key_lens[i] = PyString_GET_SIZE(ckey) + prefix_len;
+            key_lens[i] = (size_t)(PyString_GET_SIZE(ckey) + prefix_len);
             if (prefix != NULL) {
                 rkey = PyString_FromFormat("%s%s",
                         prefix, PyString_AS_STRING(ckey));
@@ -815,7 +815,7 @@ static int _PylibMC_CheckKey(PyObject *key) {
             PyString_AS_STRING(key), PyString_GET_SIZE(key));
 }
 
-static int _PylibMC_CheckKeyStringAndSize(char *key, int size) {
+static int _PylibMC_CheckKeyStringAndSize(char *key, Py_ssize_t size) {
     if (size > MEMCACHED_MAX_KEY) {
         PyErr_Format(PyExc_ValueError, "key too long, max is %d",
                 MEMCACHED_MAX_KEY);

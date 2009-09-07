@@ -34,6 +34,10 @@
 #ifndef __PYLIBMC_H__
 #define __PYLIBMC_H__
 
+/* This makes the "s#" format for PyArg_ParseTuple and such take a Py_ssize_t
+ * instead of an int or whatever. */
+#define PY_SSIZE_T_CLEAN
+
 #include <Python.h>
 #include <libmemcached/memcached.h>
 
@@ -143,7 +147,7 @@ static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *, const char *,
 static PyObject *_PylibMC_Unpickle(const char *, size_t);
 static PyObject *_PylibMC_Pickle(PyObject *);
 static int _PylibMC_CheckKey(PyObject *);
-static int _PylibMC_CheckKeyStringAndSize(char *, int);
+static int _PylibMC_CheckKeyStringAndSize(char *, Py_ssize_t);
 /* }}} */
 
 /* {{{ Type's method table */
