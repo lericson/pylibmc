@@ -94,14 +94,31 @@ True
 >>> c.get("hi")
 >>>
 
-Get and set booleans. Note that a boolean turns into an integer, mostly because
-that's how python-memcached handles it. (Most likely because Python considers
-the bool type to be an integer.)
->>> c.set("test", True)
+Get and set booleans.
+>>> c.set("greta", True)
 True
->>> c.get("test")
-1
+>>> c.get("greta")
+True
+>>> c.set("greta", False)
+True
+>>> c.get("greta")
+False
+>>> c.delete("greta")
+True
 """
+
+# Fix up sys.path so as to include the build/lib.*/ directory.
+import sys
+import os
+from glob import glob
+
+dist_dir = os.path.dirname(__file__)
+for build_dir in glob(os.path.join(dist_dir, "build", "lib.*")):
+    sys.path.insert(0, build_dir)
+    break
+else:
+    print >>sys.stderr, "Using system-wide installation of pylibmc!"
+    print >>sys.stderr, "==========================================\n"
 
 import _pylibmc
 import socket
@@ -131,8 +148,12 @@ def is_alive(addr):
         return False
 
 if __name__ == "__main__":
+    print "Starting tests with _pylibmc at", _pylibmc.__file__
+    print "Reported libmemcached version:", _pylibmc.libmemcached_version
     if not is_alive(test_server):
         raise SystemExit("Test server (%r) not alive." % (test_server,))
     import doctest
     n_fail, n_run = doctest.testmod()
     print "Ran", n_run, "tests with", n_fail, "failures."
+    if n_fail:
+        sys.exit(1)
