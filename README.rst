@@ -72,6 +72,7 @@ New in version 0.7
  - Fixed some memory leaks.
  - Integrated changes from `amix.dk`, which should make pylibmc work under
    Snow Leopard.
+ - Add support for the boolean datatype.
 
 New in version 0.6
 ------------------
