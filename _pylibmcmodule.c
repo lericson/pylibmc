@@ -189,7 +189,7 @@ static PyObject *_PylibMC_RunSetCommand(PylibMC_Client *self,
     char *key;
     size_t key_sz;
     memcached_return rc;
-    PyObject *val;
+    PyObject *val, *tmp;
     PyObject *retval = NULL;
     PyObject *store_val = NULL;
     unsigned int time = 0;
@@ -211,13 +211,19 @@ static PyObject *_PylibMC_RunSetCommand(PylibMC_Client *self,
         Py_INCREF(store_val);
     } else if (PyBool_Check(val)) {
         store_flags |= PYLIBMC_FLAG_BOOL;
-        store_val = PyObject_Str(PyNumber_Int(val));
+        tmp = PyNumber_Int(val);
+        store_val = PyObject_Str(tmp);
+        Py_DECREF(tmp);
     } else if (PyInt_Check(val)) {
         store_flags |= PYLIBMC_FLAG_INTEGER;
-        store_val = PyObject_Str(PyNumber_Int(val));
+        tmp = PyNumber_Int(val);
+        store_val = PyObject_Str(tmp);
+        Py_DECREF(tmp);
     } else if (PyLong_Check(val)) {
         store_flags |= PYLIBMC_FLAG_LONG;
-        store_val = PyObject_Str(PyNumber_Long(val));
+        tmp = PyNumber_Long(val);
+        store_val = PyObject_Str(tmp);
+        Py_DECREF(tmp);
     } else {
         Py_INCREF(val);
         store_flags |= PYLIBMC_FLAG_PICKLE;
