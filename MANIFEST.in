@@ -1,2 +1,4 @@
-include LICENSE MANIFEST _pylibmcmodule.c _pylibmcmodule.h pylibmc.py setup.py
-include tests.py benchmark.py MANIFEST.in
+include README.rst LICENSE MANIFEST MANIFEST.in
+include _pylibmcmodule.c _pylibmcmodule.h
+include pylibmc.py
+include setup.py tests.py
