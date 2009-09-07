@@ -187,65 +187,65 @@ static PyObject *_PylibMC_RunSetCommand(PylibMC_Client *self,
         _PylibMC_SetCommand f, char *fname, PyObject *args,
         PyObject *kwds) {
     char *key;
-    int key_len;
-    PyObject *val, *retval;
-    unsigned int time;
+    size_t key_sz;
+    memcached_return rc;
+    PyObject *val;
+    PyObject *retval = NULL;
+    PyObject *store_val = NULL;
+    unsigned int time = 0;
+    uint32_t store_flags = 0;
+
     static char *kws[] = { "key", "val", "time", NULL };
 
-    retval = NULL;
-    time = 0;
-    if (PyArg_ParseTupleAndKeywords(args, kwds, "s#O|I", kws,
-                &key, &key_len, &val, &time)) {
-        PyObject *store_val = NULL;
-        uint32_t store_flags = 0;
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#O|I", kws,
+                &key, &key_sz, &val, &time)) {
+        return NULL;
+    }
+    if (!_PylibMC_CheckKeyStringAndSize(key, key_sz)) {
+        return NULL;
+    }
 
-        if (!_PylibMC_CheckKeyStringAndSize(key, key_len)) {
-            /* Let store_val be NULL, thus triggering an error. */
-        } else if (PyString_Check(val)) {
-            store_val = val;
-            Py_INCREF(store_val);
-        } else if (PyBool_Check(val)) {
-            store_flags |= PYLIBMC_FLAG_BOOL;
-            store_val = PyObject_Str(PyNumber_Int(val));
-        } else if (PyInt_Check(val)) {
-            store_flags |= PYLIBMC_FLAG_INTEGER;
-            store_val = PyObject_Str(PyNumber_Int(val));
-        } else if (PyLong_Check(val)) {
-            store_flags |= PYLIBMC_FLAG_LONG;
-            store_val = PyObject_Str(PyNumber_Long(val));
-        } else {
-            Py_INCREF(val);
-            store_flags |= PYLIBMC_FLAG_PICKLE;
-            store_val = _PylibMC_Pickle(val);
-            Py_DECREF(val);
-        }
+    /* Adapt val to a str. */
+    if (PyString_Check(val)) {
+        store_val = val;
+        Py_INCREF(store_val);
+    } else if (PyBool_Check(val)) {
+        store_flags |= PYLIBMC_FLAG_BOOL;
+        store_val = PyObject_Str(PyNumber_Int(val));
+    } else if (PyInt_Check(val)) {
+        store_flags |= PYLIBMC_FLAG_INTEGER;
+        store_val = PyObject_Str(PyNumber_Int(val));
+    } else if (PyLong_Check(val)) {
+        store_flags |= PYLIBMC_FLAG_LONG;
+        store_val = PyObject_Str(PyNumber_Long(val));
+    } else {
+        Py_INCREF(val);
+        store_flags |= PYLIBMC_FLAG_PICKLE;
+        store_val = _PylibMC_Pickle(val);
+        Py_DECREF(val);
+    }
+    if (store_val == NULL) {
+        return NULL;
+    }
 
-        if (store_val != NULL) {
-            memcached_return rc;
-            const char *raw_val;
-            size_t raw_val_len;
-            
-            raw_val = PyString_AS_STRING(store_val);
-            raw_val_len = PyString_GET_SIZE(store_val);
+    rc = f(self->mc, key, key_sz,
+           PyString_AS_STRING(store_val), PyString_GET_SIZE(store_val),
+           time, store_flags);
+    Py_DECREF(store_val);
 
-            rc = f(self->mc, key, key_len, raw_val, raw_val_len, time,
-                    store_flags);
-            switch (rc) {
-                case MEMCACHED_SUCCESS:
-                    retval = Py_True;
-                    break;
-                case MEMCACHED_FAILURE:
-                case MEMCACHED_NO_KEY_PROVIDED:
-                case MEMCACHED_BAD_KEY_PROVIDED:
-                case MEMCACHED_MEMORY_ALLOCATION_FAILURE:
-                case MEMCACHED_NOTSTORED:
-                    retval = Py_False;
-                    break;
-                default:
-                    PylibMC_ErrFromMemcached(self, fname, rc);
-            }
-            Py_DECREF(store_val);
-        }
+    switch (rc) {
+        case MEMCACHED_SUCCESS:
+            retval = Py_True;
+            break;
+        case MEMCACHED_FAILURE:
+        case MEMCACHED_NO_KEY_PROVIDED:
+        case MEMCACHED_BAD_KEY_PROVIDED:
+        case MEMCACHED_MEMORY_ALLOCATION_FAILURE:
+        case MEMCACHED_NOTSTORED:
+            retval = Py_False;
+            break;
+        default:
+            PylibMC_ErrFromMemcached(self, fname, rc);
     }
 
     Py_XINCREF(retval);
