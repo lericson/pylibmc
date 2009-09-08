@@ -41,6 +41,11 @@
 #include <Python.h>
 #include <libmemcached/memcached.h>
 
+/* Py_ssize_t appeared in Python 2.5. */
+#ifndef PY_SSIZE_T_MAX
+typedef ssize_t Py_ssize_t;
+#endif
+
 /* Server types. */
 #define PYLIBMC_SERVER_TCP   (1 << 0)
 #define PYLIBMC_SERVER_UDP   (1 << 1)
