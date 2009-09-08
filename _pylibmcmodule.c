@@ -125,7 +125,7 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
 
 static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
         uint32_t flags) {
-    PyObject *retval;
+    PyObject *retval, *tmp;
 
     retval = NULL;
     switch (flags) {
@@ -137,8 +137,11 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
             retval = PyInt_FromString(value, NULL, 10);
             break;
         case PYLIBMC_FLAG_BOOL:
-            retval = PyInt_FromString(value, NULL, 10);
-            retval = PyBool_FromLong(PyInt_AS_LONG(retval));
+            if ((tmp = PyInt_FromString(value, NULL, 10)) == NULL) {
+                return NULL;
+            }
+            retval = PyBool_FromLong(PyInt_AS_LONG(tmp));
+            Py_DECREF(tmp);
             break;
         case PYLIBMC_FLAG_NONE:
             retval = PyString_FromStringAndSize(value, (Py_ssize_t)size);
