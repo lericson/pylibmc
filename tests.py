@@ -105,7 +105,18 @@ True
 False
 >>> c.delete("greta")
 True
+
+Complex data types!
+>>> bla = Foo()
+>>> bla.bar = "Hello!"
+>>> c.set("tengil", bla)
+True
+>>> c.get("tengil").bar == bla.bar
+True
 """
+
+# Used to test pickling.
+class Foo(object): pass
 
 # Fix up sys.path so as to include the build/lib.*/ directory.
 import sys

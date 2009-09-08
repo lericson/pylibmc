@@ -796,8 +796,7 @@ static PyObject *_PylibMC_Pickle(PyObject *val) {
     retval = NULL;
     pickle_dump = _PylibMC_GetPickles("dumps");
     if (pickle_dump != NULL) {
-        retval = PyObject_CallFunctionObjArgs(pickle_dump, val,
-                                              PyInt_FromLong(-1), NULL);
+        retval = PyObject_CallFunction(pickle_dump, "Oi", val, -1);
         Py_DECREF(pickle_dump);
     }
 
