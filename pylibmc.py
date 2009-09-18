@@ -3,15 +3,22 @@
 The interface is pretty much exactly the same as python-memcached, with some
 minor differences. If you should happen to spot any, file a bug!
 
->>> mc = Client(["127.0.0.1"])
+>>> import pylibmc
+>>> mc = pylibmc.Client(["127.0.0.1"])
 >>> b = mc.behaviors
->>> b.keys()
-['hash', 'connect timeout', 'cache lookups', 'buffer requests', 'verify key', 'support cas', 'poll timeout', 'no block', 'tcp nodelay', 'distribution', 'sort hosts']
+>>> list(sorted(b.keys()))  # doctest: +NORMALIZE_WHITESPACE
+['binary_protocol', 'buffer_requests', 'cache_lookups', 'connect_timeout',
+ 'distribution', 'hash', 'ketama', 'ketama_hash', 'ketama_weighted',
+ 'no block', 'poll_timeout', 'rcv_timeout', 'retry_timeout',
+ 'server_failure_limit', 'snd_timeout', 'socket recv size', 'socket send size',
+ 'sort_hosts', 'support_cas', 'tcp_nodelay', 'verify_key']
 >>> b["hash"]
 'default'
 >>> b["hash"] = 'fnv1a_32'
 >>> mc.behaviors["hash"]
 'fnv1a_32'
+>>> super(pylibmc.Client, mc).get_behaviors()["hash"]
+6
 """
 
 import _pylibmc
@@ -19,17 +26,18 @@ import _pylibmc
 __all__ = ["hashers", "distributions", "Client"]
 __version__ = "0.7.3"
 
-hashers = {}
-distributions = {}
+hashers, hashers_rvs = {}, {}
+distributions, distributions_rvs = {}, {}
 # Not the prettiest way of doing things, but works well.
 for name in dir(_pylibmc):
     if name.startswith("hash_"):
-        hashers[name[5:]] = getattr(_pylibmc, name)
+        key, value = name[5:], getattr(_pylibmc, name)
+        hashers[key] = value
+        hashers_rvs[value] = key
     elif name.startswith("distribution_"):
-        distributions[name[13:].replace("_", " ")] = getattr(_pylibmc, name)
-
-hashers_rvs = dict((v, k) for (k, v) in hashers.iteritems())
-distributions_rvs = dict((v, k) for (k, v) in distributions.iteritems())
+        key, value = name[13:].replace("_", " "), getattr(_pylibmc, name)
+        distributions[key] = value
+        distributions_rvs[value] = key
 
 class BehaviorDict(dict):
     def __init__(self, client, *args, **kwds):
@@ -38,11 +46,11 @@ class BehaviorDict(dict):
 
     def __setitem__(self, name, value):
         super(BehaviorDict, self).__setitem__(name, value)
-        self.client.behaviors = self
+        self.client.set_behaviors({name: value})
 
     def update(self, *args, **kwds):
         super(BehaviorDict, self).update(*args, **kwds)
-        self.client.behaviors = self
+        self.client.set_behaviors(self.copy())
 
 class Client(_pylibmc.client):
     def __init__(self, servers, *args, **kwds):
