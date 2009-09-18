@@ -113,6 +113,13 @@ Complex data types!
 True
 >>> c.get("tengil").bar == bla.bar
 True
+
+
+Behaviors.
+>>> c.set_behaviors({"tcp_nodelay": True, "hash": 6})
+>>> list(sorted((k, v) for (k, v) in c.get_behaviors().items()
+...             if k in ("tcp_nodelay", "hash")))
+[('hash', 6), ('tcp_nodelay', 1)]
 """
 
 # Used to test pickling.
@@ -131,8 +138,10 @@ else:
     print >>sys.stderr, "Using system-wide installation of pylibmc!"
     print >>sys.stderr, "==========================================\n"
 
-import _pylibmc
+import pylibmc, _pylibmc
 import socket
+
+__doc__ = pylibmc.__doc__ + "\n\n" + __doc__
 
 test_server = (_pylibmc.server_type_tcp, "localhost", 11211)
 
