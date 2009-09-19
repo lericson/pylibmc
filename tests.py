@@ -1,6 +1,8 @@
 """Tests. They want YOU!!
 
 Basic functionality.
+>>> _pylibmc.__version__ == pylibmc.__version__
+True
 >>> c = _pylibmc.client([test_server])
 >>> c.set("test_key", 123)
 True

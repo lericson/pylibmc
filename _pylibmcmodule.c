@@ -876,6 +876,8 @@ Oh, and: plankton.\n");
     PylibMCExc_MemcachedError = PyErr_NewException(
             "_pylibmc.MemcachedError", NULL, NULL);
 
+    PyModule_AddStringConstant(module, "__version__", PYLIBMC_VERSION);
+
     Py_INCREF(&PylibMC_ClientType);
     PyModule_AddObject(module, "client", (PyObject *)&PylibMC_ClientType);
 

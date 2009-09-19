@@ -10,12 +10,13 @@ if "LIBMEMCACHED_DIR" in os.environ:
     libdirs.append(os.path.join(libdir, "lib"))
 
 readme_text = open("README.rst", "U").read()
+version = open("pylibmc-version.h", "U").read().strip().split("\"")[1]
  
 pylibmc_ext = Extension("_pylibmc", ["_pylibmcmodule.c"],
                         libraries=["memcached"],
                         include_dirs=incdirs, library_dirs=libdirs)
 
-setup(name="pylibmc", version="0.7.4",
+setup(name="pylibmc", version=version,
       url="http://lericson.blogg.se/code/category/pylibmc.html",
       author="Ludvig Ericson", author_email="ludvig@lericson.se",
       license="3-clause BSD <http://www.opensource.org/licenses/bsd-license.php>",
