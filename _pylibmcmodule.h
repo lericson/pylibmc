@@ -149,6 +149,7 @@ static PyObject *PylibMC_Client_get_behaviors(PylibMC_Client *);
 static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *, PyObject *);
 static PyObject *PylibMC_Client_flush_all(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_disconnect_all(PylibMC_Client *);
+static PyObject *PylibMC_Client_clone(PylibMC_Client *);
 static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *, const char *,
         memcached_return);
 static PyObject *_PylibMC_Unpickle(const char *, size_t);
@@ -191,6 +192,9 @@ static PyMethodDef PylibMC_ClientType_methods[] = {
         METH_VARARGS|METH_KEYWORDS, "Flush all data on all servers."},
     {"disconnect_all", (PyCFunction)PylibMC_Client_disconnect_all, METH_NOARGS,
         "Disconnect from all servers and reset own state."},
+    {"clone", (PyCFunction)PylibMC_Client_clone, METH_NOARGS,
+        "Clone this client entirely such that it is safe to access from "
+        "another thread. This creates a new connection."},
     {NULL, NULL, 0, NULL}
 };
 /* }}} */

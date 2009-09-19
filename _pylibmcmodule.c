@@ -745,6 +745,21 @@ static PyObject *PylibMC_Client_disconnect_all(PylibMC_Client *self) {
     memcached_quit(self->mc);
     Py_RETURN_NONE;
 }
+
+static PyObject *PylibMC_Client_clone(PylibMC_Client *self) {
+    PylibMC_Client *new_self;
+
+    /* XXX Is it really wise to short-circuit like this? I don't see a problem
+     * with it. */
+    new_self = (PylibMC_Client *)self->ob_type->tp_new(self->ob_type, NULL, NULL);
+    if (new_self == NULL) {
+        return NULL;
+    }
+    memset(new_self->mc, 0, sizeof(memcached_st));
+    new_self->mc = memcached_clone(new_self->mc, self->mc);
+
+    return (PyObject *)new_self;
+}
 /* }}} */
 
 static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *self, const char *what,

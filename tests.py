@@ -116,6 +116,17 @@ True
 >>> c.get("tengil").bar == bla.bar
 True
 
+Cloning (ethically, I don't know about it.)
+>>> c is not c.clone()
+True
+>>> c2 = c.clone()
+>>> c.set("test", "hello")
+True
+>>> c2.get("test")
+'hello'
+>>> c2.delete("test")
+True
+>>> del c2
 
 Behaviors.
 >>> c.set_behaviors({"tcp_nodelay": True, "hash": 6})
