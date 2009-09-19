@@ -76,6 +76,8 @@ New in version 0.7
  - Improved test-runner -- now tests ``build/lib.*/_pylibmc.so`` if available,
    and reports some version information.
  - Support for x86_64 should now work completely.
+ - Builds with Python 2.4, tests run fine, but not officially supported.
+ - Fixed critical bugs in behavior manipulation.
 
 New in version 0.6
 ------------------
