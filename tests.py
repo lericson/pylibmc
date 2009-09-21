@@ -58,7 +58,7 @@ and yeah, so you know...
 True
 >>> c.get("hi")
 'steven'
->>> sleep(1.1)
+>>> sleep(2.1)
 >>> c.get("hi")
 >>> c.set("hi", "loretta", int(time()) + 2)
 True
