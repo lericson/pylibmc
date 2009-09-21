@@ -165,6 +165,64 @@ import socket
 
 __doc__ = pylibmc.__doc__ + "\n\n" + __doc__
 
+# {{{ Ported cmemcache tests
+import unittest
+
+class TestCmemcached(unittest.TestCase):
+    def setUp(self):
+        self.mc = pylibmc.Client(["%s:%d" % (test_server[1:])])
+
+    def testSetAndGet(self):
+        self.mc.set("num12345", 12345)
+        self.assertEqual(self.mc.get("num12345"), 12345)
+        self.mc.set("str12345", "12345")
+        self.assertEqual(self.mc.get("str12345"), "12345")
+
+    def testDelete(self):
+        self.mc.set("str12345", "12345")
+        #delete return True on success, otherwise False
+        ret = self.mc.delete("str12345")
+        self.assertEqual(self.mc.get("str12345"), None)
+        self.assertEqual(ret, True)
+
+        ret = self.mc.delete("hello world")
+        self.assertEqual(ret, False)
+
+    def testGetMulti(self):
+        self.mc.set("a", "valueA")
+        self.mc.set("b", "valueB")
+        self.mc.set("c", "valueC")
+        result = self.mc.get_multi(["a", "b", "c", "", "hello world"])
+        self.assertEqual(result, {'a':'valueA', 'b':'valueB', 'c':'valueC'})
+
+    def testBigGetMulti(self):
+        count = 10
+        keys = ['key%d' % i for i in xrange(count)]
+        pairs = zip(keys, ['value%d' % i for i in xrange(count)])
+        for key, value in pairs:
+            self.mc.set(key, value)
+        result = self.mc.get_multi(keys)
+        assert result == dict(pairs)
+
+    def testFunnyDelete(self):
+        result= self.mc.delete("")
+        self.assertEqual(result, False)
+
+    def testAppend(self):
+        self.mc.delete("a")
+        self.mc.set("a", "I ")
+        ret = self.mc.append("a", "Do")
+        result = self.mc.get("a")
+        self.assertEqual(result, "I Do")
+
+    def testPrepend(self):
+        self.mc.delete("a")
+        self.mc.set("a", "Do")
+        ret = self.mc.prepend("a", "I ")
+        result = self.mc.get("a")
+        self.assertEqual(result, "I Do")
+# }}}
+
 test_server = (_pylibmc.server_type_tcp, "localhost", 11211)
 
 def get_version(addr):
@@ -189,14 +247,60 @@ def is_alive(addr):
     except (ValueError, socket.error):
         return False
 
+def make_full_suite():
+    from doctest import DocTestFinder, DocTestSuite
+    suite = unittest.TestSuite()
+    loader = unittest.TestLoader()
+    finder = DocTestFinder()
+    for modname in (__name__, "pylibmc", "_pylibmc"):
+        ss = (DocTestSuite(sys.modules[modname], test_finder=finder),
+              loader.loadTestsFromName(modname))
+        for subsuite in ss:
+            map(suite.addTest, subsuite._tests)
+    return suite
+
+class _TextTestResult(unittest._TextTestResult):
+    def startTest(self, test):
+        # Treat doctests a little specially because we want each example to
+        # count as a test.
+        if hasattr(test, "_dt_test"):
+            self.testsRun += len(test._dt_test.examples) - 1
+        elif hasattr(test, "countTestCases"):
+            self.testsRun += test.countTestCases() - 1
+        return unittest._TextTestResult.startTest(self, test)
+
+class TextTestRunner(unittest.TextTestRunner):
+    def _makeResult(self):
+        return _TextTestResult(self.stream, self.descriptions, self.verbosity)
+
+class TestProgram(unittest.TestProgram):
+    defaultTest = "make_full_suite"
+    testRunner = TextTestRunner
+
+    def __init__(self, module="__main__", argv=None,
+                 testLoader=unittest.defaultTestLoader):
+        super(TestProgram, self).__init__(
+            module=module, argv=argv, testLoader=testLoader,
+            defaultTest=self.defaultTest, testRunner=self.testRunner)
+
+    def runTests(self):
+        pass
+
+    def makeRunner(self):
+        return self.testRunner(verbosity=self.verbosity)
+
+    def run(self):
+        runner = self.makeRunner()
+        return runner.run(self.test)
+
 if __name__ == "__main__":
     print "Starting tests with _pylibmc at", _pylibmc.__file__
     print "Reported libmemcached version:", _pylibmc.libmemcached_version
     print "Reported pylibmc version:", _pylibmc.__version__
+
     if not is_alive(test_server):
         raise SystemExit("Test server (%r) not alive." % (test_server,))
-    import doctest
-    n_fail, n_run = doctest.testmod()
-    print "Ran", n_run, "tests with", n_fail, "failures."
-    if n_fail:
+
+    res = TestProgram().run()
+    if not res.wasSuccessful():
         sys.exit(1)
