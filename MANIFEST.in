@@ -1,4 +1,4 @@
-include README.rst LICENSE MANIFEST MANIFEST.in
+include README.rst LICENSE MANIFEST MANIFEST.in pooling.rst
 include _pylibmcmodule.c _pylibmcmodule.h
 include pylibmc.py
 include setup.py tests.py
