@@ -62,6 +62,8 @@ New in version 0.8
 ------------------
 
  - Pooling helpers are now available. See ``pooling.rst`` in the distribution.
+ - The binary protocol is now properly exposed, simply pass ``binary=True`` to
+   the constructor and there you go.
  - Call signatures now match `libmemcached` 0.32, but should work with older
    versions. Remember to run the tests!
 
