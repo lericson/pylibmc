@@ -57,20 +57,20 @@ static void PylibMC_ClientType_dealloc(PylibMC_Client *self) {
 
 static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
         PyObject *kwds) {
-    PyObject *srv_list, *srv_list_it, *c_srv;
-    unsigned char set_stype = 0;
+    PyObject *srvs, *srvs_it, *c_srv;
+    unsigned char set_stype = 0, bin = 0;
 
-    if (!PyArg_ParseTuple(args, "O", &srv_list)) {
+    static char *kws[] = { "servers", "binary", NULL };
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|b", kws, &srvs, &bin)) {
         return -1;
-    } else {
-        kwds = NULL;
-    }
-
-    if ((srv_list_it = PyObject_GetIter(srv_list)) == NULL) {
+    } else if ((srvs_it = PyObject_GetIter(srvs)) == NULL) {
         return -1;
     }
 
-    while ((c_srv = PyIter_Next(srv_list_it)) != NULL) {
+    memcached_behavior_set(self->mc, MEMCACHED_BEHAVIOR_BINARY_PROTOCOL, bin);
+
+    while ((c_srv = PyIter_Next(srvs_it)) != NULL) {
         unsigned char stype;
         char *hostname;
         unsigned short int port;
@@ -137,10 +137,10 @@ it_error:
         goto error;
     }
 
-    Py_DECREF(srv_list_it);
+    Py_DECREF(srvs_it);
     return 0;
 error:
-    Py_DECREF(srv_list_it);
+    Py_DECREF(srvs_it);
     return -1;
 }
 

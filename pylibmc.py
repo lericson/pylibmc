@@ -54,12 +54,14 @@ class BehaviorDict(dict):
         self.client.set_behaviors(self.copy())
 
 class Client(_pylibmc.client):
-    def __init__(self, servers, *args, **kwds):
+    def __init__(self, servers, binary=False):
         """Initialize a memcached client instance.
 
         This connects to the servers in *servers*, which will default to being
         TCP servers. If it looks like a filesystem path, a UNIX socket. If
         prefixed with `udp:`, a UDP connection.
+
+        If *binary* is True, the binary memcached protocol is used.
         """
         addr_tups = []
         for server in servers:
@@ -81,7 +83,7 @@ class Client(_pylibmc.client):
             else:
                 stype = _pylibmc.server_type_tcp
             addr_tups.append((stype, addr, port))
-        super(Client, self).__init__(addr_tups)
+        super(Client, self).__init__(servers=addr_tups, binary=binary)
 
     def get_behaviors(self):
         """Gets the behaviors from the underlying C client instance.
