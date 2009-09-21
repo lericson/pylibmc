@@ -3,6 +3,11 @@
 ========================
 
 :Author: Ludvig Ericson <ludvig circled-a lericson dot se>
+:See also: `Pooling with pylibmc`__ (this document)
+:See also: `Pooling with pylibmc pt. 2`__ (follow-up)
+
+__ http://lericson.blogg.se/code/2009/september/draft-sept-20-2009.html
+__ http://lericson.blogg.se/code/2009/september/pooling-with-pylibmc-pt-2.html
 
 .. This is really a blog post, I do write them in ReST occasionally. Provided
    here for the sake of convenience.
