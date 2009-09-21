@@ -45,8 +45,10 @@ Comparison to other libraries
 
 Why use `pylibmc`? Because it's fast.
 
-`See this (a bit old) speed comparison <http://lericson.blogg.se/code/2008/november/pylibmc-051.html>`_.
+`See this (a bit old) speed comparison`__, or `amix.dk's comparison`__.
 
+__ http://lericson.blogg.se/code/2008/november/pylibmc-051.html
+__ http://amix.dk/blog/viewEntry/19471
 
 IRC
 ===
