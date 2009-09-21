@@ -57,7 +57,8 @@ static void PylibMC_ClientType_dealloc(PylibMC_Client *self) {
 
 static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
         PyObject *kwds) {
-    PyObject *srv_list, *srv_list_it;
+    PyObject *srv_list, *srv_list_it, *c_srv;
+    unsigned char set_stype = 0;
 
     if (!PyArg_ParseTuple(args, "O", &srv_list)) {
         return -1;
@@ -65,62 +66,82 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
         kwds = NULL;
     }
 
-    if ((srv_list_it = PyObject_GetIter(srv_list)) != NULL) {
-        PyObject *c_srv;
-
-        while ((c_srv = PyIter_Next(srv_list_it)) != NULL
-                && !PyErr_Occurred()) {
-            unsigned char stype;
-            char *hostname;
-            unsigned short int port;
-
-            port = 0;
-            if (PyString_Check(c_srv)) {
-                memcached_server_st *list;
-
-                list = memcached_servers_parse(PyString_AS_STRING(c_srv));
-                if (list != NULL) {
-                    memcached_return rc;
-
-                    rc = memcached_server_push(self->mc, list);
-                    if (rc != MEMCACHED_SUCCESS) {
-                        PylibMC_ErrFromMemcached(self,
-                                "memcached_server_push", rc);
-                    }
-                    free(list);
-                } else {
-                    PyErr_SetString(PylibMCExc_MemcachedError,
-                            "memcached_servers_parse returned NULL");
-                }
-            } else if (PyArg_ParseTuple(c_srv, "Bs|H",
-                        &stype, &hostname, &port)) {
-                switch (stype) {
-                    case PYLIBMC_SERVER_TCP:
-                        memcached_server_add(self->mc, hostname, port);
-                        break;
-                    case PYLIBMC_SERVER_UDP:
-                        memcached_server_add_udp(self->mc, hostname, port);
-                        break;
-                    case PYLIBMC_SERVER_UNIX:
-                        if (port) {
-                            PyErr_SetString(PyExc_ValueError,
-                                    "can't set port on unix sockets");
-                        } else {
-                            memcached_server_add_unix_socket(
-                                    self->mc, hostname);
-                        }
-                        break;
-                    default:
-                        PyErr_Format(PyExc_ValueError,
-                                "bad server type: %u", stype);
-                }
-            }
-            Py_DECREF(c_srv);
-        }
-        Py_DECREF(srv_list_it);
+    if ((srv_list_it = PyObject_GetIter(srv_list)) == NULL) {
+        return -1;
     }
 
-    return PyErr_Occurred() ? -1 : 0;
+    while ((c_srv = PyIter_Next(srv_list_it)) != NULL) {
+        unsigned char stype;
+        char *hostname;
+        unsigned short int port;
+        memcached_return rc;
+
+        port = 0;
+        if (PyString_Check(c_srv)) {
+            memcached_server_st *list;
+
+            list = memcached_servers_parse(PyString_AS_STRING(c_srv));
+            if (list == NULL) {
+                PyErr_SetString(PylibMCExc_MemcachedError,
+                        "memcached_servers_parse returned NULL");
+                goto it_error;
+            }
+
+            rc = memcached_server_push(self->mc, list);
+            free(list);
+            if (rc != MEMCACHED_SUCCESS) {
+                PylibMC_ErrFromMemcached(self, "memcached_server_push", rc);
+                goto it_error;
+            }
+        } else if (PyArg_ParseTuple(c_srv, "Bs|H", &stype, &hostname, &port)) {
+            if (set_stype && set_stype != stype) {
+                PyErr_SetString(PyExc_ValueError, "can't mix transport types");
+                goto it_error;
+            } else {
+                set_stype = stype;
+                if (stype == PYLIBMC_SERVER_UDP) {
+                    memcached_behavior_set(self->mc,
+                        MEMCACHED_BEHAVIOR_USE_UDP, 1);
+                }
+            }
+
+            switch (stype) {
+                case PYLIBMC_SERVER_TCP:
+                    rc = memcached_server_add(self->mc, hostname, port);
+                    break;
+                case PYLIBMC_SERVER_UDP:
+                    rc = memcached_server_add_udp(self->mc, hostname, port);
+                    break;
+                case PYLIBMC_SERVER_UNIX:
+                    if (port) {
+                        PyErr_SetString(PyExc_ValueError,
+                                "can't set port on unix sockets");
+                        goto it_error;
+                    }
+                    rc = memcached_server_add_unix_socket(self->mc, hostname);
+                    break;
+                default:
+                    PyErr_Format(PyExc_ValueError, "bad type: %u", stype);
+                    goto it_error;
+            }
+            if (rc != MEMCACHED_SUCCESS) {
+                PylibMC_ErrFromMemcached(self, "memcached_server_add_*", rc);
+                goto it_error;
+            }
+        }
+        Py_DECREF(c_srv);
+        continue;
+
+it_error:
+        Py_DECREF(c_srv);
+        goto error;
+    }
+
+    Py_DECREF(srv_list_it);
+    return 0;
+error:
+    Py_DECREF(srv_list_it);
+    return -1;
 }
 
 static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
