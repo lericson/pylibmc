@@ -64,6 +64,13 @@ use the proper ``-arch`` flag to ``gcc``, here's how you'd do it::
 Change Log
 ==========
 
+New in version 0.8
+------------------
+
+ - Pooling helpers are now available. See ``pooling.rst`` in the distribution.
+ - Call signatures now match `libmemcached` 0.32, but should work with older
+   versions. Remember to run the tests!
+
 New in version 0.7
 ------------------
 
