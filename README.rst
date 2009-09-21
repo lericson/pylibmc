@@ -46,6 +46,24 @@ The ``hash`` and ``distribution`` keys are mapped by the Python module to consta
 integer values used by `libmemcached`. See ``pylibmc.hashers`` and
 ``pylibmc.distributions``.
 
+Pooling
+=======
+
+In multithreaded environments, accessing the same memcached client object is
+both unsafe and counter-productive in terms of performance. `libmemcached`'s
+take on this is to introduce pooling on C level, which is correspondingly
+mapped to pooling on Python level in `pylibmc`::
+
+    >>> mc = pylibmc.Client(["127.0.0.1"])
+    >>> pool = pylibmc.ThreadMappedPool(mc)
+    >>> # (in a thread...)
+    >>> with pool.reserve() as mc:
+    ...     mc.set("hello", "world")
+
+For more information on pooling, see `my two`__ `long posts`__ about it.
+
+__ http://lericson.blogg.se/code/2009/september/draft-sept-20-2009.html
+__ http://lericson.blogg.se/code/2009/september/pooling-with-pylibmc-pt-2.html
 
 Comparison to other libraries
 =============================
