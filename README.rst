@@ -17,6 +17,13 @@ usage example should work::
 The API is pretty much `python-memcached`. Some parts of `libmemcached` aren't
 exposed yet. I think.
 
+There's also support for some other features not present in other Python
+libraries, for example, the binary protocol::
+
+    >>> mc = pylibmc.Client(["127.0.0.1"], binary=True)
+
+That's it, the binary protocol will be used for that instance.
+
 Behaviors
 =========
 
