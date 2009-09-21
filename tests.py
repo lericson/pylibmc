@@ -133,6 +133,15 @@ Behaviors.
 >>> list(sorted((k, v) for (k, v) in c.get_behaviors().items()
 ...             if k in ("tcp_nodelay", "hash")))
 [('hash', 6), ('tcp_nodelay', 1)]
+
+Binary protocol!
+>>> c = _pylibmc.client([test_server], binary=True)
+>>> c.set("hello", "world")
+True
+>>> c.get("hello")
+'world'
+>>> c.delete("hello")
+True
 """
 
 # Used to test pickling.
