@@ -721,15 +721,10 @@ static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *self,
 
         if (!PyMapping_HasKeyString(behaviors, b->name)) {
             continue;
-        }
-
-        v = PyMapping_GetItemString(behaviors, b->name);
-
-        if (v == NULL) {
+        } else if ((v = PyMapping_GetItemString(behaviors, b->name)) == NULL) {
             goto error;
         } else if (!PyInt_Check(v)) {
-            PyErr_Format(PyExc_TypeError, "behavior %s must be int",
-                         b->name);
+            PyErr_Format(PyExc_TypeError, "behavior %s must be int", b->name);
             goto error;
         }
 
