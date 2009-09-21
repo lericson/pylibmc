@@ -98,6 +98,14 @@ static PylibMC_Behavior PylibMC_behaviors[] = {
     { MEMCACHED_BEHAVIOR_SND_TIMEOUT, "snd_timeout" },
     { MEMCACHED_BEHAVIOR_RCV_TIMEOUT, "rcv_timeout" },
     { MEMCACHED_BEHAVIOR_SERVER_FAILURE_LIMIT, "server_failure_limit" },
+    { MEMCACHED_BEHAVIOR_USE_UDP, "udp" },
+    { MEMCACHED_BEHAVIOR_IO_MSG_WATERMARK, "_io_msg_watermark" },
+    { MEMCACHED_BEHAVIOR_IO_BYTES_WATERMARK, "_io_bytes_watermark" },
+    { MEMCACHED_BEHAVIOR_IO_KEY_PREFETCH, "_io_key_prefetch" },
+    { MEMCACHED_BEHAVIOR_HASH_WITH_PREFIX_KEY, "_hash_with_prefix_key" },
+    { MEMCACHED_BEHAVIOR_NOREPLY, "_noreply" },
+    { MEMCACHED_BEHAVIOR_AUTO_EJECT_HOSTS, "_auto_eject_hosts" },
+    { MEMCACHED_BEHAVIOR_NUMBER_OF_REPLICAS, "_number_of_replicas" },
     { 0, NULL }
 };
 
