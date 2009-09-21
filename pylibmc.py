@@ -133,6 +133,8 @@ class ClientPool(list):
     ...     mc.set("hi", "ho")
     ...     mc.delete("hi")
     ... 
+    True
+    True
     """
 
     @contextmanager
@@ -165,6 +167,8 @@ class ThreadMappedPool(dict):
     ...     mc.set("hi", "ho")
     ...     mc.delete("hi")
     ... 
+    True
+    True
     """
 
     def __new__(cls, master):
