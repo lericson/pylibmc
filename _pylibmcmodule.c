@@ -331,17 +331,26 @@ static PyObject *_PylibMC_IncDec(PylibMC_Client *self, uint8_t dir,
     Py_ssize_t key_sz;
     unsigned int delta;
     uint64_t result;
+    memcached_return rc;
+    memcached_return (*incdec)(memcached_st *, const char *, size_t,
+                               unsigned int, uint64_t *);
 
     retval = NULL;
     delta = 1;
-    if (PyArg_ParseTuple(args, "s#|I", &key, &key_sz, &delta)
-            && _PylibMC_CheckKeyStringAndSize(key, key_sz)) {
-        memcached_return (*incdec)(memcached_st *, const char *, size_t,
-                unsigned int, uint64_t *);
-        incdec = (dir == PYLIBMC_INC) ? memcached_increment
-                                      : memcached_decrement;
-        incdec(self->mc, key, key_sz, delta, &result);
+    if (!PyArg_ParseTuple(args, "s#|I", &key, &key_sz, &delta)) {
+        return retval;
+    } else if (!_PylibMC_CheckKeyStringAndSize(key, key_sz)) {
+        return retval;
+    }
+
+    incdec = (dir == PYLIBMC_INC) ? memcached_increment : memcached_decrement;
+    rc = incdec(self->mc, key, key_sz, delta, &result);
+    if (rc == MEMCACHED_SUCCESS) {
         retval = PyLong_FromUnsignedLong((unsigned long)result);
+    } else {
+        char *fname = (dir == PYLIBMC_INC) ? "memcached_increment"
+                                           : "memcached_decrement";
+        PylibMC_ErrFromMemcached(self, fname, rc);
     }
 
     return retval;
