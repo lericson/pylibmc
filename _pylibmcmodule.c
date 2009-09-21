@@ -440,7 +440,7 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
      */
     retval = PyDict_New();
 
-    if ((rc = memcached_mget(self->mc, keys, key_lens, nkeys))
+    if ((rc = memcached_mget(self->mc, (const char **)keys, key_lens, nkeys))
             != MEMCACHED_SUCCESS) {
         PylibMC_ErrFromMemcached(self, "memcached_mget", rc);
         goto cleanup;
