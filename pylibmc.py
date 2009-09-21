@@ -6,12 +6,13 @@ minor differences. If you should happen to spot any, file a bug!
 >>> import pylibmc
 >>> mc = pylibmc.Client(["127.0.0.1"])
 >>> b = mc.behaviors
->>> list(sorted(b.keys()))  # doctest: +NORMALIZE_WHITESPACE
+>>> ks = list(sorted(k for k in b.keys() if not k.startswith("_")))
+>>> ks  # doctest: +NORMALIZE_WHITESPACE
 ['binary_protocol', 'buffer_requests', 'cache_lookups', 'connect_timeout',
  'distribution', 'hash', 'ketama', 'ketama_hash', 'ketama_weighted',
  'no block', 'poll_timeout', 'rcv_timeout', 'retry_timeout',
  'server_failure_limit', 'snd_timeout', 'socket recv size', 'socket send size',
- 'sort_hosts', 'support_cas', 'tcp_nodelay', 'verify_key']
+ 'sort_hosts', 'support_cas', 'tcp_nodelay', 'udp', 'verify_key']
 >>> b["hash"]
 'default'
 >>> b["hash"] = 'fnv1a_32'
