@@ -86,6 +86,19 @@ Traceback (most recent call last):
   ...
 TypeError: key must be an instance of str
 
+Getting stats is fun!
+>>> for (svr, stats) in c.get_stats():
+...     print svr
+...     ks = stats.keys()
+...     while ks:
+...         cks, ks = ks[:6], ks[6:]
+...         print ", ".join(cks)
+localhost:11211 (0)
+pid, total_items, uptime, version, limit_maxbytes, rusage_user
+bytes_read, rusage_system, cmd_get, curr_connections, threads, total_connections
+cmd_set, curr_items, get_misses, evictions, bytes, connection_structures
+bytes_written, time, pointer_size, get_hits
+
 Also test some flush all.
 >>> c.set("hi", "guys")
 True

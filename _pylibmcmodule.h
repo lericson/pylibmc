@@ -153,6 +153,7 @@ static PyObject *PylibMC_Client_set_multi(PylibMC_Client *, PyObject *, PyObject
 static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_get_behaviors(PylibMC_Client *);
 static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *, PyObject *);
+static PyObject *PylibMC_Client_get_stats(PylibMC_Client *, PyObject *);
 static PyObject *PylibMC_Client_flush_all(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_disconnect_all(PylibMC_Client *);
 static PyObject *PylibMC_Client_clone(PylibMC_Client *);
@@ -194,6 +195,8 @@ static PyMethodDef PylibMC_ClientType_methods[] = {
         "Get behaviors dict."},
     {"set_behaviors", (PyCFunction)PylibMC_Client_set_behaviors, METH_O,
         "Set behaviors dict."},
+    {"get_stats", (PyCFunction)PylibMC_Client_get_stats,
+        METH_VARARGS, "Retrieve statistics from all memcached servers."},
     {"flush_all", (PyCFunction)PylibMC_Client_flush_all,
         METH_VARARGS|METH_KEYWORDS, "Flush all data on all servers."},
     {"disconnect_all", (PyCFunction)PylibMC_Client_disconnect_all, METH_NOARGS,

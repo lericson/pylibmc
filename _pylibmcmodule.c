@@ -742,6 +742,98 @@ error:
     return NULL;
 }
 
+static PyObject *PylibMC_Client_get_stats(PylibMC_Client *self, PyObject *args) {
+    memcached_stat_st *stats;
+    memcached_return rc;
+    char *mc_args;
+    PyObject *retval;
+    Py_ssize_t nservers, serveridx;
+    memcached_server_st *servers;
+
+    mc_args = NULL;
+    if (!PyArg_ParseTuple(args, "|s", &mc_args))
+        return NULL;
+
+    stats = memcached_stat(self->mc, mc_args, &rc);
+    if (rc != MEMCACHED_SUCCESS)
+        return PylibMC_ErrFromMemcached(self, "get_stats", rc);
+
+    nservers = (Py_ssize_t)memcached_server_count(self->mc);
+    servers = memcached_server_list(self->mc);
+    retval = PyList_New(nservers);
+
+    /** retval contents:
+     * [('<addr, 127.0.0.1:11211> (<num, 1>),
+     *   {stat: stat, stat: stat}),
+     *  (str, dict),
+     *  (str, dict)]
+     */
+
+    for (serveridx = 0; serveridx < nservers; serveridx++) {
+        memcached_server_st *server;
+        memcached_stat_st *stat;
+        memcached_return rc;
+        PyObject *desc, *val;
+        char **stat_keys = NULL;
+        char **curr_key;
+
+        server = servers + serveridx;
+        stat = stats + serveridx;
+
+        val = PyDict_New();
+        if (val == NULL)
+            goto error;
+
+        stat_keys = memcached_stat_get_keys(self->mc, stat, &rc);
+        if (rc != MEMCACHED_SUCCESS)
+            goto loop_error;
+
+        for (curr_key = stat_keys; *curr_key; curr_key++) {
+            PyObject *curr_value;
+            char *mc_val;
+            memcached_return get_val_rc;
+            int fail;
+
+            mc_val = memcached_stat_get_value(self->mc, stat, *curr_key,
+                                              &get_val_rc);
+            if (get_val_rc != MEMCACHED_SUCCESS) {
+                PylibMC_ErrFromMemcached(self, "get_stats val", get_val_rc);
+                goto loop_error;
+            }
+
+            curr_value = PyString_FromString(mc_val);
+            free(mc_val);
+            if (curr_value == NULL)
+                goto loop_error;
+
+            fail = PyDict_SetItemString(val, *curr_key, curr_value);
+            Py_DECREF(curr_value);
+            if (fail)
+                goto loop_error;
+        }
+
+        free(stat_keys);
+
+        desc = PyString_FromFormat("%s:%d (%u)",
+                server->hostname, server->port,
+                (unsigned int)serveridx);
+        PyList_SET_ITEM(retval, serveridx, Py_BuildValue("NN", desc, val));
+        continue;
+loop_error:
+        free(stat_keys);
+        Py_DECREF(val);
+        goto error;
+    }
+
+    free(stats);
+
+    return retval;
+error:
+    Py_DECREF(retval);
+    free(stats);
+    return NULL;
+}
+
 static PyObject *PylibMC_Client_flush_all(PylibMC_Client *self,
         PyObject *args, PyObject *kwds) {
     memcached_return rc;
@@ -915,6 +1007,8 @@ Oh, and: plankton.\n");
 
     PylibMCExc_MemcachedError = PyErr_NewException(
             "_pylibmc.MemcachedError", NULL, NULL);
+    PyModule_AddObject(module, "MemcachedError",
+                       (PyObject *)PylibMCExc_MemcachedError);
 
     PyModule_AddStringConstant(module, "__version__", PYLIBMC_VERSION);
 

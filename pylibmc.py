@@ -184,7 +184,7 @@ class ThreadMappedPool(dict):
         Creates a new client based on the master client if none exists for the
         current thread.
         """
-        key = threading.current_thread().name
+        key = threading.current_thread().ident
         mc = self.pop(key, None)
         if mc is None:
             mc = self.master.clone()
