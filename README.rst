@@ -83,6 +83,12 @@ IRC
 Change Log
 ==========
 
+New in version 0.9
+------------------
+
+ - Added a ``get_stats`` method, which behaves exactly like
+   `python-memcached`'s equivalent.
+
 New in version 0.8
 ------------------
 
