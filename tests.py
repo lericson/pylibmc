@@ -14,6 +14,12 @@ True
 >>> c.get("test_key")
 >>>
 
+We should handle empty values just nicely.
+>>> c.set("foo", "")
+True
+>>> c.get("foo")
+''
+
 Now this section is because most other implementations ignore zero-keys.
 >>> c.get("")
 >>> c.set("", "hi")

@@ -195,9 +195,10 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
         PyObject *r = _PylibMC_parse_memcached_value(mc_val, val_size, flags);
         free(mc_val);
         return r;
-    }
-
-    if (error == MEMCACHED_NOTFOUND) {
+    } else if (error == MEMCACHED_SUCCESS) {
+        /* This happens for empty values, and so we fake an empty string. */
+        return PyString_FromStringAndSize("", 0);
+    } else if (error == MEMCACHED_NOTFOUND) {
         /* Since python-memcache returns None when the key doesn't exist,
          * so shall we. */
         Py_RETURN_NONE;
