@@ -90,6 +90,7 @@ New in version 0.9
    `python-memcached`'s equivalent.
  - Gives the empty string for empty memcached values like `python-memcached`
    does.
+ - Added exceptions for most `libmemcached` return codes.
 
 New in version 0.8
 ------------------
