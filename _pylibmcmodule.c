@@ -890,8 +890,18 @@ static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *self, const char *what
         PyErr_Format(PyExc_RuntimeError, "error == 0? %s:%d",
                      __FILE__, __LINE__);
     } else { 
-        PyErr_Format(PylibMCExc_MemcachedError, "error %d from %s: %s",
-                error, what, memcached_strerror(self->mc, error));
+        PylibMC_McErr *err;
+        PyObject *exc = (PyObject *)PylibMCExc_MemcachedError;
+
+        for (err = PylibMCExc_mc_errs; err->name != NULL; err++) {
+            if (err->rc == error) {
+                exc = err->exc;
+                break;
+            }
+        }
+
+        PyErr_Format(exc, "error %d from %s: %s", error, what,
+                     memcached_strerror(self->mc, error));
     }
     return NULL;
 }
@@ -976,6 +986,7 @@ static PyMethodDef PylibMC_functions[] = {
 PyMODINIT_FUNC init_pylibmc(void) {
     PyObject *module;
     PylibMC_Behavior *b;
+    PylibMC_McErr *err;
     char name[128];
 
     if (PyType_Ready(&PylibMC_ClientType) < 0) {
@@ -1006,12 +1017,20 @@ Oh, and: plankton.\n");
         return;
     }
 
+    PyModule_AddStringConstant(module, "__version__", PYLIBMC_VERSION);
+
     PylibMCExc_MemcachedError = PyErr_NewException(
             "_pylibmc.MemcachedError", NULL, NULL);
     PyModule_AddObject(module, "MemcachedError",
                        (PyObject *)PylibMCExc_MemcachedError);
 
-    PyModule_AddStringConstant(module, "__version__", PYLIBMC_VERSION);
+    for (err = PylibMCExc_mc_errs; err->name != NULL; err++) {
+        char excnam[64];
+        strncpy(excnam, "_pylibmc.", 64);
+        strncat(excnam, err->name, 64);
+        err->exc = PyErr_NewException(excnam, PylibMCExc_MemcachedError, NULL);
+        PyModule_AddObject(module, err->name, (PyObject *)err->exc);
+    }
 
     Py_INCREF(&PylibMC_ClientType);
     PyModule_AddObject(module, "client", (PyObject *)&PylibMC_ClientType);

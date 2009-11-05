@@ -147,6 +147,16 @@ True
 True
 >>> del c2
 
+Per-error exceptions
+>>> c.incr("test")
+Traceback (most recent call last):
+  ...
+NotFound: error 16 from memcached_increment: NOT FOUND
+>>> c.incr(chr(0))
+Traceback (most recent call last):
+  ...
+ProtocolError: error 8 from memcached_increment: PROTOCOL ERROR
+
 Behaviors.
 >>> c.set_behaviors({"tcp_nodelay": True, "hash": 6})
 >>> list(sorted((k, v) for (k, v) in c.get_behaviors().items()

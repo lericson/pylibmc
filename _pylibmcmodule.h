@@ -68,6 +68,53 @@ typedef memcached_return (*_PylibMC_SetCommand)(memcached_st *, const char *,
 
 /* {{{ Exceptions */
 static PyObject *PylibMCExc_MemcachedError;
+
+/* Mapping of memcached_return value -> Python exception object. */
+typedef struct {
+    memcached_return rc;
+    char *name;
+    PyObject *exc;
+} PylibMC_McErr;
+
+static PylibMC_McErr PylibMCExc_mc_errs[] = {
+    { MEMCACHED_FAILURE, "Failure", NULL },
+    { MEMCACHED_HOST_LOOKUP_FAILURE, "HostLookupError", NULL },
+    { MEMCACHED_CONNECTION_FAILURE, "ConnectionError", NULL },
+    { MEMCACHED_CONNECTION_BIND_FAILURE, "ConnectionBindError", NULL },
+    { MEMCACHED_WRITE_FAILURE, "WriteError", NULL },
+    { MEMCACHED_READ_FAILURE, "ReadError", NULL },
+    { MEMCACHED_UNKNOWN_READ_FAILURE, "UnknownReadFailure", NULL },
+    { MEMCACHED_PROTOCOL_ERROR, "ProtocolError", NULL },
+    { MEMCACHED_CLIENT_ERROR, "ClientError", NULL },
+    { MEMCACHED_SERVER_ERROR, "ServerError", NULL },
+    { MEMCACHED_CONNECTION_SOCKET_CREATE_FAILURE, "SocketCreateError", NULL },
+    { MEMCACHED_DATA_EXISTS, "DataExists", NULL },
+    { MEMCACHED_DATA_DOES_NOT_EXIST, "DataDoesNotExist", NULL },
+    //{ MEMCACHED_NOTSTORED, "NotStored", NULL },
+    //{ MEMCACHED_STORED, "Stored", NULL },
+    { MEMCACHED_NOTFOUND, "NotFound", NULL },
+    { MEMCACHED_MEMORY_ALLOCATION_FAILURE, "AllocationError", NULL },
+    //{ MEMCACHED_PARTIAL_READ, "PartialRead", NULL },
+    { MEMCACHED_SOME_ERRORS, "SomeErrors", NULL },
+    { MEMCACHED_NO_SERVERS, "NoServers", NULL },
+    //{ MEMCACHED_END, "", NULL },
+    //{ MEMCACHED_DELETED, "", NULL },
+    //{ MEMCACHED_VALUE, "", NULL },
+    //{ MEMCACHED_STAT, "", NULL },
+    //{ MEMCACHED_ITEM, "", NULL },
+    //{ MEMCACHED_ERRNO, "", NULL },
+    { MEMCACHED_FAIL_UNIX_SOCKET, "UnixSocketError", NULL },
+    { MEMCACHED_NOT_SUPPORTED, "NotSupportedError", NULL },
+    { MEMCACHED_FETCH_NOTFINISHED, "FetchNotFinished", NULL },
+    //{ MEMCACHED_TIMEOUT, "TimeoutError", NULL },
+    //{ MEMCACHED_BUFFERED, "Buffer, NULL },
+    { MEMCACHED_BAD_KEY_PROVIDED, "BadKeyProvided", NULL },
+    { MEMCACHED_INVALID_HOST_PROTOCOL, "InvalidHostProtocolError", NULL },
+    //{ MEMCACHED_SERVER_MARKED_DEAD,
+    { MEMCACHED_UNKNOWN_STAT_KEY, "UnknownStatKey", NULL },
+    { MEMCACHED_E2BIG, "TooBigError", NULL },
+    { 0, NULL, NULL }
+};
 /* }}} */
 
 /* {{{ Behavior statics */
