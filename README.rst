@@ -88,6 +88,8 @@ New in version 0.9
 
  - Added a ``get_stats`` method, which behaves exactly like
    `python-memcached`'s equivalent.
+ - Gives the empty string for empty memcached values like `python-memcached`
+   does.
 
 New in version 0.8
 ------------------
