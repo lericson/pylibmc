@@ -27,6 +27,14 @@ import _pylibmc
 __all__ = ["hashers", "distributions", "Client"]
 __version__ = _pylibmc.__version__
 
+errors = tuple(e for (n, e) in _pylibmc.exceptions)
+# *Cough* Uhm, not the prettiest of things but this unpacks all exception
+# objects and sets them on the very module object currently constructed.
+import sys
+modself = sys.modules[__name__]
+for name, exc in _pylibmc.exceptions:
+    setattr(modself, name, exc)
+
 hashers, hashers_rvs = {}, {}
 distributions, distributions_rvs = {}, {}
 # Not the prettiest way of doing things, but works well.

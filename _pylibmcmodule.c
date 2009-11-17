@@ -984,7 +984,7 @@ static PyMethodDef PylibMC_functions[] = {
 };
 
 PyMODINIT_FUNC init_pylibmc(void) {
-    PyObject *module;
+    PyObject *module, *exc_objs;
     PylibMC_Behavior *b;
     PylibMC_McErr *err;
     char name[128];
@@ -1024,13 +1024,21 @@ Oh, and: plankton.\n");
     PyModule_AddObject(module, "MemcachedError",
                        (PyObject *)PylibMCExc_MemcachedError);
 
+    exc_objs = PyList_New(0);
+    PyList_Append(exc_objs,
+        Py_BuildValue("sO", "Error", (PyObject *)PylibMCExc_MemcachedError));
+
     for (err = PylibMCExc_mc_errs; err->name != NULL; err++) {
         char excnam[64];
         strncpy(excnam, "_pylibmc.", 64);
         strncat(excnam, err->name, 64);
         err->exc = PyErr_NewException(excnam, PylibMCExc_MemcachedError, NULL);
         PyModule_AddObject(module, err->name, (PyObject *)err->exc);
+        PyList_Append(exc_objs,
+            Py_BuildValue("sO", err->name, (PyObject *)err->exc));
     }
+
+    PyModule_AddObject(module, "exceptions", exc_objs);
 
     Py_INCREF(&PylibMC_ClientType);
     PyModule_AddObject(module, "client", (PyObject *)&PylibMC_ClientType);
