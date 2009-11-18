@@ -171,6 +171,9 @@ True
 'world'
 >>> c.delete("hello")
 True
+
+Empty server lists are bad for your health.
+>>> c = _pylibmc.client([])
 """
 
 # Used to test pickling.

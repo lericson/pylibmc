@@ -58,7 +58,7 @@ static void PylibMC_ClientType_dealloc(PylibMC_Client *self) {
 static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
         PyObject *kwds) {
     PyObject *srvs, *srvs_it, *c_srv;
-    unsigned char set_stype = 0, bin = 0;
+    unsigned char set_stype = 0, bin = 0, got_server = 0;
 
     static char *kws[] = { "servers", "binary", NULL };
 
@@ -76,6 +76,7 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
         unsigned short int port;
         memcached_return rc;
 
+        got_server |= 1;
         port = 0;
         if (PyString_Check(c_srv)) {
             memcached_server_st *list;
@@ -134,6 +135,11 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
 
 it_error:
         Py_DECREF(c_srv);
+        goto error;
+    }
+
+    if (!got_server) {
+        PyErr_SetString(PylibMCExc_MemcachedError, "empty server list");
         goto error;
     }
 
