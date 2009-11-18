@@ -192,7 +192,7 @@ class ThreadMappedPool(dict):
         Creates a new client based on the master client if none exists for the
         current thread.
         """
-        key = threading.current_thread().ident
+        key = thread.get_ident()
         mc = self.pop(key, None)
         if mc is None:
             mc = self.master.clone()
@@ -203,7 +203,7 @@ class ThreadMappedPool(dict):
 
 # This makes sure ThreadMappedPool doesn't exist with non-thread Pythons.
 try:
-    import threading
+    import thread
 except ImportError:
     del ThreadMappedPool
 
