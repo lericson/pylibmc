@@ -174,6 +174,9 @@ True
 
 Empty server lists are bad for your health.
 >>> c = _pylibmc.client([])
+Traceback (most recent call last):
+  ...
+MemcachedError: empty server list
 """
 
 # Used to test pickling.
