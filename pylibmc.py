@@ -57,9 +57,9 @@ class BehaviorDict(dict):
         super(BehaviorDict, self).__setitem__(name, value)
         self.client.set_behaviors({name: value})
 
-    def update(self, *args, **kwds):
-        super(BehaviorDict, self).update(*args, **kwds)
-        self.client.set_behaviors(self.copy())
+    def update(self, d):
+        super(BehaviorDict, self).update(d)
+        self.client.set_behaviors(d.copy())
 
 class Client(_pylibmc.client):
     def __init__(self, servers, binary=False):
@@ -115,9 +115,9 @@ class Client(_pylibmc.client):
         This also happens for `distribution`.
         """
         behaviors = behaviors.copy()
-        if behaviors.get("hash", None) in hashers:
+        if behaviors.get("hash") is not None:
             behaviors["hash"] = hashers[behaviors["hash"]]
-        if behaviors.get("distribution") in distributions:
+        if behaviors.get("distribution") is not None:
             behaviors["distribution"] = distributions[behaviors["distribution"]]
         return super(Client, self).set_behaviors(behaviors)
 

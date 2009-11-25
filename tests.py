@@ -1,9 +1,11 @@
 """Tests. They want YOU!!
 
+
 Basic functionality.
 >>> _pylibmc.__version__ == pylibmc.__version__
 True
 >>> c = _pylibmc.client([test_server])
+>>> c.get("hello")
 >>> c.set("test_key", 123)
 True
 >>> c.get("test_key")
@@ -177,6 +179,14 @@ Empty server lists are bad for your health.
 Traceback (most recent call last):
   ...
 MemcachedError: empty server list
+
+Python-wrapped behaviors dict
+>>> pc = pylibmc.Client(["%s:%d" % test_server[1:]])
+>>> (pc.behaviors["hash"], pc.behaviors["distribution"])
+('default', 'modula')
+>>> pc.behaviors.update({"hash": "fnv1a_32", "distribution": "consistent"})
+>>> (pc.behaviors["hash"], pc.behaviors["distribution"])
+('fnv1a_32', 'consistent')
 """
 
 # Used to test pickling.
