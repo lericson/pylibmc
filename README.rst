@@ -91,6 +91,7 @@ New in version 0.9
  - Gives the empty string for empty memcached values like `python-memcached`
    does.
  - Added exceptions for most `libmemcached` return codes.
+ - Fixed an issue with ``Client.behaviors.update``.
 
 New in version 0.8
 ------------------
