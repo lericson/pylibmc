@@ -40,18 +40,23 @@ static PylibMC_Client *PylibMC_ClientType_new(PyTypeObject *type,
         PyObject *args, PyObject *kwds) {
     PylibMC_Client *self;
 
-    self = (PylibMC_Client *)type->tp_alloc(type, 0);
+    /* GenericNew calls GenericAlloc (via the indirection type->tp_alloc) which
+     * adds GC tracking if flagged for, and also calls PyObject_Init. */
+    self = (PylibMC_Client *)PyType_GenericNew(type, args, kwds);
+
     if (self != NULL) {
         self->mc = memcached_create(NULL);
-    } else {
-        args = kwds = NULL;
     }
 
     return self;
 }
 
 static void PylibMC_ClientType_dealloc(PylibMC_Client *self) {
-    memcached_free(self->mc);
+    if (self->mc != NULL) {
+        memcached_free(self->mc);
+    }
+
+    self->ob_type->tp_free(self);
 }
 /* }}} */
 
@@ -860,7 +865,7 @@ static PyObject *PylibMC_Client_flush_all(PylibMC_Client *self,
 
     rc = memcached_flush(self->mc, expire);
     if (rc != MEMCACHED_SUCCESS)
-        return PylibMC_ErrFromMemcached(self, "delete_multi", rc);
+        return PylibMC_ErrFromMemcached(self, "flush_all", rc);
 
     Py_RETURN_TRUE;
 }
@@ -871,18 +876,17 @@ static PyObject *PylibMC_Client_disconnect_all(PylibMC_Client *self) {
 }
 
 static PyObject *PylibMC_Client_clone(PylibMC_Client *self) {
-    PylibMC_Client *new_self;
+    /* Essentially this is a reimplementation of the allocator, only it uses a
+     * cloned memcached_st for mc. */
+    PylibMC_Client *clone;
 
-    /* XXX Is it really wise to short-circuit like this? I don't see a problem
-     * with it. */
-    new_self = (PylibMC_Client *)self->ob_type->tp_new(self->ob_type, NULL, NULL);
-    if (new_self == NULL) {
+    clone = (PylibMC_Client *)PyType_GenericNew(self->ob_type, NULL, NULL);
+    if (clone == NULL) {
         return NULL;
     }
-    memset(new_self->mc, 0, sizeof(memcached_st));
-    new_self->mc = memcached_clone(new_self->mc, self->mc);
 
-    return (PyObject *)new_self;
+    clone->mc = memcached_clone(NULL, self->mc);
+    return (PyObject *)clone;
 }
 /* }}} */
 
