@@ -243,11 +243,9 @@ static PyObject *_PylibMC_Inflate(char *value, size_t size) {
 
     do {
         rc = inflate((z_streamp)&strm, Z_FINISH);
-        printf("(loop) rc = %d\n", rc);
 
         switch (rc) {
         case Z_STREAM_END:
-            printf("Z_STREAM_END\n");
             break;
         /* When a Z_BUF_ERROR occurs, we should be out of memory.
          * This is also true for Z_OK, hence the fall-through. */
@@ -259,7 +257,6 @@ static PyObject *_PylibMC_Inflate(char *value, size_t size) {
             }
         /* Fall-through */
         case Z_OK:
-            printf("Z_OK\n");
             if (_PyString_Resize(&out_obj, (Py_ssize_t)(rvalsz << 1)) < 0) {
                 inflateEnd(&strm);
                 goto error;
@@ -280,8 +277,6 @@ static PyObject *_PylibMC_Inflate(char *value, size_t size) {
         _ZLIB_ERR("inflateEnd", rc);
         goto error;
     }
-
-    printf("size %d -> size %d\n", (int)size, (int)strm.total_out);
 
     _PyString_Resize(&out_obj, strm.total_out);
     return out_obj;
