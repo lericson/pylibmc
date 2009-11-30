@@ -26,6 +26,7 @@ import _pylibmc
 
 __all__ = ["hashers", "distributions", "Client"]
 __version__ = _pylibmc.__version__
+support_compression = _pylibmc.support_compression
 
 errors = tuple(e for (n, e) in _pylibmc.exceptions)
 # *Cough* Uhm, not the prettiest of things but this unpacks all exception

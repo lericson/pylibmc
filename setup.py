@@ -1,6 +1,10 @@
 import os
 from distutils.core import setup, Extension
 
+use_zlib = True  # TODO Configurable somehow?
+
+libs = ["memcached"]
+defs = []
 incdirs = []
 libdirs = []
 
@@ -9,12 +13,16 @@ if "LIBMEMCACHED_DIR" in os.environ:
     incdirs.append(os.path.join(libdir, "include"))
     libdirs.append(os.path.join(libdir, "lib"))
 
-readme_text = open("README.rst", "U").read()
-version = open("pylibmc-version.h", "U").read().strip().split("\"")[1]
+if use_zlib:
+    libs.append("z")
+    defs.append(("USE_ZLIB", None))
  
 pylibmc_ext = Extension("_pylibmc", ["_pylibmcmodule.c"],
-                        libraries=["memcached"],
-                        include_dirs=incdirs, library_dirs=libdirs)
+                        libraries=libs, include_dirs=incdirs,
+                        library_dirs=libdirs, define_macros=defs)
+
+readme_text = open("README.rst", "U").read()
+version = open("pylibmc-version.h", "U").read().strip().split("\"")[1]
 
 setup(name="pylibmc", version=version,
       url="http://lericson.blogg.se/code/category/pylibmc.html",

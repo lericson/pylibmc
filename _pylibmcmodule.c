@@ -32,6 +32,12 @@
  */
 
 #include "_pylibmcmodule.h"
+#ifdef USE_ZLIB
+#  include <zlib.h>
+#  define ZLIB_BUFSZ (1 << 14)
+#  define _ZLIB_ERR(s, rc) \
+  PyErr_Format(PylibMCExc_MemcachedError, "zlib error %d in " s, rc);
+#endif
 
 
 /* {{{ _pylibmc.client implementation */
@@ -155,12 +161,160 @@ error:
     return -1;
 }
 
+/* {{{ Compression helpers */
+#ifdef USE_ZLIB
+static PyObject *_PylibMC_Deflate(PyObject *value) {
+    int rc;
+    char *out;
+    z_stream strm;
+    Py_ssize_t length, out_sz;
+
+    if (!PyString_Check(value)) {
+        return NULL;
+    }
+
+    /* Don't ask me about this one. Got it from zlibmodule.c in Python 2.6. */
+    length = PyString_GET_SIZE(value);
+    out_sz = length + length / 1000 + 12 + 1;
+
+    if ((out = PyMem_New(char, out_sz)) == NULL) {
+        return NULL;
+    }
+
+    strm.avail_in = length;
+    strm.avail_out = out_sz;
+    strm.next_in = (Byte *)PyString_AS_STRING(value);
+    strm.next_out = (Byte *)out;
+
+    strm.zalloc = (alloc_func)NULL;
+    strm.zfree = (free_func)Z_NULL;
+
+    /* TODO Expose compression level somehow. */
+    if ((rc = deflateInit((z_streamp)&strm, Z_BEST_SPEED)) != Z_OK) {
+        _ZLIB_ERR("deflateInit", rc);
+        goto error;
+    }
+
+    if ((rc = deflate((z_streamp)&strm, Z_FINISH)) != Z_STREAM_END) {
+        _ZLIB_ERR("deflate", rc);
+        goto error;
+    }
+
+    if ((rc = deflateEnd((z_streamp)&strm)) != Z_OK) {
+        _ZLIB_ERR("deflateEnd", rc);
+        goto error;
+    }
+
+    return PyString_FromStringAndSize(out, strm.total_out);
+error:
+    PyMem_Del(out);
+    return NULL;
+}
+
+static PyObject *_PylibMC_Inflate(char *value, size_t size) {
+    int rc;
+    char *out;
+    PyObject *out_obj;
+    Py_ssize_t rvalsz;
+    z_stream strm;
+
+    /* Output buffer */
+    rvalsz = ZLIB_BUFSZ;
+    out_obj = PyString_FromStringAndSize(NULL, rvalsz);
+    if (out_obj == NULL) {
+        return NULL;
+    }
+    out = PyString_AS_STRING(out_obj);
+
+    /* Set up zlib stream. */
+    strm.avail_in = size;
+    strm.avail_out = (uInt)rvalsz;
+    strm.next_in = (Byte *)value;
+    strm.next_out = (Byte *)out;
+
+    strm.zalloc = (alloc_func)NULL;
+    strm.zfree = (free_func)Z_NULL;
+
+    /* TODO Add controlling of windowBits with inflateInit2? */
+    if ((rc = inflateInit((z_streamp)&strm)) != Z_OK) {
+        _ZLIB_ERR("inflateInit", rc);
+        goto error;
+    }
+
+    do {
+        rc = inflate((z_streamp)&strm, Z_FINISH);
+        printf("(loop) rc = %d\n", rc);
+
+        switch (rc) {
+        case Z_STREAM_END:
+            printf("Z_STREAM_END\n");
+            break;
+        /* When a Z_BUF_ERROR occurs, we should be out of memory.
+         * This is also true for Z_OK, hence the fall-through. */
+        case Z_BUF_ERROR:
+            if (strm.avail_out) {
+                _ZLIB_ERR("inflate", rc);
+                inflateEnd(&strm);
+                goto error;
+            }
+        /* Fall-through */
+        case Z_OK:
+            printf("Z_OK\n");
+            if (_PyString_Resize(&out_obj, (Py_ssize_t)(rvalsz << 1)) < 0) {
+                inflateEnd(&strm);
+                goto error;
+            }
+            /* Wind forward */
+            out = PyString_AS_STRING(out_obj);
+            strm.next_out = (Byte *)(out + rvalsz);
+            strm.avail_out = rvalsz;
+            rvalsz = rvalsz << 1;
+            break;
+        default:
+            inflateEnd(&strm);
+            goto error;
+        }
+    } while (rc != Z_STREAM_END);
+
+    if ((rc = inflateEnd(&strm)) != Z_OK) {
+        _ZLIB_ERR("inflateEnd", rc);
+        goto error;
+    }
+
+    printf("size %d -> size %d\n", (int)size, (int)strm.total_out);
+
+    _PyString_Resize(&out_obj, strm.total_out);
+    return out_obj;
+error:
+    Py_DECREF(out_obj);
+    return NULL;
+}
+#endif
+
 static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
         uint32_t flags) {
     PyObject *retval, *tmp;
 
+#if USE_ZLIB
+    PyObject *inflated = NULL;
+
+    /* Decompress value if necessary. */
+    if (flags & PYLIBMC_FLAG_ZLIB) {
+        inflated = _PylibMC_Inflate(value, size);
+        value = PyString_AS_STRING(inflated);
+        size = PyString_GET_SIZE(inflated);
+    }
+#else
+    if (flags & PYLIBMC_FLAG_ZLIB) {
+        PyErr_SetString(PylibMCExc_MemcachedError,
+            "value for key compressed, unable to inflate");
+        return NULL;
+    }
+#endif
+
     retval = NULL;
-    switch (flags) {
+
+    switch (flags & PYLIBMC_FLAG_TYPES) {
         case PYLIBMC_FLAG_PICKLE:
             retval = _PylibMC_Unpickle(value, size);
             break;
@@ -182,6 +336,12 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
             PyErr_Format(PylibMCExc_MemcachedError,
                     "unknown memcached key flags %u", flags);
     }
+
+#if USE_ZLIB
+    if (inflated != NULL) {
+        Py_DECREF(inflated);
+    }
+#endif
 
     return retval;
 }
@@ -229,17 +389,25 @@ static PyObject *_PylibMC_RunSetCommand(PylibMC_Client *self,
     PyObject *retval = NULL;
     PyObject *store_val = NULL;
     unsigned int time = 0;
+    unsigned int min_compress = 0;
     uint32_t store_flags = 0;
 
-    static char *kws[] = { "key", "val", "time", NULL };
+    static char *kws[] = { "key", "val", "time", "min_compress_len", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#O|I", kws,
-                &key, &key_sz, &val, &time)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#O|II", kws,
+                &key, &key_sz, &val, &time, &min_compress)) {
         return NULL;
     }
     if (!_PylibMC_CheckKeyStringAndSize(key, key_sz)) {
         return NULL;
     }
+
+#ifndef USE_ZLIB
+    if (min_compress) {
+        PyErr_SetString(PyExc_TypeError, "min_compress_len without zlib");
+        return NULL;
+    }
+#endif
 
     /* Adapt val to a str. */
     if (PyString_Check(val)) {
@@ -269,6 +437,22 @@ static PyObject *_PylibMC_RunSetCommand(PylibMC_Client *self,
     if (store_val == NULL) {
         return NULL;
     }
+
+#ifdef USE_ZLIB
+    if (min_compress && PyString_GET_SIZE(store_val) > min_compress) {
+        PyObject *deflated = _PylibMC_Deflate(val);
+
+        if (deflated != NULL) {
+            Py_DECREF(store_val);
+            store_val = deflated;
+            store_flags |= PYLIBMC_FLAG_ZLIB;
+        } else {
+            /* XXX What to do here, really? */
+            PyErr_Print();
+            PyErr_Clear();
+        }
+    }
+#endif
 
     rc = f(self->mc, key, key_sz,
            PyString_AS_STRING(store_val), PyString_GET_SIZE(store_val),
@@ -1028,6 +1212,14 @@ Oh, and: plankton.\n");
     }
 
     PyModule_AddStringConstant(module, "__version__", PYLIBMC_VERSION);
+
+#ifdef USE_ZLIB
+    Py_INCREF(Py_True);
+    PyModule_AddObject(module, "support_compression", Py_True);
+#else
+    Py_INCREF(Py_False);
+    PyModule_AddObject(module, "support_compression", Py_False);
+#endif
 
     PylibMCExc_MemcachedError = PyErr_NewException(
             "_pylibmc.MemcachedError", NULL, NULL);

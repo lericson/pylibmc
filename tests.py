@@ -342,6 +342,7 @@ if __name__ == "__main__":
     print "Starting tests with _pylibmc at", _pylibmc.__file__
     print "Reported libmemcached version:", _pylibmc.libmemcached_version
     print "Reported pylibmc version:", _pylibmc.__version__
+    print "Support compression:", _pylibmc.support_compression
 
     if not is_alive(test_server):
         raise SystemExit("Test server (%r) not alive." % (test_server,))
