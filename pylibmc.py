@@ -118,6 +118,8 @@ class Client(_pylibmc.client):
         behaviors = behaviors.copy()
         if behaviors.get("hash") is not None:
             behaviors["hash"] = hashers[behaviors["hash"]]
+        if behaviors.get("ketama hash") is not None:
+            behaviors["ketama hash"] = hashers[behaviors["ketama hash"]]
         if behaviors.get("distribution") is not None:
             behaviors["distribution"] = distributions[behaviors["distribution"]]
         return super(Client, self).set_behaviors(behaviors)
