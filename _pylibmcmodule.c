@@ -40,7 +40,6 @@
 #endif
 
 
-/* {{{ _pylibmc.client implementation */
 /* {{{ Type methods */
 static PylibMC_Client *PylibMC_ClientType_new(PyTypeObject *type,
         PyObject *args, PyObject *kwds) {
@@ -872,6 +871,15 @@ static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
         Py_DECREF(call_args);
     }
     Py_DECREF(delete);
+
+    if (PyList_GET_SIZE(retval) == 0) {
+        Py_DECREF(retval);
+        retval = Py_True;
+    } else {
+        Py_DECREF(retval);
+        retval = Py_False;
+    }
+    Py_INCREF(retval);
 
     return retval;
 error:

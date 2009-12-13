@@ -36,7 +36,7 @@ Multi functionality.
 >>> c.get_multi("abc").keys() == ["a", "c", "b"]
 True
 >>> c.delete_multi("abc")
-[]
+True
 >>> c.get_multi("abc").keys() == []
 True
 >>> c.set_multi(dict(zip("abc", "def")), key_prefix="test_")
@@ -46,7 +46,7 @@ True
 >>> c.get("test_a")
 'd'
 >>> c.delete_multi("abc", key_prefix="test_")
-[]
+True
 >>> bool(c.get_multi("abc", key_prefix="test_"))
 False
 
@@ -54,7 +54,7 @@ Zero-key-test-time!
 >>> c.get_multi([""])
 {}
 >>> c.delete_multi([""])
-['']
+False
 >>> c.set_multi({"": "hi"})
 ['']
 
