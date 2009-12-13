@@ -132,23 +132,21 @@ typedef struct {
 } PylibMC_Behavior;
 
 static PylibMC_Behavior PylibMC_behaviors[] = {
-    { MEMCACHED_BEHAVIOR_NO_BLOCK, "no block" },
+    { MEMCACHED_BEHAVIOR_NO_BLOCK, "no_block" },
     { MEMCACHED_BEHAVIOR_TCP_NODELAY, "tcp_nodelay" },
     { MEMCACHED_BEHAVIOR_HASH, "hash" },
-    { MEMCACHED_BEHAVIOR_KETAMA_HASH, "ketama hash" },
+    { MEMCACHED_BEHAVIOR_KETAMA_HASH, "ketama_hash" },
     { MEMCACHED_BEHAVIOR_KETAMA, "ketama" },
-    { MEMCACHED_BEHAVIOR_KETAMA_WEIGHTED, "ketama weighted" },
+    { MEMCACHED_BEHAVIOR_KETAMA_WEIGHTED, "ketama_weighted" },
     { MEMCACHED_BEHAVIOR_DISTRIBUTION, "distribution" },
-    { MEMCACHED_BEHAVIOR_SOCKET_SEND_SIZE, "socket send size" },
-    { MEMCACHED_BEHAVIOR_SOCKET_RECV_SIZE, "socket recv size" },
-    { MEMCACHED_BEHAVIOR_CACHE_LOOKUPS, "cache lookups" },
+    { MEMCACHED_BEHAVIOR_CACHE_LOOKUPS, "cache_lookups" },
     { MEMCACHED_BEHAVIOR_SUPPORT_CAS, "cas" },
-    { MEMCACHED_BEHAVIOR_BUFFER_REQUESTS, "buffer requests" },
-    { MEMCACHED_BEHAVIOR_VERIFY_KEY, "verify keys" },
-    { MEMCACHED_BEHAVIOR_CONNECT_TIMEOUT, "connect timeout" },
-    { MEMCACHED_BEHAVIOR_SND_TIMEOUT, "send timeout" },
-    { MEMCACHED_BEHAVIOR_RCV_TIMEOUT, "receive timeout" },
-    { MEMCACHED_BEHAVIOR_SERVER_FAILURE_LIMIT, "failure limit" },
+    { MEMCACHED_BEHAVIOR_BUFFER_REQUESTS, "buffer_requests" },
+    { MEMCACHED_BEHAVIOR_VERIFY_KEY, "verify_keys" },
+    { MEMCACHED_BEHAVIOR_CONNECT_TIMEOUT, "connect_timeout" },
+    { MEMCACHED_BEHAVIOR_SND_TIMEOUT, "send_timeout" },
+    { MEMCACHED_BEHAVIOR_RCV_TIMEOUT, "receive_timeout" },
+    { MEMCACHED_BEHAVIOR_SERVER_FAILURE_LIMIT, "failure_limit" },
     { MEMCACHED_BEHAVIOR_IO_MSG_WATERMARK, "_io_msg_watermark" },
     { MEMCACHED_BEHAVIOR_IO_BYTES_WATERMARK, "_io_bytes_watermark" },
     { MEMCACHED_BEHAVIOR_IO_KEY_PREFETCH, "_io_key_prefetch" },
@@ -159,6 +157,8 @@ static PylibMC_Behavior PylibMC_behaviors[] = {
     { MEMCACHED_BEHAVIOR_SORT_HOSTS, "_sort_hosts" },
     { MEMCACHED_BEHAVIOR_RETRY_TIMEOUT, "_retry_timeout" },
     { MEMCACHED_BEHAVIOR_POLL_TIMEOUT, "_poll_timeout" },
+    { MEMCACHED_BEHAVIOR_SOCKET_SEND_SIZE, "_socket_send_size" },
+    { MEMCACHED_BEHAVIOR_SOCKET_RECV_SIZE, "_socket_recv_size" },
     { 0, NULL }
 };
 
@@ -170,8 +170,10 @@ static PylibMC_Behavior PylibMC_hashers[] = {
     { MEMCACHED_HASH_FNV1A_64, "fnv1a_64" },
     { MEMCACHED_HASH_FNV1_32, "fnv1_32" },
     { MEMCACHED_HASH_FNV1A_32, "fnv1a_32" },
-    { MEMCACHED_HASH_HSIEH, "hsieh" },
     { MEMCACHED_HASH_MURMUR, "murmur" },
+#ifdef MEMCACHED_HASH_HSIEH
+    { MEMCACHED_HASH_HSIEH, "hsieh" },
+#endif
     { 0, NULL }
 };
 

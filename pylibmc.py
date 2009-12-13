@@ -8,11 +8,9 @@ minor differences. If you should happen to spot any, file a bug!
 >>> b = mc.behaviors
 >>> ks = list(sorted(k for k in b.keys() if not k.startswith("_")))
 >>> ks  # doctest: +NORMALIZE_WHITESPACE
-['buffer_requests', 'cache_lookups', 'connect_timeout', 'distribution', 'hash',
- 'ketama', 'ketama_hash', 'ketama_weighted', 'no block', 'poll_timeout',
- 'rcv_timeout', 'retry_timeout', 'server_failure_limit', 'snd_timeout',
- 'socket recv size', 'socket send size', 'sort_hosts', 'support_cas',
- 'tcp_nodelay', 'verify_key']
+['buffer_requests', 'cache_lookups', 'cas', 'connect_timeout', 'distribution',
+ 'failure_limit', 'hash', 'ketama', 'ketama_hash', 'ketama_weighted',
+ 'no_block', 'receive_timeout', 'send_timeout', 'tcp_nodelay', 'verify_keys']
 >>> b["hash"]
 'default'
 >>> b["hash"] = 'fnv1a_32'
@@ -23,6 +21,7 @@ minor differences. If you should happen to spot any, file a bug!
 """
 
 import _pylibmc
+from warnings import warn
 
 __all__ = ["hashers", "distributions", "Client"]
 __version__ = _pylibmc.__version__
@@ -116,15 +115,23 @@ class Client(_pylibmc.client):
         This also happens for `distribution`.
         """
         behaviors = behaviors.copy()
+        if any(" " in k for k in behaviors):
+            warn(DeprecationWarning("space-delimited behavior names "
+                                    "are deprecated"))
+            for k in [k for k in behaviors if " " in k]:
+                behaviors[k.replace(" ", "_")] = behaviors.pop(k)
         if behaviors.get("hash") is not None:
             behaviors["hash"] = hashers[behaviors["hash"]]
-        if behaviors.get("ketama hash") is not None:
-            behaviors["ketama hash"] = hashers[behaviors["ketama hash"]]
+        if behaviors.get("ketama_hash") is not None:
+            behaviors["ketama_hash"] = hashers[behaviors["ketama_hash"]]
         if behaviors.get("distribution") is not None:
             behaviors["distribution"] = distributions[behaviors["distribution"]]
         return super(Client, self).set_behaviors(behaviors)
 
     behaviors = property(get_behaviors, set_behaviors)
+    @property
+    def behaviours(self):
+        raise AttributeError("nobody uses british spellings")
 
 from contextlib import contextmanager
 
