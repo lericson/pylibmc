@@ -1,11 +1,17 @@
-`pylibmc` is a Python wrapper around the accompanying C Python extension
-`_pylibmc`, which is a wrapper around `libmemcached` from TangentOrg.
+`pylibmc` is a quick and small Python client for memcached__ written in C.
 
-You have to install `libmemcached` separately, and have your compiler and
-linker find the include files and libraries.
+__ http://memcached.org/
 
-With `libmemcached` installed and this package set up, the following basic
-usage example should work::
+It builds on the famous `libmemcached`__ C client from TangetOrg__, notable for
+its speed and flexibility.
+
+__ http://tangent.org/552/libmemcached.html
+__ http://tangent.org/
+
+`libmemcached` must be installed separately, and be available to the compiler
+and linker.
+
+Basic usage is that of `python-memcached`__, like so::
 
     >>> import pylibmc
     >>> mc = pylibmc.Client(["127.0.0.1:11211"])
@@ -14,15 +20,12 @@ usage example should work::
     >>> mc.get("foo")
     'Hello world!'
 
-The API is pretty much `python-memcached`. Some parts of `libmemcached` aren't
-exposed yet. I think.
+__ http://www.tummy.com/Community/software/python-memcached/
 
 There's also support for some other features not present in other Python
-libraries, for example, the binary protocol::
+libraries, like the binary protocol::
 
     >>> mc = pylibmc.Client(["127.0.0.1"], binary=True)
-
-That's it, the binary protocol will be used for that instance.
 
 Behaviors
 =========
