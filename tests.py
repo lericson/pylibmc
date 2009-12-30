@@ -339,7 +339,10 @@ class TestProgram(unittest.TestProgram):
         return runner.run(self.test)
 
 if __name__ == "__main__":
-    print "Starting tests with _pylibmc at", _pylibmc.__file__
+    if hasattr(_pylibmc, "__file__"):
+        print "Starting tests with _pylibmc at", _pylibmc.__file__
+    else:
+        print "Starting tests with static _pylibmc:", _pylibmc
     print "Reported libmemcached version:", _pylibmc.libmemcached_version
     print "Reported pylibmc version:", _pylibmc.__version__
     print "Support compression:", _pylibmc.support_compression

@@ -7,6 +7,7 @@ from distutils.core import setup, Extension
 # --with-zlib=<dir>: path to zlib if needed
 # --with-libmemcached=<dir>: path to libmemcached package if needed
 
+cmd = None
 use_zlib = True
 pkgdirs = []  # incdirs and libdirs get these
 libs = ["memcached"]
@@ -23,6 +24,8 @@ for arg in sys.argv[1:]:
     elif arg == "--without-zlib":
         use_zlib = False
         continue
+    elif arg == "--gen-setup":
+        cmd = arg[2:]
     elif "=" in arg:
         if arg.startswith("--with-libmemcached=") or \
            arg.startswith("--with-zlib="):
@@ -42,6 +45,17 @@ if use_zlib:
 pylibmc_ext = Extension("_pylibmc", ["_pylibmcmodule.c"],
                         libraries=libs, include_dirs=incdirs,
                         library_dirs=libdirs, define_macros=defs)
+
+# Hidden secret: if environment variable GEN_SETUP is set, generate Setup file.
+if cmd == "gen-setup":
+    line = " ".join((
+        pylibmc_ext.name,
+        " ".join("-l" + lib for lib in pylibmc_ext.libraries),
+        " ".join("-I" + incdir for incdir in pylibmc_ext.include_dirs),
+        " ".join("-L" + libdir for libdir in pylibmc_ext.library_dirs),
+        " ".join("-D" + name + ("=" + str(value), "")[value is None] for (name, value) in pylibmc_ext.define_macros)))
+    open("Setup", "w").write(line + "\n")
+    sys.exit(0)
 
 readme_text = open("README.rst", "U").read()
 version = open("pylibmc-version.h", "U").read().strip().split("\"")[1]
