@@ -230,8 +230,14 @@ class TestCmemcached(unittest.TestCase):
         self.assertEqual(self.mc.get("str12345"), None)
         self.assertEqual(ret, True)
 
-        ret = self.mc.delete("hello world")
-        self.assertEqual(ret, False)
+        # This test only works with old memcacheds. This has become a "client
+        # error" in memcached.
+        try:
+            ret = self.mc.delete("hello world")
+        except pylibmc.ClientError:
+            pass
+        else:
+            self.assertEqual(ret, False)
 
     def testGetMulti(self):
         self.mc.set("a", "valueA")
