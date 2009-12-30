@@ -2,7 +2,7 @@
 
 __ http://memcached.org/
 
-It builds on the famous `libmemcached`__ C client from TangetOrg__, notable for
+It builds on the famous `libmemcached`__ C client from TangentOrg__, notable for
 its speed and flexibility.
 
 __ http://tangent.org/552/libmemcached.html
