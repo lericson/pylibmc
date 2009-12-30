@@ -64,5 +64,6 @@ setup(name="pylibmc", version=version,
       url="http://lericson.blogg.se/code/category/pylibmc.html",
       author="Ludvig Ericson", author_email="ludvig@lericson.se",
       license="3-clause BSD <http://www.opensource.org/licenses/bsd-license.php>",
-      description="libmemcached wrapper", long_description=readme_text,
+      description="Quick and small memcached client for Python",
+      long_description=readme_text,
       ext_modules=[pylibmc_ext], py_modules=["pylibmc"])
