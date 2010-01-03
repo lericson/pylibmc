@@ -11,62 +11,9 @@ __ http://tangent.org/
 `libmemcached` must be installed separately, and be available to the compiler
 and linker.
 
-Basic usage is that of `python-memcached`__, like so::
+For usage and documentation, see pylibmc__'s home.
 
-    >>> import pylibmc
-    >>> mc = pylibmc.Client(["127.0.0.1:11211"])
-    >>> mc.set("foo", "Hello world!")
-    True
-    >>> mc.get("foo")
-    'Hello world!'
-
-__ http://www.tummy.com/Community/software/python-memcached/
-
-There's also support for some other features not present in other Python
-libraries, like the binary protocol::
-
-    >>> mc = pylibmc.Client(["127.0.0.1"], binary=True)
-
-Behaviors
-=========
-
-`libmemcached` has ways of telling it how to behave. You'll have to refer to
-its documentation on what the different behaviors do.
-
-To change behaviors, quite simply::
-
-    >>> mc.behaviors["hash"] = "fnv1a_32"
-
-For a list of the defined behavior key names, see what the keys of a client is.
-For example::
-
-    >>> mc.behaviors.keys()  # doctest: +NORMALIZE_WHITESPACE
-    ['hash', 'connect timeout', 'cache lookups', 'buffer requests',
-     'verify key', 'support cas', 'poll timeout', 'no block', 'tcp nodelay',
-     'distribution', 'sort hosts']
-
-The ``hash`` and ``distribution`` keys are mapped by the Python module to constant
-integer values used by `libmemcached`. See ``pylibmc.hashers`` and
-``pylibmc.distributions``.
-
-Pooling
-=======
-
-In multithreaded environments, accessing the same memcached client object is
-both unsafe and counter-productive in terms of performance. `libmemcached`'s
-take on this is to introduce pooling on C level, which is correspondingly
-mapped to pooling on Python level in `pylibmc`::
-
-    >>> mc = pylibmc.Client(["127.0.0.1"])
-    >>> pool = pylibmc.ThreadMappedPool(mc)
-    >>> # (in a thread...)
-    >>> with pool.reserve() as mc:
-    ...     mc.set("hello", "world")
-
-For more information on pooling, see `my two`__ `long posts`__ about it.
-
-__ http://lericson.blogg.se/code/2009/september/draft-sept-20-2009.html
-__ http://lericson.blogg.se/code/2009/september/pooling-with-pylibmc-pt-2.html
+__ http://sendapatch.se/projects/pylibmc/
 
 Comparison to other libraries
 =============================
