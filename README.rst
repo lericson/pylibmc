@@ -25,6 +25,23 @@ Why use `pylibmc`? Because it's fast.
 __ http://lericson.blogg.se/code/2008/november/pylibmc-051.html
 __ http://amix.dk/blog/viewEntry/19471
 
+Installation
+============
+
+Building needs libmemcached and optionally zlib, the path to which can be
+specified using command-line options to ``setup.py``
+
+``--with-libmemcached=DIR``
+    Build against libmemcached in DIR
+``--with-zlib=DIR``
+    Build against zlib in DIR
+``--without-zlib``
+    Disable zlib (disables compression)
+
+So for example, if one were to use MacPorts to install libmemcached, your
+libmemcached would end up in ``/opt/local``, hence
+``--with-libmemcached=/opt/local``.
+
 IRC
 ===
 
