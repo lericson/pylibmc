@@ -57,6 +57,10 @@ Zero-key-test-time!
 False
 >>> c.set_multi({"": "hi"})
 ['']
+>>> c.delete_multi({"a": "b"})
+Traceback (most recent call last):
+  ...
+TypeError: keys must be a sequence, not a mapping
 
 Timed stuff. The reason we, at UNIX times, set it two seconds in the future and
 then sleep for >3 is that memcached might round the time up and down and left

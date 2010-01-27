@@ -859,6 +859,23 @@ static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
                 &keys, &PyInt_Type, &time, &prefix))
         return NULL;
 
+    /**
+     * Because of how DoMulti works, we have to prohibit the use of mappings
+     * here. Otherwise, the values of the mapping will be the second argument
+     * to the delete function; the time argument will then become a third
+     * argument, which delete doesn't take.
+     *
+     * So a mapping to DoMulti would produce calls like:
+     *   DoMulti({"a": 1, "b": 2}, time=3)
+     *      delete("a", 1, 3)
+     *      delete("b", 2, 3)
+     */
+    if (PyMapping_Check(keys)) {
+        PyErr_SetString(PyExc_TypeError,
+            "keys must be a sequence, not a mapping");
+        return NULL;
+    }
+
     if ((delete = PyObject_GetAttrString((PyObject *)self, "delete")) == NULL)
         return NULL;
 
@@ -872,7 +889,10 @@ static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
     }
     Py_DECREF(delete);
 
-    if (PyList_GET_SIZE(retval) == 0) {
+    if (retval == NULL)
+        return NULL;
+
+    if (PyList_Size(retval) == 0) {
         Py_DECREF(retval);
         retval = Py_True;
     } else {
