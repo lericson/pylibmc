@@ -196,18 +196,15 @@ Python-wrapped behaviors dict
 # Used to test pickling.
 class Foo(object): pass
 
-# Fix up sys.path so as to include the build/lib.*/ directory.
+# Fix up sys.path so as to include the correct build/lib.*/ directory.
 import sys
-import os
-from glob import glob
+from distutils.dist import Distribution
+from distutils.command.build import build
 
-dist_dir = os.path.dirname(__file__)
-for build_dir in glob(os.path.join(dist_dir, "build", "lib.*")):
-    sys.path.insert(0, build_dir)
-    break
-else:
-    print >>sys.stderr, "Using system-wide installation of pylibmc!"
-    print >>sys.stderr, "==========================================\n"
+build_cmd = build(Distribution({"ext_modules": True}))
+build_cmd.finalize_options()
+lib_dirn = build_cmd.build_lib
+sys.path.insert(0, lib_dirn)
 
 import pylibmc, _pylibmc
 import socket
