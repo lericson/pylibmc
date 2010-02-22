@@ -643,10 +643,13 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
     }
     Py_XDECREF(key_it);
 
-    if (i == 0) {
-        /* No usable keys to fetch. */
+    if (nkeys != 0 && i != nkeys) {
+        /* There were keys given, but some keys didn't pass validation. */
         nkeys = 0;
         goto cleanup;
+    } else if (nkeys == 0) {
+        retval = PyDict_New();
+        goto earlybird;
     } else if (PyErr_Occurred()) {
         nkeys--;
         goto cleanup;
@@ -700,6 +703,7 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
         free(curr_val);
     }
 
+earlybird:
     PyMem_Free(key_lens);
     PyMem_Free(keys);
     for (i = 0; i < nkeys; i++) {
@@ -710,6 +714,7 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
     /* Not INCREFing because the only two outcomes are NULL and a new dict.
      * We're the owner of that dict already, so. */
     return retval;
+
 cleanup:
     Py_XDECREF(retval);
     PyMem_Free(key_lens);

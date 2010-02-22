@@ -98,6 +98,10 @@ Traceback (most recent call last):
   ...
 TypeError: key must be an instance of str
 
+This didn't use to work, but now it does.
+>>> c.get_multi([])
+{}
+
 Getting stats is fun!
 >>> for (svr, stats) in c.get_stats():
 ...     print svr
