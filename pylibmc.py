@@ -156,9 +156,10 @@ class ClientPool(Queue):
     True
     """
 
-    def __init__(self, mc, n_slots):
+    def __init__(self, mc=None, n_slots=None):
         Queue.__init__(self, n_slots)
-        self.fill(mc, n_slots)
+        if mc is not None:
+            self.fill(mc, n_slots)
 
     @contextmanager
     def reserve(self, timeout=None):
