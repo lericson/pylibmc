@@ -768,6 +768,7 @@ static PyObject *_PylibMC_DoMulti(PyObject *values, PyObject *func,
                 goto iter_error;
 
             args = PyTuple_Pack(2, key, value);
+            Py_DECREF(value);
         } else {
             args = PyTuple_Pack(1, key);
         }
