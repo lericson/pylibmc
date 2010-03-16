@@ -15,6 +15,14 @@ defs = []
 incdirs = []
 libdirs = []
 
+def append_env(L, e):
+    v = os.environ.get(e)
+    if v and os.path.exists(v):
+        L.append(v)
+
+append_env(pkgdirs, "LIBMEMCACHED")
+append_env(pkgdirs, "ZLIB")
+
 # Hack up sys.argv, yay
 unprocessed = []
 for arg in sys.argv[1:]:
