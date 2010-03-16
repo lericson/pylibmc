@@ -1,5 +1,8 @@
 *.pyc
 *.pyo
-build/*
-dist/*
+.DS_Store
+build
+dist
+tmp
 MANIFEST
+sendapatch.se
