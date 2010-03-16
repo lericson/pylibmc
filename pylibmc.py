@@ -22,6 +22,7 @@ minor differences. If you should happen to spot any, file a bug!
 
 import _pylibmc
 from warnings import warn
+from Queue import Queue
 
 __all__ = ["hashers", "distributions", "Client"]
 __version__ = _pylibmc.__version__
@@ -135,7 +136,7 @@ class Client(_pylibmc.client):
 
 from contextlib import contextmanager
 
-class ClientPool(list):
+class ClientPool(Queue):
     """Client pooling helper.
 
     This is mostly useful in threaded environments, because a client isn't
@@ -155,19 +156,23 @@ class ClientPool(list):
     True
     """
 
+    def __init__(self, mc, n_slots):
+        Queue.__init__(self, n_slots)
+        self.fill(mc, n_slots)
+
     @contextmanager
-    def reserve(self):
+    def reserve(self, timeout=None):
         """Reserve a client, and put it back into the pool when done."""
-        mc = self.pop()
+        mc = self.get(True, timeout=timeout)
         try:
             yield mc
         finally:
-            self.append(mc)
+            self.put(mc)
 
     def fill(self, mc, n_slots):
         """Fill *n_slots* of the pool with clones of *mc*."""
         for i in xrange(n_slots):
-            self.append(mc.clone())
+            self.put(mc.clone())
 
 class ThreadMappedPool(dict):
     """Much like the *ClientPool*, helps you with pooling.
