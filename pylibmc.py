@@ -163,7 +163,11 @@ class ClientPool(Queue):
 
     @contextmanager
     def reserve(self, timeout=None):
-        """Reserve a client, and put it back into the pool when done."""
+        """Context manager for reserving a client from the pool.
+
+        If *timeout* is given, it specifiecs how long to wait for a client to
+        become available.
+        """
         mc = self.get(True, timeout=timeout)
         try:
             yield mc
