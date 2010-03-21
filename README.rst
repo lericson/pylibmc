@@ -50,6 +50,12 @@ IRC
 Change Log
 ==========
 
+New in version 1.0
+------------------
+
+ - Lots of documentation fixes and other nice things like that.
+ - Nailed what appears to be the last outstanding memory leak.
+
 New in version 0.9
 ------------------
 
