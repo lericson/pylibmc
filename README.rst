@@ -11,7 +11,8 @@ __ http://tangent.org/
 `libmemcached` must be installed separately, and be available to the compiler
 and linker.
 
-For usage and documentation, see pylibmc__'s home.
+For installation instructions, usage notes and reference documentation, see
+pylibmc__'s home at http://sendapatch.se/projects/pylibmc/.
 
 __ http://sendapatch.se/projects/pylibmc/
 
