@@ -1,23 +1,55 @@
-"""`python-memcached`-compatible wrapper around `_pylibmc`.
+"""Snappy libmemcached wrapper
 
-The interface is pretty much exactly the same as python-memcached, with some
-minor differences. If you should happen to spot any, file a bug!
+pylibmc is a Python wrapper around TangentOrg's libmemcached library.
 
->>> import pylibmc
->>> mc = pylibmc.Client(["127.0.0.1"])
->>> b = mc.behaviors
->>> ks = list(sorted(k for k in b.keys() if not k.startswith("_")))
->>> ks  # doctest: +NORMALIZE_WHITESPACE
-['buffer_requests', 'cache_lookups', 'cas', 'connect_timeout', 'distribution',
- 'failure_limit', 'hash', 'ketama', 'ketama_hash', 'ketama_weighted',
- 'no_block', 'receive_timeout', 'send_timeout', 'tcp_nodelay', 'verify_keys']
->>> b["hash"]
-'default'
->>> b["hash"] = 'fnv1a_32'
->>> mc.behaviors["hash"]
-'fnv1a_32'
->>> super(pylibmc.Client, mc).get_behaviors()["hash"]
-6
+The interface is intentionally made as close to python-memcached as possible,
+so that applications can drop-in replace it.
+
+Example usage
+=============
+
+Create a connection and configure it::
+
+    >>> import pylibmc
+    >>> mc = pylibmc.Client(["127.0.0.1"], binary=True)
+    >>> mc.behaviors = {"tcp_nodelay": True, "ketama": True}
+
+Basic operation::
+
+    >>> mc.set("some_key", "Some value")
+    True
+    >>> value = mc.get("some_key")
+    >>> value
+    'Some value'
+    >>> mc.set("another_key", 3)
+    True
+    >>> mc.delete("another_key")
+    True
+    >>> mc.set("key", "1")  # str or int is fine
+    True
+
+Atomic increments and decrements::
+
+    >>> mc.incr("key")
+    2L
+    >>> mc.decr("key")
+    1L
+
+Batch operation::
+
+    >>> mc.get_multi(["key", "another_key"])
+    {'key': '1'}
+    >>> mc.set_multi({"cats": ["on acid", "furry"], "dogs": True})
+    []
+    >>> mc.get_multi(["cats", "dogs"])
+    {'cats': ['on acid', 'furry'], 'dogs': True}
+    >>> mc.delete_multi(["cats", "dogs", "nonextant"])
+    False
+
+Further Reading
+===============
+
+See http://sendapatch.se/projects/pylibmc/
 """
 
 import _pylibmc

@@ -195,6 +195,21 @@ Python-wrapped behaviors dict
 >>> pc.behaviors.update({"hash": "fnv1a_32", "distribution": "consistent"})
 >>> (pc.behaviors["hash"], pc.behaviors["distribution"])
 ('fnv1a_32', 'consistent')
+
+>>> pc = pylibmc.Client(["%s:%d" % test_server[1:]])
+>>> b = pc.behaviors
+>>> ks = list(sorted(k for k in b.keys() if not k.startswith("_")))
+>>> ks  # doctest: +NORMALIZE_WHITESPACE
+['buffer_requests', 'cache_lookups', 'cas', 'connect_timeout', 'distribution',
+ 'failure_limit', 'hash', 'ketama', 'ketama_hash', 'ketama_weighted',
+ 'no_block', 'receive_timeout', 'send_timeout', 'tcp_nodelay', 'verify_keys']
+>>> b["hash"]
+'default'
+>>> b["hash"] = 'fnv1a_32'
+>>> pc.behaviors["hash"]
+'fnv1a_32'
+>>> super(pylibmc.Client, pc).get_behaviors()["hash"]
+6
 """
 
 # Used to test pickling.

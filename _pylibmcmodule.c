@@ -284,6 +284,7 @@ error:
     return NULL;
 }
 #endif
+/* }}} */
 
 static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
         uint32_t flags) {
