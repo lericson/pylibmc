@@ -132,10 +132,10 @@ class Client(_pylibmc.client):
         Reverses the integer constants for `hash` and `distribution` into more
         understandable string values. See *set_behaviors* for info.
         """
-        behaviors = super(Client, self).get_behaviors()
-        behaviors["hash"] = hashers_rvs[behaviors["hash"]]
-        behaviors["distribution"] = distributions_rvs[behaviors["distribution"]]
-        return BehaviorDict(self, behaviors)
+        bvrs = super(Client, self).get_behaviors()
+        bvrs["hash"] = hashers_rvs[bvrs["hash"]]
+        bvrs["distribution"] = distributions_rvs[bvrs["distribution"]]
+        return BehaviorDict(self, bvrs)
 
     def set_behaviors(self, behaviors):
         """Sets the behaviors on the underlying C client instance.
