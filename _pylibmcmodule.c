@@ -1210,7 +1210,18 @@ PyMODINIT_FUNC init_pylibmc(void) {
     PyObject *module, *exc_objs;
     PylibMC_Behavior *b;
     PylibMC_McErr *err;
+    int libmemcached_version_minor;
     char name[128];
+
+    /* Check minimum requirement of libmemcached version */
+    libmemcached_version_minor = \
+        atoi(strchr(LIBMEMCACHED_VERSION_STRING, '.') + 1);
+    if (libmemcached_version_minor < 32) {
+        PyErr_Format(PyExc_RuntimeError,
+            "pylibmc requires >= libmemcached 0.32, was compiled with %s",
+            LIBMEMCACHED_VERSION_STRING);
+        return;
+    }
 
     if (PyType_Ready(&PylibMC_ClientType) < 0) {
         return;

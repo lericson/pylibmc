@@ -55,6 +55,7 @@ New in version 1.0
 
  - Lots of documentation fixes and other nice things like that.
  - Nailed what appears to be the last outstanding memory leak.
+ - Explicitly require libmemcached 0.32 or newer.
 
 New in version 0.9
 ------------------
