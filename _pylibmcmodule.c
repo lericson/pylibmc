@@ -590,34 +590,71 @@ static PyObject *PylibMC_Client_decr(PylibMC_Client *self, PyObject *args) {
 }
 /* }}} */
 
-char* _memcached_fetch_no_gil(memcached_st *mc, char *key, size_t *key_length,
-                              size_t *value_length,
-                              uint32_t *flags,
-                              memcached_return_t *error) {
-    /* simple wrapper to do memcached_fetch without holding the GIL
-       while blocking */
-    char* ret;
-    Py_BEGIN_ALLOW_THREADS;
-    ret = memcached_fetch(mc, key, key_length, value_length, flags, error);
-    Py_END_ALLOW_THREADS;
-    return ret;
+memcached_return pylibmc_memcached_fetch_multi(memcached_st* mc,
+                                               char** keys,
+                                               size_t nkeys,
+                                               size_t* key_lens,
+                                               pylibmc_mget_result* results,
+                                               size_t* nresults,
+                                               char** err_func) {
+
+  memcached_return rc;
+  char curr_key[MEMCACHED_MAX_KEY];
+  size_t curr_key_len = 0;
+  char* curr_value = NULL;
+  size_t curr_value_len = 0;
+  uint32_t curr_flags = 0;
+
+  *nresults = 0;
+
+  rc = memcached_mget(mc, (const char **)keys, key_lens, nkeys);
+
+  if(rc != MEMCACHED_SUCCESS) {
+    *err_func = "memcached_mget";
+    return rc;
+  }
+
+  while((curr_value = memcached_fetch(mc, curr_key, &curr_key_len,
+                                      &curr_value_len, &curr_flags, &rc))
+        != NULL) {
+    if(curr_value == NULL && rc == MEMCACHED_END) {
+      return MEMCACHED_SUCCESS;
+    } else if(rc == MEMCACHED_BAD_KEY_PROVIDED
+           || rc == MEMCACHED_NO_KEY_PROVIDED) {
+      /* just skip this key */
+    } else if (rc != MEMCACHED_SUCCESS) {
+      *err_func = "memcached_fetch";
+      return rc;
+    } else {
+      pylibmc_mget_result r = {"",
+                               curr_key_len,
+                               curr_value,
+                               curr_value_len,
+                               curr_flags};
+      assert(curr_key_len <= MEMCACHED_MAX_KEY);
+      bcopy(curr_key, r.key, curr_key_len);
+      results[*nresults] = r;
+      *nresults += 1;
+    }
+  }
+
+  return MEMCACHED_SUCCESS;
 }
+
 
 static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
         PyObject *kwds) {
     PyObject *key_seq, **key_objs, *retval = NULL;
     char **keys, *prefix = NULL;
+    pylibmc_mget_result* results = NULL;
     Py_ssize_t prefix_len = 0;
     Py_ssize_t i;
     PyObject *key_it, *ckey;
     size_t *key_lens;
-    size_t nkeys;
+    size_t nkeys, nresults = 0;
     memcached_return rc;
 
-    char curr_key[MEMCACHED_MAX_KEY];
-    size_t curr_key_len, curr_val_len;
-    uint32_t curr_flags;
-    char *curr_val;
+    char** err_func = NULL;
 
     static char *kws[] = { "keys", "key_prefix", NULL };
 
@@ -630,11 +667,16 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
         return NULL;
     }
 
+    /* this is probably over-allocating in the majority of cases */
+    results = PyMem_New(pylibmc_mget_result, nkeys);
+
     /* Populate keys and key_lens. */
     keys = PyMem_New(char *, nkeys);
     key_lens = PyMem_New(size_t, nkeys);
     key_objs = PyMem_New(PyObject *, nkeys);
-    if (keys == NULL || key_lens == NULL || key_objs == NULL) {
+    if (results == NULL || keys == NULL || key_lens == NULL
+     || key_objs == NULL) {
+        PyMem_Free(results);
         PyMem_Free(keys);
         PyMem_Free(key_lens);
         PyMem_Free(key_objs);
@@ -688,51 +730,43 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
      * the data at once isn't needed. (Should probably look into if it's even
      * worth it.)
      */
-    retval = PyDict_New();
+    Py_BEGIN_ALLOW_THREADS
+    rc = pylibmc_memcached_fetch_multi(self->mc,
+                                       keys, nkeys, key_lens,
+                                       results,
+                                       &nresults,
+                                       err_func);
+    Py_END_ALLOW_THREADS
 
-    /* start the request, which will be continued by
-       memcached_fetch */
-    Py_BEGIN_ALLOW_THREADS;
-    rc = memcached_mget(self->mc, (const char **)keys, key_lens, nkeys);
-    Py_END_ALLOW_THREADS;
-
-    if (rc != MEMCACHED_SUCCESS) {
-        PylibMC_ErrFromMemcached(self, "memcached_mget", rc);
-        goto cleanup;
+    if(rc != MEMCACHED_SUCCESS) {
+      PylibMC_ErrFromMemcached(self, *err_func, rc);
+      goto cleanup;
     }
 
-    while ((curr_val = _memcached_fetch_no_gil(
-                    self->mc, curr_key, &curr_key_len, &curr_val_len,
-                    &curr_flags, &rc)) != NULL
-            && !PyErr_Occurred()) {
-        if (curr_val == NULL && rc == MEMCACHED_END) {
-            break;
-        } else if (rc == MEMCACHED_BAD_KEY_PROVIDED
-                || rc == MEMCACHED_NO_KEY_PROVIDED) {
-            /* Do nothing at all. :-) */
-        } else if (rc != MEMCACHED_SUCCESS) {
-            PylibMC_ErrFromMemcached(self, "memcached_fetch", rc);
-            memcached_quit(self->mc);
-            goto cleanup;
-        } else {
-            PyObject *val;
+    retval = PyDict_New();
 
-            /* This is safe because libmemcached's max key length
-             * includes space for a NUL-byte. */
-            curr_key[curr_key_len] = 0;
-            val = _PylibMC_parse_memcached_value(
-                    curr_val, curr_val_len, curr_flags);
-            if (val == NULL) {
-                memcached_quit(self->mc);
-                goto cleanup;
-            }
-            PyDict_SetItemString(retval, curr_key + prefix_len, val);
-            Py_DECREF(val);
-        }
-        /* Although Python prohibits you from using the libc memory allocation
-         * interface, we have to since libmemcached goes around doing
-         * malloc()... */
-        free(curr_val);
+    for(i = 0; i<nresults; i++) {
+      PyObject *val;
+
+      /* This is safe because libmemcached's max key length
+       * includes space for a NUL-byte. */
+      results[i].key[results[i].key_len] = 0;
+      val = _PylibMC_parse_memcached_value(results[i].value,
+                                           results[i].value_len,
+                                           results[i].flags);
+      if (val == NULL) {
+        /* PylibMC_parse_memcached_value raises the exception on its
+           own */
+        goto cleanup;
+      }
+      PyDict_SetItemString(retval, results[i].key + prefix_len,
+                           val);
+      Py_DECREF(val);
+
+      if(PyErr_Occurred()) {
+        /* only PyDict_SetItemString can incur this one */
+        goto cleanup;
+      }
     }
 
 earlybird:
@@ -740,6 +774,15 @@ earlybird:
     PyMem_Free(keys);
     for (i = 0; i < nkeys; i++) {
         Py_DECREF(key_objs[i]);
+    }
+    if(results != NULL){
+        for (i = 0; i < nresults; i++) {
+            /* I know Python says we can't call malloc/free, but
+               libmemcached does, so we need to free its memory in the
+               same way */
+            free(results[i].value);
+        }
+        PyMem_Free(results);
     }
     PyMem_Free(key_objs);
 
@@ -753,6 +796,12 @@ cleanup:
     PyMem_Free(keys);
     for (i = 0; i < nkeys; i++)
         Py_DECREF(key_objs[i]);
+    if(results != NULL){
+        for (i = 0; i < nresults; i++) {
+            free(results[i].value);
+        }
+        PyMem_Free(results);
+    }
     PyMem_Free(key_objs);
     return NULL;
 }
@@ -763,6 +812,9 @@ cleanup:
  */
 static PyObject *_PylibMC_DoMulti(PyObject *values, PyObject *func,
         PyObject *prefix, PyObject *extra_args) {
+    /* TODO: acquire/release the GIL only only once per DoMulti rather
+       than once per action */
+
     PyObject *retval = PyList_New(0);
     PyObject *iter = NULL;
     PyObject *item = NULL;

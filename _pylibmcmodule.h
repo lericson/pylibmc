@@ -74,6 +74,22 @@ typedef ssize_t Py_ssize_t;
 typedef memcached_return (*_PylibMC_SetCommand)(memcached_st *, const char *,
         size_t, const char *, size_t, time_t, uint32_t);
 
+typedef struct {
+  char key[MEMCACHED_MAX_KEY];
+  size_t key_len;
+  char* value;
+  size_t value_len;
+  uint32_t flags;
+} pylibmc_mget_result;
+memcached_return pylibmc_memcached_fetch_multi(memcached_st* mc,
+                                               char** keys,
+                                               size_t nkeys,
+                                               size_t* key_lengths,
+                                               pylibmc_mget_result* results,
+                                               size_t* nresults,
+                                               char** err_func);
+
+
 /* {{{ Exceptions */
 static PyObject *PylibMCExc_MemcachedError;
 
