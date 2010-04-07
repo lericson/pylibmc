@@ -45,6 +45,16 @@ Batch operation::
     {'cats': ['on acid', 'furry'], 'dogs': True}
     >>> mc.delete_multi(["cats", "dogs", "nonextant"])
     False
+    >>> mc.add_multi({"cats": ["on acid", "furry"], "dogs": True})
+    []
+    >>> mc.get_multi(["cats", "dogs"])
+    {'cats': ['on acid', 'furry'], 'dogs': True}
+    >>> mc.add_multi({"cats": "not set", "dogs": "definitely not set", "bacon": "yummy"})
+    ['cats', 'dogs']
+    >>> mc.get_multi(["cats", "dogs", "bacon"])
+    {'cats': ['on acid', 'furry'], 'bacon': 'yummy', 'dogs': True}
+    >>> mc.delete_multi(["cats", "dogs", "bacon"])
+    True
 
 Further Reading
 ===============

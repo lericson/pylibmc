@@ -95,7 +95,7 @@ Now for keys with funny types.
 >>> c.set(1, "hi")
 Traceback (most recent call last):
   ...
-TypeError: argument 1 must be string or read-only buffer, not int
+TypeError: argument 1 must be string, not int
 >>> c.get(1)
 Traceback (most recent call last):
   ...
@@ -191,6 +191,30 @@ True
 >>> c.get("hello")
 'world'
 >>> c.delete("hello")
+True
+
+incr_multi
+>>> c.add_multi({'a': 1, 'b': 0, 'c': 4})
+[]
+>>> c.incr_multi(('a', 'b', 'c'), delta=1)
+>>> list(sorted(c.get_multi(('a', 'b', 'c')).items()))
+[('a', 2), ('b', 1), ('c', 5)]
+>>> c.delete_multi(('a', 'b', 'c'))
+True
+>>> c.add_multi({'a': 1, 'b': 0, 'c': 4}, key_prefix='x')
+[]
+>>> c.incr_multi(('a', 'b', 'c'), key_prefix='x', delta=5)
+>>> list(sorted(c.get_multi(('a', 'b', 'c'), key_prefix='x').items()))
+[('a', 6), ('b', 5), ('c', 9)]
+>>> c.delete_multi(('a', 'b', 'c'), key_prefix='x')
+True
+>>> c.add('a', 1)
+True
+>>> c.incr_multi(('a', 'b', 'c'), key_prefix='x', delta=1)
+Traceback (most recent call last):
+ ...
+NotFound: error 16 from memcached_increment: NOT FOUND
+>>> c.delete('xa')
 True
 
 Empty server lists are bad for your health.

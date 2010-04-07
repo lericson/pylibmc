@@ -68,11 +68,10 @@ typedef ssize_t Py_ssize_t;
 #define PYLIBMC_FLAG_ZLIB    (1 << 3)
 /* }}} */
 
-#define PYLIBMC_INC  (1 << 0)
-#define PYLIBMC_DEC  (1 << 1)
-
 typedef memcached_return (*_PylibMC_SetCommand)(memcached_st *, const char *,
         size_t, const char *, size_t, time_t, uint32_t);
+typedef memcached_return (*_PylibMC_IncrCommand)(memcached_st *,
+        const char *, size_t, unsigned int, uint64_t*);
 
 typedef struct {
   char key[MEMCACHED_MAX_KEY];
@@ -81,14 +80,32 @@ typedef struct {
   size_t value_len;
   uint32_t flags;
 } pylibmc_mget_result;
-memcached_return pylibmc_memcached_fetch_multi(memcached_st* mc,
-                                               char** keys,
-                                               size_t nkeys,
-                                               size_t* key_lengths,
-                                               pylibmc_mget_result* results,
-                                               size_t* nresults,
-                                               char** err_func);
 
+typedef struct {
+  char *key;
+  Py_ssize_t key_len;
+  char* value;
+  Py_ssize_t value_len;
+  time_t time;
+  uint32_t flags;
+
+  /* the objects that must be freed after the mset is executed */
+  PyObject* key_obj;
+  PyObject* prefixed_key_obj;
+  PyObject* value_obj;
+
+  /* the success of executing the mset afterwards */
+  int success;
+
+} pylibmc_mset;
+
+typedef struct {
+  char* key;
+  Py_ssize_t key_len;
+  _PylibMC_IncrCommand incr_func;
+  unsigned int delta;
+  uint64_t result;
+} pylibmc_incr;
 
 /* {{{ Exceptions */
 static PyObject *PylibMCExc_MemcachedError;
@@ -221,8 +238,10 @@ static PyObject *PylibMC_Client_append(PylibMC_Client *, PyObject *, PyObject *)
 static PyObject *PylibMC_Client_delete(PylibMC_Client *, PyObject *);
 static PyObject *PylibMC_Client_incr(PylibMC_Client *, PyObject *);
 static PyObject *PylibMC_Client_decr(PylibMC_Client *, PyObject *);
+static PyObject *PylibMC_Client_incr_multi(PylibMC_Client*, PyObject*, PyObject*);
 static PyObject *PylibMC_Client_get_multi(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_set_multi(PylibMC_Client *, PyObject *, PyObject *);
+static PyObject *PylibMC_Client_add_multi(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_get_behaviors(PylibMC_Client *);
 static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *, PyObject *);
@@ -236,6 +255,24 @@ static PyObject *_PylibMC_Unpickle(const char *, size_t);
 static PyObject *_PylibMC_Pickle(PyObject *);
 static int _PylibMC_CheckKey(PyObject *);
 static int _PylibMC_CheckKeyStringAndSize(char *, Py_ssize_t);
+static int _PylibMC_SerializeValue(PyObject* key_obj,
+                                   PyObject* key_prefix,
+                                   PyObject* value_obj,
+                                   time_t time,
+                                   pylibmc_mset* serialized);
+static void _PylibMC_FreeMset(pylibmc_mset*);
+static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
+        _PylibMC_SetCommand f, char *fname, PyObject *args, PyObject *kwds);
+static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client* self,
+        _PylibMC_SetCommand f, char *fname, PyObject *args, PyObject *kwds);
+static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
+                                   _PylibMC_SetCommand f, char *fname,
+                                   pylibmc_mset* msets, size_t nkeys,
+                                   size_t min_compress);
+static int _PylibMC_Deflate(char* value, size_t value_len,
+                            char** result, size_t *result_len);
+static bool _PylibMC_IncrDecr(PylibMC_Client*, pylibmc_incr*, size_t);
+
 /* }}} */
 
 /* {{{ Type's method table */
@@ -258,10 +295,14 @@ static PyMethodDef PylibMC_ClientType_methods[] = {
         "Increment a key by a delta."},
     {"decr", (PyCFunction)PylibMC_Client_decr, METH_VARARGS,
         "Decrement a key by a delta."},
+    {"incr_multi", (PyCFunction)PylibMC_Client_incr_multi, METH_VARARGS|METH_KEYWORDS,
+        "Increment more than one key by a delta."},
     {"get_multi", (PyCFunction)PylibMC_Client_get_multi,
         METH_VARARGS|METH_KEYWORDS, "Get multiple keys at once."},
     {"set_multi", (PyCFunction)PylibMC_Client_set_multi,
         METH_VARARGS|METH_KEYWORDS, "Set multiple keys at once."},
+    {"add_multi", (PyCFunction)PylibMC_Client_add_multi,
+        METH_VARARGS|METH_KEYWORDS, "Add multiple keys at once."},
     {"delete_multi", (PyCFunction)PylibMC_Client_delete_multi,
         METH_VARARGS|METH_KEYWORDS, "Delete multiple keys at once."},
     {"get_behaviors", (PyCFunction)PylibMC_Client_get_behaviors, METH_NOARGS,
