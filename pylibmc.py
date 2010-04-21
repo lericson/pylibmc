@@ -260,5 +260,20 @@ except ImportError:
     del ThreadMappedPool
 
 if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
+    import sys
+    import code
+
+    svr_addrs = []
+
+    sys.stderr.write("pylibmc interactive shell\n\n")
+    sys.stderr.write("Input list of servers, end by a blank line\n")
+
+    while True:
+        in_addr = raw_input("Address: ")
+        if not in_addr:
+            break
+    if not svr_addrs:
+        svr_addrs.append("127.0.0.1")
+
+    mc = Client(svr_addrs)
+    code.interact(banner="\nmc client available as `mc`", local={"mc": mc})
