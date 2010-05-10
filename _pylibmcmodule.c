@@ -560,7 +560,7 @@ static PyObject *_PylibMC_IncDec(PylibMC_Client *self, uint8_t dir,
 
     retval = NULL;
     delta = 1;
-    if (!PyArg_ParseTuple(args, "s#|I", &key, &key_sz, &delta)) {
+    if (!PyArg_ParseTuple(args, "s#|I:incr", &key, &key_sz, &delta)) {
         return retval;
     } else if (!_PylibMC_CheckKeyStringAndSize(key, key_sz)) {
         return retval;
@@ -621,7 +621,7 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
 
     static char *kws[] = { "keys", "key_prefix", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|s#", kws,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|s#:get_multi", kws,
             &key_seq, &prefix, &prefix_len)) {
         return NULL;
     }
@@ -859,7 +859,7 @@ static PyObject *PylibMC_Client_set_multi(PylibMC_Client *self, PyObject *args,
 
     static char *kws[] = { "mapping", "time", "key_prefix", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|O!S", kws,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|O!S:set_multi", kws,
                 &map, &PyInt_Type, &time, &prefix))
         return NULL;
 
@@ -1008,7 +1008,7 @@ static PyObject *PylibMC_Client_get_stats(PylibMC_Client *self, PyObject *args) 
     memcached_server_st *servers;
 
     mc_args = NULL;
-    if (!PyArg_ParseTuple(args, "|s", &mc_args))
+    if (!PyArg_ParseTuple(args, "|s:get_stats", &mc_args))
         return NULL;
 
     Py_BEGIN_ALLOW_THREADS;
@@ -1101,7 +1101,7 @@ static PyObject *PylibMC_Client_flush_all(PylibMC_Client *self,
 
     static char *kws[] = { "time", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O!", kws,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O!:flush_all", kws,
                                      &PyInt_Type, &time))
         return NULL;
 
