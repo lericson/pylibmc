@@ -1314,8 +1314,7 @@ Oh, and: plankton.\n");
 
     for (err = PylibMCExc_mc_errs; err->name != NULL; err++) {
         char excnam[64];
-        strncpy(excnam, "_pylibmc.", 64);
-        strncat(excnam, err->name, 64);
+        snprintf(excnam, 64, "_pylibmc.%s", err->name);
         err->exc = PyErr_NewException(excnam, PylibMCExc_MemcachedError, NULL);
         PyModule_AddObject(module, err->name, (PyObject *)err->exc);
         PyList_Append(exc_objs,
