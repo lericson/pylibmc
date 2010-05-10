@@ -749,7 +749,7 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
 
   } /* for */
 
-  Py_END_ALLOW_THREADS
+    Py_END_ALLOW_THREADS;
 
   /* we only return the last return value, even for a _multi
      operation, but we do set the success on the mset */
@@ -1009,7 +1009,7 @@ static bool _PylibMC_IncrDecr(PylibMC_Client *self, pylibmc_incr *incrs,
   _PylibMC_IncrCommand f = NULL;
   size_t i;
 
-  Py_BEGIN_ALLOW_THREADS
+  Py_BEGIN_ALLOW_THREADS;
   for(i = 0; i < nkeys && !error; i++) {
     pylibmc_incr *incr = &incrs[i];
     uint64_t result = 0;
@@ -1021,7 +1021,7 @@ static bool _PylibMC_IncrDecr(PylibMC_Client *self, pylibmc_incr *incrs,
       error = true;
     }
   }
-  Py_END_ALLOW_THREADS
+  Py_END_ALLOW_THREADS;
 
   if(error) {
       char *fname = (f == memcached_decrement) ? "memcached_decrement"
@@ -1179,13 +1179,13 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
      * the data at once isn't needed. (Should probably look into if it's even
      * worth it.)
      */
-    Py_BEGIN_ALLOW_THREADS
+    Py_BEGIN_ALLOW_THREADS;
     rc = pylibmc_memcached_fetch_multi(self->mc,
                                        keys, nkeys, key_lens,
                                        results,
                                        &nresults,
                                        err_func);
-    Py_END_ALLOW_THREADS
+    Py_END_ALLOW_THREADS;
 
     if(rc != MEMCACHED_SUCCESS) {
       PylibMC_ErrFromMemcached(self, *err_func, rc);
