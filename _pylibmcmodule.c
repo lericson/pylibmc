@@ -478,20 +478,7 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client* self,
     goto cleanup;
   }
 
-  for(idx = 0; idx < nkeys; idx++) {
-    /* init them all with NULL pointers so that we can reliably detect
-       and free the ones that get allocated */
-    serialized[idx].key = NULL;
-    serialized[idx].key_len = 0;
-    serialized[idx].value = NULL;
-    serialized[idx].value_len = 0;
-    serialized[idx].time = 0;
-    serialized[idx].flags = PYLIBMC_FLAG_NONE;
-    serialized[idx].key_obj = NULL;
-    serialized[idx].prefixed_key_obj = NULL;
-    serialized[idx].value_obj = NULL;
-    serialized[idx].success = false;
-  }
+  memset((void *)serialized, 0x0, nkeys * sizeof(pylibmc_mset));
 
   /* we're pointing into existing Python memory with the 'key' members
      of pylibmc_mset (extracted using PyDict_Next) and during
