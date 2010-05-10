@@ -398,173 +398,162 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
 static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
         _PylibMC_SetCommand f, char *fname, PyObject *args,
         PyObject *kwds) {
-  /* function called by the set/add/etc commands */
-  static char *kws[] = { "key", "val", "time", "min_compress_len", NULL };
-  PyObject *key;
-  PyObject *value;
-  unsigned int time = 0; /* this will be turned into a time_t */
-  unsigned int min_compress = 0;
-  bool success = false;
+    /* function called by the set/add/etc commands */
+    static char *kws[] = { "key", "val", "time", "min_compress_len", NULL };
+    PyObject *key;
+    PyObject *value;
+    unsigned int time = 0; /* this will be turned into a time_t */
+    unsigned int min_compress = 0;
+    bool success = false;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "SO|II", kws,
-                                   &key, &value,
-                                   &time, &min_compress)) {
-    return NULL;
-  }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "SO|II", kws,
+                                     &key, &value,
+                                     &time, &min_compress)) {
+      return NULL;
+    }
 
 #ifndef USE_ZLIB
-  if (min_compress) {
-    PyErr_SetString(PyExc_TypeError, "min_compress_len without zlib");
-    return NULL;
-  }
+    if (min_compress) {
+      PyErr_SetString(PyExc_TypeError, "min_compress_len without zlib");
+      return NULL;
+    }
 #endif
 
-  pylibmc_mset serialized = { NULL, 0,
-                              NULL, 0,
-                              0, PYLIBMC_FLAG_NONE,
-                              NULL, NULL, NULL,
-                              false };
+    pylibmc_mset serialized = { NULL };
 
-  success = _PylibMC_SerializeValue(key, NULL, value, time, &serialized);
+    success = _PylibMC_SerializeValue(key, NULL, value, time, &serialized);
 
-  if(!success) goto cleanup;
+    if (!success)
+        goto cleanup;
 
-  success = _PylibMC_RunSetCommand(self, f, fname,
-                                   &serialized, 1,
-                                   min_compress);
+    success = _PylibMC_RunSetCommand(self, f, fname,
+                                     &serialized, 1,
+                                     min_compress);
 
 cleanup:
-  _PylibMC_FreeMset(&serialized);
+    _PylibMC_FreeMset(&serialized);
 
-  if(PyErr_Occurred() != NULL) {
-    return NULL;
-  } else if(success) {
-    Py_RETURN_TRUE;
-  } else {
-    Py_RETURN_FALSE;
-  }
+    if(PyErr_Occurred() != NULL) {
+        return NULL;
+    } else if(success) {
+        Py_RETURN_TRUE;
+    } else {
+        Py_RETURN_FALSE;
+    }
 }
 
 static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client* self,
         _PylibMC_SetCommand f, char *fname, PyObject* args,
         PyObject* kwds) {
-  /* function called by the set/add/incr/etc commands */
-  static char *kws[] = { "keys", "key_prefix", "time", "min_compress_len", NULL };
-  PyObject* keys = NULL;
-  PyObject* key_prefix = NULL;
-  unsigned int time = 0;
-  unsigned int min_compress = 0;
-  PyObject * retval = NULL;
-  size_t idx = 0;
+    /* function called by the set/add/incr/etc commands */
+    PyObject* keys = NULL;
+    PyObject* key_prefix = NULL;
+    unsigned int time = 0;
+    unsigned int min_compress = 0;
+    PyObject * retval = NULL;
+    size_t idx = 0;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|O!II", kws,
-                                   &PyDict_Type, &keys,
-                                   &PyString_Type, &key_prefix,
-                                   &time, &min_compress)) {
-    return NULL;
-  }
+    static char *kws[] = { "keys", "key_prefix", "time", "min_compress_len", NULL };
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|O!II", kws,
+                                     &PyDict_Type, &keys,
+                                     &PyString_Type, &key_prefix,
+                                     &time, &min_compress)) {
+        return NULL;
+    }
 
 #ifndef USE_ZLIB
-  if (min_compress) {
-    PyErr_SetString(PyExc_TypeError, "min_compress_len without zlib");
-    return NULL;
-  }
+    if (min_compress) {
+        PyErr_SetString(PyExc_TypeError, "min_compress_len without zlib");
+        return NULL;
+    }
 #endif
 
-  PyObject *curr_key, *curr_value;
-  size_t nkeys = (size_t)PyDict_Size(keys);
+    PyObject *curr_key, *curr_value;
+    size_t nkeys = (size_t)PyDict_Size(keys);
 
-  pylibmc_mset* serialized = PyMem_New(pylibmc_mset, nkeys);
-  if(serialized == NULL) {
-    goto cleanup;
-  }
-
-  memset((void *)serialized, 0x0, nkeys * sizeof(pylibmc_mset));
-
-  /* we're pointing into existing Python memory with the 'key' members
-     of pylibmc_mset (extracted using PyDict_Next) and during
-     _PylibMC_RunSetCommand (which uses those same 'key' params, and
-     potentially points into value string objects too), so we don't
-     want to go around decrementing any references that risk
-     destroying the pointed objects until we're done, especially since
-     we're going to release the GIL while we do the I/O that accesses
-     that memory. We're assuming that this is safe because Python
-     strings are immutable */
-
-  Py_ssize_t pos = 0; /* PyDict_Next's 'pos' isn't an incrementing index */
-  idx = 0;
-  while(PyDict_Next(keys, &pos, &curr_key, &curr_value)) {
-    int success = _PylibMC_SerializeValue(curr_key, key_prefix,
-                                          curr_value, time,
-                                          &serialized[idx]);
-    if(!success || PyErr_Occurred() != NULL) {
-      /* exception should already be on the stack */
-      goto cleanup;
+    pylibmc_mset* serialized = PyMem_New(pylibmc_mset, nkeys);
+    if (serialized == NULL) {
+        goto cleanup;
     }
-    idx++;
-  }
 
-  if(PyErr_Occurred() != NULL) {
-    /* an iteration error of some sort */
-    goto cleanup;
-  }
+    memset((void *)serialized, 0x0, nkeys * sizeof(pylibmc_mset));
 
-  bool allsuccess = _PylibMC_RunSetCommand(self, f, fname, serialized, nkeys, time);
+    /**
+     * We're pointing into existing Python memory with the 'key' members of
+     * pylibmc_mset (extracted using PyDict_Next) and during
+     * _PylibMC_RunSetCommand (which uses those same 'key' params, and
+     * potentially points into value string objects too), so we don't want to
+     * go around decrementing any references that risk destroying the pointed
+     * objects until we're done, especially since we're going to release the
+     * GIL while we do the I/O that accesses that memory. We're assuming that
+     * this is safe because Python strings are immutable
+     */
 
-  if(PyErr_Occurred() != NULL) {
-    goto cleanup;
-  }
+    Py_ssize_t pos = 0; /* PyDict_Next's 'pos' isn't an incrementing index */
 
-  /* We're building the return value for set_multi, which is the list
-     of keys that were not successfully set */
-  retval = PyList_New(0);
-  if(retval == NULL || PyErr_Occurred() != NULL) {
-    goto cleanup;
-  }
-  if(!allsuccess) {
-    for(idx = 0; idx < nkeys; idx++) {
-      if(!serialized[idx].success) {
-        if(PyList_Append(retval, serialized[idx].key_obj) != 0) {
-          /* Ugh */
+    for (idx = 0; PyDict_Next(keys, &pos, &curr_key, &curr_value); idx++) {
+        int success = _PylibMC_SerializeValue(curr_key, key_prefix,
+                                              curr_value, time,
+                                              &serialized[idx]);
 
-          Py_DECREF(retval);
-          retval = NULL;
-          goto cleanup;
+        if (!success || PyErr_Occurred() != NULL) {
+            /* exception should already be on the stack */
+            goto cleanup;
         }
-      }
     }
-  }
+
+    if (PyErr_Occurred() != NULL) {
+        /* an iteration error of some sort */
+        goto cleanup;
+    }
+
+    bool allsuccess = _PylibMC_RunSetCommand(self, f, fname,
+                                             serialized, nkeys, 
+                                             time);
+
+    if (PyErr_Occurred() != NULL) {
+        goto cleanup;
+    }
+
+    /* Return value for set_multi, which is a list
+       of keys which failed to be set */
+    if ((retval = PyList_New(0)) == NULL)
+        return PyErr_NoMemory();
+
+    for (idx = 0; !allsuccess && idx < nkeys; idx++) {
+        if (serialized[idx].success)
+            continue;
+
+        if (PyList_Append(retval, serialized[idx].key_obj) != 0) {
+            /* Ugh */
+            Py_DECREF(retval);
+            retval = PyErr_NoMemory();
+            goto cleanup;
+        }
+    }
 
 cleanup:
-  if(serialized != NULL) {
-    for(pos = 0; pos < nkeys; pos++) {
-      _PylibMC_FreeMset(&serialized[pos]);
+    if (serialized != NULL) {
+        for (pos = 0; pos < nkeys; pos++) {
+            _PylibMC_FreeMset(&serialized[pos]);
+        }
+        PyMem_Free(serialized);
     }
-    PyMem_Free(serialized);
-  }
 
-  return retval;
+    return retval;
 }
 
-static void _PylibMC_FreeMset(pylibmc_mset* mset) {
-  mset->key = NULL;
-  mset->key_len = 0;
-  mset->value = NULL;
-  mset->value_len = 0;
+static void _PylibMC_FreeMset(pylibmc_mset *mset) {
+      Py_XDECREF(mset->key_obj);
+      mset->key_obj = NULL;
 
-  /* if this isn't NULL then we incred it */
-  Py_XDECREF(mset->key_obj);
-  mset->key_obj = NULL;
+      Py_XDECREF(mset->prefixed_key_obj);
+      mset->prefixed_key_obj = NULL;
 
-  /* if this isn't NULL then we built it */
-  Py_XDECREF(mset->prefixed_key_obj);
-  mset->prefixed_key_obj = NULL;
-
-  /* this is either a string that we created, or a string that we
-     passed to us. in the latter case, we incred it ourselves, so this
-     should be safe */
-  Py_XDECREF(mset->value_obj);
-  mset->value_obj = NULL;
+      /* Either a ref we own, or a ref passed to us which we borrowed. */
+      Py_XDECREF(mset->value_obj);
+      mset->value_obj = NULL;
 }
 
 static int _PylibMC_SerializeValue(PyObject* key_obj,
@@ -572,105 +561,113 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
                                    PyObject* value_obj,
                                    time_t time,
                                    pylibmc_mset* serialized) {
-  /* do the easy bits first */
-  serialized->time = time;
-  serialized->success = false;
-  serialized->flags = PYLIBMC_FLAG_NONE;
+    serialized->time = time;
+    serialized->success = false;
+    serialized->flags = PYLIBMC_FLAG_NONE;
 
-  if(!_PylibMC_CheckKey(key_obj)
-     || PyString_AsStringAndSize(key_obj, &serialized->key,
-                                 &serialized->key_len) == -1) {
-    return false;
-  }
-
-  /* we need to incr our reference here so that it's guaranteed to
-     exist while we release the GIL. Even if we fail after this it
-     should be decremeneted by pylib_mset_free */
-  serialized->key_obj = key_obj;
-  Py_INCREF(key_obj);
-
-  /* make the prefixed key if appropriate */
-  if(key_prefix != NULL) {
-    if(!_PylibMC_CheckKey(key_prefix)) {
-      return false;
-    }
-
-    /* we can safely ignore an empty prefix */
-    if(PyString_Size(key_prefix) > 0) {
-      PyObject* prefixed_key_obj = NULL; /* freed by _PylibMC_FreeMset */
-      prefixed_key_obj = PyString_FromFormat("%s%s",
-                                             PyString_AS_STRING(key_prefix),
-                                             PyString_AS_STRING(key_obj));
-      if(prefixed_key_obj == NULL) {
+    if(!_PylibMC_CheckKey(key_obj)
+       || PyString_AsStringAndSize(key_obj, &serialized->key,
+                                   &serialized->key_len) == -1) {
         return false;
-      }
+    }
 
-      /* check the key and overwrite the C string */
-      if(!_PylibMC_CheckKey(prefixed_key_obj)
-         || PyString_AsStringAndSize(prefixed_key_obj, &serialized->key,
-                                     &serialized->key_len) == -1) {
-        Py_DECREF(prefixed_key_obj);
+    /* We need to incr our reference here so that it's guaranteed to
+       exist while we release the GIL. Even if we fail after this it
+       should be decremeneted by pylib_mset_free */
+    Py_INCREF(key_obj);
+    serialized->key_obj = key_obj;
+
+    /* Check the key_prefix */
+    if (key_prefix != NULL) {
+        if (!_PylibMC_CheckKey(key_prefix)) {
+            return false;
+        }
+
+        /* Ignore empty prefixes */
+        if (!PyString_Size(key_prefix)) {
+            key_prefix = NULL;
+        }
+    }
+
+    /* Make the prefixed key if appropriate */
+    if (key_prefix != NULL) {
+        PyObject* prefixed_key_obj = NULL; /* freed by _PylibMC_FreeMset */
+
+        prefixed_key_obj = PyString_FromFormat("%s%s",
+                PyString_AS_STRING(key_prefix),
+                PyString_AS_STRING(key_obj));
+
+        if(prefixed_key_obj == NULL) {
+            return false;
+        }
+
+        /* check the key and overwrite the C string */
+        if(!_PylibMC_CheckKey(prefixed_key_obj)
+           || PyString_AsStringAndSize(prefixed_key_obj,
+                                       &serialized->key,
+                                       &serialized->key_len) == -1) {
+            Py_DECREF(prefixed_key_obj);
+            return false;
+        }
+
+        serialized->prefixed_key_obj = prefixed_key_obj;
+    }
+
+    /* Key/key_size should be harmonized, now onto the value */
+
+    PyObject* store_val = NULL;
+
+    /* First build store_val, a Python String object, out of the object
+       we were passed */
+    if (PyString_Check(value_obj)) {
+        store_val = value_obj;
+        Py_INCREF(store_val); /* because we'll be decring it again in
+                                 pylibmc_mset_free*/
+    } else if (PyBool_Check(value_obj)) {
+        serialized->flags |= PYLIBMC_FLAG_BOOL;
+        PyObject* tmp = PyNumber_Int(value_obj);
+        store_val = PyObject_Str(tmp);
+        Py_DECREF(tmp);
+    } else if (PyInt_Check(value_obj)) {
+        serialized->flags |= PYLIBMC_FLAG_INTEGER;
+        PyObject* tmp = PyNumber_Int(value_obj);
+        store_val = PyObject_Str(tmp);
+        Py_DECREF(tmp);
+    } else if (PyLong_Check(value_obj)) {
+        serialized->flags |= PYLIBMC_FLAG_LONG;
+        PyObject* tmp = PyNumber_Long(value_obj);
+        store_val = PyObject_Str(tmp);
+        Py_DECREF(tmp);
+    } else if(value_obj != NULL) {
+        /* we have no idea what it is, so we'll store it pickled */
+        Py_INCREF(value_obj);
+        serialized->flags |= PYLIBMC_FLAG_PICKLE;
+        store_val = _PylibMC_Pickle(value_obj);
+        Py_DECREF(value_obj);
+    }
+
+    if (store_val == NULL) {
         return false;
-      }
-      serialized->prefixed_key_obj = prefixed_key_obj;
     }
-  }
 
-  /* key/key_size should be copasetic, now onto the value */
-
-  PyObject* store_val = NULL;
-
-  /* first, build store_val, a Python String object, out of the object
-     we were passed */
-  if (PyString_Check(value_obj)) {
-    store_val = value_obj;
-    Py_INCREF(store_val); /* because we'll be decring it again in
-                             pylibmc_mset_free*/
-  } else if (PyBool_Check(value_obj)) {
-    serialized->flags |= PYLIBMC_FLAG_BOOL;
-    PyObject* tmp = PyNumber_Int(value_obj);
-    store_val = PyObject_Str(tmp);
-    Py_DECREF(tmp);
-  } else if (PyInt_Check(value_obj)) {
-    serialized->flags |= PYLIBMC_FLAG_INTEGER;
-    PyObject* tmp = PyNumber_Int(value_obj);
-    store_val = PyObject_Str(tmp);
-    Py_DECREF(tmp);
-  } else if (PyLong_Check(value_obj)) {
-    serialized->flags |= PYLIBMC_FLAG_LONG;
-    PyObject* tmp = PyNumber_Long(value_obj);
-    store_val = PyObject_Str(tmp);
-    Py_DECREF(tmp);
-  } else if(value_obj != NULL) {
-    /* we have no idea what it is, so we'll store it pickled */
-    Py_INCREF(value_obj);
-    serialized->flags |= PYLIBMC_FLAG_PICKLE;
-    store_val = _PylibMC_Pickle(value_obj);
-    Py_DECREF(value_obj);
-  }
-
-  if (store_val == NULL) {
-    return false;
-  }
-
-  if(PyString_AsStringAndSize(store_val, &serialized->value,
-                              &serialized->value_len) == -1) {
-    if(serialized->flags == PYLIBMC_FLAG_NONE) {
-      /* for some reason we weren't able to extract the value/size
-         from a string that we were explicitly passed, that we
-         INCREF'd above */
-      Py_DECREF(store_val);
+    if(PyString_AsStringAndSize(store_val, &serialized->value,
+                                &serialized->value_len) == -1) {
+        if(serialized->flags == PYLIBMC_FLAG_NONE) {
+            /* For some reason we weren't able to extract the value/size
+               from a string that we were explicitly passed, that we
+               INCREF'd above */
+            Py_DECREF(store_val);
+        }
+        return false;
     }
-    return false;
-  }
 
-  /* so now we have a reference to a string that we may have
-     created. we need that to keep existing while we release the HIL,
-     so we need to hold the reference, but we need to free it up when
-     we're done */
-  serialized->value_obj = store_val;
+    /* So now we have a reference to a string that we may have
+       created. we need that to keep existing while we release the HIL,
+       so we need to hold the reference, but we need to free it up when
+       we're done */
+    serialized->value_obj = store_val;
 
-  return true;
+    return true;
 }
 
 /* {{{ Set commands (set, replace, add, prepend, append) */
@@ -686,79 +683,78 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
 
     Py_BEGIN_ALLOW_THREADS;
 
-    for(pos=0; pos < nkeys && !error; pos++) {
-      pylibmc_mset* mset = &msets[pos];
+    for (pos=0; pos < nkeys && !error; pos++) {
+        pylibmc_mset* mset = &msets[pos];
 
-      char* value = mset->value;
-      size_t value_len = mset->value_len;
-      uint32_t flags = mset->flags;
-
-#ifdef USE_ZLIB
-      char* compressed_value = NULL;
-      size_t compressed_len = 0;
-
-      if(min_compress && value_len >= min_compress) {
-        _PylibMC_Deflate(value, value_len, &compressed_value, &compressed_len);
-      }
-
-      if(compressed_value != NULL) {
-        /* will want to change this if this function needs to get back
-           at the old *value at some point */
-        value = compressed_value;
-        value_len = compressed_len;
-        flags |= PYLIBMC_FLAG_ZLIB;
-      }
-#endif
-
-      /* finally go and call the actual libmemcached function */
-      if(mset->key_len == 0) {
-        /* most other implementations ignore zero-length keys, so
-           we'll just do that */
-        rc = MEMCACHED_NOTSTORED;
-      } else {
-        rc = f(mc,
-               mset->key, mset->key_len,
-               value, value_len,
-               mset->time, flags);
-      }
+        char* value = mset->value;
+        size_t value_len = mset->value_len;
+        uint32_t flags = mset->flags;
 
 #ifdef USE_ZLIB
-      if(compressed_value != NULL) {
-        free(compressed_value);
-      }
+        char* compressed_value = NULL;
+        size_t compressed_len = 0;
+
+        if(min_compress && value_len >= min_compress) {
+            _PylibMC_Deflate(value, value_len,
+                             &compressed_value, &compressed_len);
+        }
+
+        if(compressed_value != NULL) {
+            /* Will want to change this if this function 
+             * needs to get back at the old *value at some point */
+            value = compressed_value;
+            value_len = compressed_len;
+            flags |= PYLIBMC_FLAG_ZLIB;
+        }
 #endif
 
-     switch(rc) {
-     case MEMCACHED_SUCCESS:
-       mset->success = true;
-       break;
-     case MEMCACHED_FAILURE:
-     case MEMCACHED_NO_KEY_PROVIDED:
-     case MEMCACHED_BAD_KEY_PROVIDED:
-     case MEMCACHED_MEMORY_ALLOCATION_FAILURE:
-     case MEMCACHED_DATA_EXISTS:
-     case MEMCACHED_NOTSTORED:
-       mset->success = false;
-       allsuccess = false;
-       break;
-     default:
-       mset->success = false;
-       allsuccess = false;
-       error = true; /* will break the for loop */
-     } /* switch */
+        /* Finally go and call the actual libmemcached function */
+        if(mset->key_len == 0) {
+            /* Most other implementations ignore zero-length keys, so
+               we'll just do that */
+            rc = MEMCACHED_NOTSTORED;
+        } else {
+            rc = f(mc, mset->key, mset->key_len,
+                   value, value_len, mset->time, flags);
+        }
 
-  } /* for */
+#ifdef USE_ZLIB
+        if(compressed_value != NULL) {
+            free(compressed_value);
+        }
+#endif
+
+      switch(rc) {
+          case MEMCACHED_SUCCESS:
+              mset->success = true;
+              break;
+          case MEMCACHED_FAILURE:
+          case MEMCACHED_NO_KEY_PROVIDED:
+          case MEMCACHED_BAD_KEY_PROVIDED:
+          case MEMCACHED_MEMORY_ALLOCATION_FAILURE:
+          case MEMCACHED_DATA_EXISTS:
+          case MEMCACHED_NOTSTORED:
+              mset->success = false;
+              allsuccess = false;
+              break;
+          default:
+              mset->success = false;
+              allsuccess = false;
+              error = true; /* will break the for loop */
+      } /* switch */
+
+    } /* end for each mset */
 
     Py_END_ALLOW_THREADS;
 
-  /* we only return the last return value, even for a _multi
-     operation, but we do set the success on the mset */
-  if(error) {
-    PylibMC_ErrFromMemcached(self, fname, rc);
-    return false;
-  } else {
-    return allsuccess;
-  }
+    /* We only return the last return value, even for a _multi
+       operation, but we do set the success on the mset */
+    if (error) {
+        PylibMC_ErrFromMemcached(self, fname, rc);
+        return false;
+    } else {
+        return allsuccess;
+    }
 }
 
 /* These all just call _PylibMC_RunSetCommand with the appropriate
@@ -857,180 +853,182 @@ static PyObject *_PylibMC_IncrSingle(PylibMC_Client *self,
 static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self,
                                     _PylibMC_IncrCommand incr_func,
                                     PyObject *args, PyObject *kwds) {
-  /* takes an iterable of keys and a single delta (that defaults to 1)
-     to be applied to all of them. Consider the return value and
-     exception behaviour to be undocumented: for now it returns None
-     and throws an exception on an error incrementing any key */
-  PyObject* keys = NULL;
-  PyObject* key_prefix = NULL;
-  PyObject* prefixed_keys = NULL;
-  PyObject* retval = NULL;
-  PyObject* iterator = NULL;
-  unsigned int delta = 1;
+  /**
+   * Takes an iterable of keys and a single delta (that defaults to 1)
+   * to be applied to all keys. Consider the return value and exception
+   * behaviour to be undocumented, for now it returns None and throws an
+   * exception on an error incrementing any key
+   */
 
-  static char *kws[] = { "keys", "key_prefix", "delta", NULL };
+    PyObject *keys = NULL;
+    PyObject *key_prefix = NULL;
+    PyObject *prefixed_keys = NULL;
+    PyObject *retval = NULL;
+    PyObject *iterator = NULL;
+    unsigned int delta = 1;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|SI", kws,
-                                   &keys, &key_prefix, &delta)) {
-    return NULL;
-  }
+    static char *kws[] = { "keys", "key_prefix", "delta", NULL };
 
-  size_t nkeys = (size_t)PySequence_Size(keys);
-  if(nkeys == -1)
-    return NULL;
-
-  if(key_prefix == NULL || PyString_Size(key_prefix) < 1) {
-    /* if it's 0-length, we can safely pretend it doesn't exist */
-    key_prefix = NULL;
-  }
-  if(key_prefix != NULL) {
-    if(!_PylibMC_CheckKey(key_prefix)) {
-      return NULL;
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|SI", kws,
+                                     &keys, &key_prefix, &delta)) {
+        return NULL;
     }
 
-    prefixed_keys = PyList_New(nkeys);
-    if(prefixed_keys == NULL) {
-      return NULL;
+    size_t nkeys = (size_t)PySequence_Size(keys);
+    if(nkeys == -1)
+        return NULL;
+
+    if(key_prefix == NULL || PyString_Size(key_prefix) < 1) {
+        /* if it's 0-length, we can safely pretend it doesn't exist */
+        key_prefix = NULL;
     }
-  }
-
-  pylibmc_incr* incrs = PyMem_New(pylibmc_incr, nkeys);
-  if(incrs == NULL) {
-    goto cleanup;
-  }
-
-  iterator = PyObject_GetIter(keys);
-  if(iterator == NULL) {
-    goto cleanup;
-  }
-
-  PyObject* key = NULL;
-  size_t idx = 0;
-
-  /* build our list of keys, prefixed as appropriate, and turn that
-     into a list of pylibmc_incr objects that can be incred in one
-     go. We're not going to own references to the prefixed keys: so
-     that we can free them all at once, we'll give ownership to a list
-     of them (prefixed_keys) which we'll DECR once at the end */
-  while((key = PyIter_Next(iterator)) != NULL) {
-    if(!_PylibMC_CheckKey(key)) goto loopcleanup;
-
     if(key_prefix != NULL) {
+        if(!_PylibMC_CheckKey(key_prefix)) {
+            return NULL;
+        }
 
-      PyObject* newkey = NULL;
-
-      newkey = PyString_FromFormat("%s%s",
-                                   PyString_AS_STRING(key_prefix),
-                                   PyString_AS_STRING(key));
-      if(!_PylibMC_CheckKey(newkey)) {
-        Py_XDECREF(newkey);
-        goto loopcleanup;
-      }
-
-      /* steals our reference */
-      if(PyList_SetItem(prefixed_keys, idx, newkey) == -1) {
-        /* it wasn't stolen before the error */
-        Py_DECREF(newkey);
-        goto loopcleanup;
-      }
-
-      /* the list stole our reference to it, and we're going to rely
-         on that list to maintain it while we release the GIL, but
-         since we DECREF the key in loopcleanup we need to INCREF it
-         here */
-      Py_DECREF(key);
-      Py_INCREF(newkey);
-      key = newkey;
+        prefixed_keys = PyList_New(nkeys);
+        if(prefixed_keys == NULL) {
+            return NULL;
+        }
     }
 
-    if(PyString_AsStringAndSize(key, &incrs[idx].key, &incrs[idx].key_len) == -1)
-      goto loopcleanup;
+    pylibmc_incr* incrs = PyMem_New(pylibmc_incr, nkeys);
+    if(incrs == NULL) {
+        goto cleanup;
+    }
 
-    incrs[idx].delta = delta;
-    incrs[idx].incr_func = incr_func;
-    incrs[idx].result = 0; /* after incring we have no way of knowing
-                              whether the real result is 0 or if the
-                              incr wasn't successful (or if noreply is
-                              set), but since we're not actually
-                              returning the result that's okay for
-                              now */
+    iterator = PyObject_GetIter(keys);
+    if(iterator == NULL) {
+        goto cleanup;
+    }
+
+    PyObject *key = NULL;
+    size_t idx = 0;
+
+    /**
+     * Build our list of keys, prefixed as appropriate, and turn that
+     * into a list of pylibmc_incr objects that can be incred in one
+     * go. We're not going to own references to the prefixed keys: so
+     * that we can free them all at once, we'll give ownership to a list
+     * of them (prefixed_keys) which we'll DECR once at the end 
+     */
+
+    while((key = PyIter_Next(iterator)) != NULL) {
+        if(!_PylibMC_CheckKey(key)) goto loopcleanup;
+
+        if(key_prefix != NULL) {
+            PyObject* newkey = NULL;
+
+            newkey = PyString_FromFormat("%s%s",
+                                         PyString_AS_STRING(key_prefix),
+                                         PyString_AS_STRING(key));
+
+            if(!_PylibMC_CheckKey(newkey)) {
+                Py_XDECREF(newkey);
+                goto loopcleanup;
+            }
+
+            /* steals our reference */
+            if(PyList_SetItem(prefixed_keys, idx, newkey) == -1) {
+                /* it wasn't stolen before the error */
+                Py_DECREF(newkey);
+                goto loopcleanup;
+            }
+
+            /* the list stole our reference to it, and we're going to rely
+               on that list to maintain it while we release the GIL, but
+               since we DECREF the key in loopcleanup we need to INCREF it
+               here */
+            Py_DECREF(key);
+            Py_INCREF(newkey);
+            key = newkey;
+        }
+
+        if(PyString_AsStringAndSize(key, &incrs[idx].key,
+                                    &incrs[idx].key_len) == -1)
+            goto loopcleanup;
+
+        incrs[idx].delta = delta;
+        incrs[idx].incr_func = incr_func;
+        /* After incring we have no way of knowing whether the real result is 0
+         * or if the incr wasn't successful (or if noreply is set), but since
+         * we're not actually returning the result that's okay for now */
+        incrs[idx].result = 0;
 
 loopcleanup:
-    Py_DECREF(key);
+        Py_DECREF(key);
 
-    if(PyErr_Occurred())
-      break;
+        if(PyErr_Occurred())
+            break;
 
-    idx++;
-  }
+        idx++;
+    } /* end each key */
 
-  /* iteration error */
-  if (PyErr_Occurred()) goto cleanup;
+    /* iteration error */
+    if (PyErr_Occurred()) goto cleanup;
 
-  _PylibMC_IncrDecr(self, incrs, nkeys);
+    _PylibMC_IncrDecr(self, incrs, nkeys);
 
-  /* if that failed, there's an exception on the stack */
-  if(PyErr_Occurred()) goto cleanup;
+    /* if that failed, there's an exception on the stack */
+    if(PyErr_Occurred()) goto cleanup;
 
-  retval = Py_None;
-  Py_INCREF(retval);
+    retval = Py_None;
+    Py_INCREF(retval);
 
 cleanup:
-  if(incrs != NULL) {
     PyMem_Free(incrs);
-  }
+    Py_XDECREF(prefixed_keys);
+    Py_XDECREF(iterator);
 
-  Py_XDECREF(prefixed_keys);
-  Py_XDECREF(iterator);
-
-  return retval;
+    return retval;
 }
 
 
 
 static PyObject *PylibMC_Client_incr(PylibMC_Client *self, PyObject *args) {
-  return _PylibMC_IncrSingle(self, memcached_increment, args);
+    return _PylibMC_IncrSingle(self, memcached_increment, args);
 }
 
 static PyObject *PylibMC_Client_decr(PylibMC_Client *self, PyObject *args) {
-  return _PylibMC_IncrSingle(self, memcached_decrement, args);
+    return _PylibMC_IncrSingle(self, memcached_decrement, args);
 }
 
 static PyObject *PylibMC_Client_incr_multi(PylibMC_Client *self, PyObject *args,
                                            PyObject *kwds) {
-  return _PylibMC_IncrMulti(self, memcached_increment, args, kwds);
+    return _PylibMC_IncrMulti(self, memcached_increment, args, kwds);
 }
 
-static bool _PylibMC_IncrDecr(PylibMC_Client *self, pylibmc_incr *incrs,
-        size_t nkeys) {
+static bool _PylibMC_IncrDecr(PylibMC_Client *self,
+                              pylibmc_incr *incrs, size_t nkeys) {
+    bool error = false;
+    memcached_return rc = MEMCACHED_SUCCESS;
+    _PylibMC_IncrCommand f = NULL;
+    size_t i;
 
-  bool error = false;
-  memcached_return rc = MEMCACHED_SUCCESS;
-  _PylibMC_IncrCommand f = NULL;
-  size_t i;
+    Py_BEGIN_ALLOW_THREADS;
+    for (i = 0; i < nkeys && !error; i++) {
+        pylibmc_incr *incr = &incrs[i];
+        uint64_t result = 0;
 
-  Py_BEGIN_ALLOW_THREADS;
-  for(i = 0; i < nkeys && !error; i++) {
-    pylibmc_incr *incr = &incrs[i];
-    uint64_t result = 0;
-    f = incr->incr_func;
-    rc = f(self->mc, incr->key, incr->key_len, incr->delta, &result);
-    if (rc == MEMCACHED_SUCCESS) {
-      incr->result = result;
-    } else {
-      error = true;
+        f = incr->incr_func;
+        rc = f(self->mc, incr->key, incr->key_len, incr->delta, &result);
+        if (rc == MEMCACHED_SUCCESS) {
+            incr->result = result;
+        } else {
+            error = true;
+        }
     }
-  }
-  Py_END_ALLOW_THREADS;
+    Py_END_ALLOW_THREADS;
 
-  if(error) {
-      char *fname = (f == memcached_decrement) ? "memcached_decrement"
+    if (error) {
+        char *fname = (f == memcached_decrement) ? "memcached_decrement"
                                                : "memcached_increment";
-      PylibMC_ErrFromMemcached(self, fname, rc);
-      return false;
-  } else {
-    return true;
-  }
+        PylibMC_ErrFromMemcached(self, fname, rc);
+        return false;
+    } else {
+        return true;
+    }
 }
 /* }}} */
 
