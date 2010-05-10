@@ -165,6 +165,7 @@ error:
 #ifdef USE_ZLIB
 static int _PylibMC_Deflate(char* value, size_t value_len,
                     char** result, size_t *result_len) {
+    int rc;
     /* todo: failures in here are entirely silent. this should probably
        be fixed */
 
@@ -684,11 +685,6 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
     bool allsuccess = true;
 
     Py_BEGIN_ALLOW_THREADS;
-    rc = f(self->mc, key, key_sz,
-           PyString_AS_STRING(store_val), PyString_GET_SIZE(store_val),
-           time, store_flags);
-    Py_END_ALLOW_THREADS;
-    Py_DECREF(store_val);
 
     for(pos=0; pos < nkeys && !error; pos++) {
       pylibmc_mset* mset = &msets[pos];
