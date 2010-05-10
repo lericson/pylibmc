@@ -215,7 +215,7 @@ Traceback (most recent call last):
  ...
 NotFound: error 16 from memcached_increment: NOT FOUND
 >>> c.delete('xa')
-True
+False
 
 Empty server lists are bad for your health.
 >>> c = _pylibmc.client([])
