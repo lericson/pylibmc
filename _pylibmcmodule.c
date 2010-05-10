@@ -520,15 +520,13 @@ static PyObject *PylibMC_Client_delete(PylibMC_Client *self, PyObject *args) {
     PyObject *retval;
     char *key;
     Py_ssize_t key_sz;
-    unsigned int time;
     memcached_return rc;
 
     retval = NULL;
-    time = 0;
-    if (PyArg_ParseTuple(args, "s#|I", &key, &key_sz, &time)
+    if (PyArg_ParseTuple(args, "s#:delete", &key, &key_sz)
             && _PylibMC_CheckKeyStringAndSize(key, key_sz)) {
         Py_BEGIN_ALLOW_THREADS;
-        rc = memcached_delete(self->mc, key, key_sz, time);
+        rc = memcached_delete(self->mc, key, key_sz, 0);
         Py_END_ALLOW_THREADS;
         switch (rc) {
             case MEMCACHED_SUCCESS:
@@ -893,10 +891,10 @@ static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
     PyObject *call_args;
     PyObject *retval;
 
-    static char *kws[] = { "keys", "time", "key_prefix", NULL };
+    static char *kws[] = { "keys", "key_prefix", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|O!S", kws,
-                &keys, &PyInt_Type, &time, &prefix))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|S:delete_multi", kws,
+                                     &keys, &prefix))
         return NULL;
 
     /**

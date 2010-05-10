@@ -80,6 +80,17 @@ True
 >>> c.get("hi")
 >>>
 
+See issue #1 ``http://github.com/lericson/pylibmc/issues/#issue/1`` -- delete
+should not accept a time argument.
+>>> c.delete("foo", 123)
+Traceback (most recent call last):
+  ...
+TypeError: delete() takes exactly 1 argument (2 given)
+>>> c.delete_multi(["foo"], time=123)
+Traceback (most recent call last):
+  ...
+TypeError: 'time' is an invalid keyword argument for this function
+
 Now for keys with funny types.
 >>> c.set(1, "hi")
 Traceback (most recent call last):
