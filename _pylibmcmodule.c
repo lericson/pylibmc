@@ -1419,6 +1419,9 @@ static PyObject *PylibMC_Client_get_behaviors(PylibMC_Client *self) {
     PyObject *retval = PyDict_New();
     PylibMC_Behavior *b;
 
+    if (retval == NULL)
+        return NULL;
+
     for (b = PylibMC_behaviors; b->name != NULL; b++) {
         uint64_t bval;
         PyObject *x;
@@ -1426,6 +1429,7 @@ static PyObject *PylibMC_Client_get_behaviors(PylibMC_Client *self) {
         bval = memcached_behavior_get(self->mc, b->flag);
         x = PyInt_FromLong((long)bval);
         if (x == NULL || PyDict_SetItemString(retval, b->name, x) == -1) {
+            Py_XDECREF(x);
             goto error;
         }
 
