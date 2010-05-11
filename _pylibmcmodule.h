@@ -76,7 +76,7 @@ typedef memcached_return (*_PylibMC_IncrCommand)(memcached_st *,
 typedef struct {
   char key[MEMCACHED_MAX_KEY];
   size_t key_len;
-  char* value;
+  char *value;
   size_t value_len;
   uint32_t flags;
 } pylibmc_mget_result;

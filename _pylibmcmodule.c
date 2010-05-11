@@ -1089,11 +1089,12 @@ memcached_return pylibmc_memcached_fetch_multi(memcached_st* mc,
 }
 
 
-static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
-        PyObject *kwds) {
+static PyObject *PylibMC_Client_get_multi(
+        PylibMC_Client *self, PyObject *args, PyObject *kwds) {
     PyObject *key_seq, **key_objs, *retval = NULL;
     char **keys, *prefix = NULL;
-    pylibmc_mget_result* results = NULL;
+    char *err_func = NULL;
+    pylibmc_mget_result *res, *results = NULL;
     Py_ssize_t prefix_len = 0;
     Py_ssize_t i;
     PyObject *key_it, *ckey;
@@ -1101,19 +1102,14 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
     size_t nkeys, nresults = 0;
     memcached_return rc;
 
-    char** err_func = NULL;
-
     static char *kws[] = { "keys", "key_prefix", NULL };
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|s#:get_multi", kws,
-            &key_seq, &prefix, &prefix_len)) {
+            &key_seq, &prefix, &prefix_len))
         return NULL;
-    }
 
-    if ((nkeys = (size_t)PySequence_Length(key_seq)) == -1) {
+    if ((nkeys = (size_t)PySequence_Length(key_seq)) == -1)
         return NULL;
-    }
-
     /* this is over-allocating in the majority of cases */
     results = PyMem_New(pylibmc_mget_result, nkeys);
 
@@ -1168,7 +1164,7 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
         goto earlybird;
     } else if (PyErr_Occurred()) {
         nkeys--;
-        goto cleanup;
+        goto earlybird;
     }
 
     /* TODO Make an iterator interface for getting each key separately.
@@ -1180,76 +1176,61 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *self, PyObject *args,
     Py_BEGIN_ALLOW_THREADS;
     rc = pylibmc_memcached_fetch_multi(self->mc,
                                        keys, nkeys, key_lens,
-                                       results,
-                                       &nresults,
-                                       err_func);
+                                       &results, &nresults,
+                                       &err_func);
     Py_END_ALLOW_THREADS;
 
-    if(rc != MEMCACHED_SUCCESS) {
-      PylibMC_ErrFromMemcached(self, *err_func, rc);
-      goto cleanup;
+    if (rc != MEMCACHED_SUCCESS) {
+        PylibMC_ErrFromMemcached(self, err_func, rc);
+        goto earlybird;
     }
 
     retval = PyDict_New();
 
-    for(i = 0; i<nresults; i++) {
-      PyObject *val;
+    for (i = 0; i < nresults; i++) {
+        PyObject *val;
+        res = results + i;
 
-      /* This is safe because libmemcached's max key length
-       * includes space for a NUL-byte. */
-      results[i].key[results[i].key_len] = 0;
-      val = _PylibMC_parse_memcached_value(results[i].value,
-                                           results[i].value_len,
-                                           results[i].flags);
-      if (val == NULL) {
-        /* PylibMC_parse_memcached_value raises the exception on its
-           own */
-        goto cleanup;
-      }
-      PyDict_SetItemString(retval, results[i].key + prefix_len,
-                           val);
-      Py_DECREF(val);
+        /* This is safe because libmemcached's max key length
+         * includes space for a NUL-byte. */
+        res->key[res->key_len] = '\0';
+        val = _PylibMC_parse_memcached_value(res->value, res->value_len,
+                                             res->flags);
+        if (val == NULL) {
+            /* PylibMC_parse_memcached_value raises the exception on its own */
+            Py_DECREF(retval);
+            break;
+        }
 
-      if(PyErr_Occurred()) {
-        /* only PyDict_SetItemString can incur this one */
-        goto cleanup;
-      }
+        PyDict_SetItemString(retval, res->key + prefix_len, val);
+        Py_DECREF(val);
+
+        if (PyErr_Occurred()) {
+            /* only PyDict_SetItemString can incur this one */
+            Py_DECREF(retval);
+            break;
+        }
     }
 
 earlybird:
     PyMem_Free(key_lens);
     PyMem_Free(keys);
-    for (i = 0; i < nkeys; i++) {
+
+    for (i = 0; i < nkeys; i++)
         Py_DECREF(key_objs[i]);
-    }
-    if(results != NULL){
-        for (i = 0; i < nresults; i++) {
-            /* libmemcached mallocs, so we need to free its memory in
-               the same way */
+    PyMem_Free(key_objs);
+
+    /* libmemcached mallocs, so we need to free that memory */
+    if (results != NULL) {
+        for (i = 0; i < nresults && results != NULL; i++) {
             free(results[i].value);
         }
         PyMem_Free(results);
     }
-    PyMem_Free(key_objs);
 
     /* Not INCREFing because the only two outcomes are NULL and a new dict.
      * We're the owner of that dict already, so. */
     return retval;
-
-cleanup:
-    Py_XDECREF(retval);
-    PyMem_Free(key_lens);
-    PyMem_Free(keys);
-    for (i = 0; i < nkeys; i++)
-        Py_DECREF(key_objs[i]);
-    if(results != NULL){
-        for (i = 0; i < nresults; i++) {
-            free(results[i].value);
-        }
-        PyMem_Free(results);
-    }
-    PyMem_Free(key_objs);
-    return NULL;
 }
 
 /**
