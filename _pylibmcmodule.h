@@ -107,6 +107,14 @@ typedef struct {
   uint64_t result;
 } pylibmc_incr;
 
+typedef struct {
+    PyObject *self;
+    PyObject *retval;
+    memcached_server_st *servers;  /* DEPRECATED */
+    memcached_stat_st *stats;
+    int index;
+} _PylibMC_StatsContext;
+
 /* {{{ Exceptions */
 static PyObject *PylibMCExc_MemcachedError;
 

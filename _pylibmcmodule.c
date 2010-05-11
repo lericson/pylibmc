@@ -1476,13 +1476,72 @@ error:
     return NULL;
 }
 
+static memcached_return
+_PylibMC_AddServerCallback(memcached_st *mc,
+                           memcached_server_st *server,
+                           void *user) {
+    _PylibMC_StatsContext *context = (_PylibMC_StatsContext *)user;
+    PylibMC_Client *self = (PylibMC_Client *)context->self;
+    memcached_stat_st *stat;
+    memcached_return rc;
+    PyObject *desc, *val;
+    char **stat_keys = NULL;
+    char **curr_key;
+
+    stat = context->stats + context->index;
+
+    if ((val = PyDict_New()) == NULL)
+        return MEMCACHED_FAILURE;
+
+    stat_keys = memcached_stat_get_keys(mc, stat, &rc);
+    if (rc != MEMCACHED_SUCCESS)
+        return rc;
+
+    for (curr_key = stat_keys; *curr_key; curr_key++) {
+        PyObject *curr_value;
+        char *mc_val;
+        int fail;
+
+        mc_val = memcached_stat_get_value(mc, stat, *curr_key, &rc);
+        if (rc != MEMCACHED_SUCCESS) {
+            PylibMC_ErrFromMemcached(self, "get_stats val", rc);
+            goto error;
+        }
+
+        curr_value = PyString_FromString(mc_val);
+        free(mc_val);
+        if (curr_value == NULL)
+            goto error;
+
+        fail = PyDict_SetItemString(val, *curr_key, curr_value);
+        Py_DECREF(curr_value);
+        if (fail)
+            goto error;
+    }
+
+    free(stat_keys);
+
+    desc = PyString_FromFormat("%s:%d (%u)",
+            server->hostname, server->port,
+            (unsigned int)context->index);
+
+    PyList_SET_ITEM(context->retval, context->index++,
+                    Py_BuildValue("NN", desc, val));
+
+    return MEMCACHED_SUCCESS;
+
+error:
+    free(stat_keys);
+    Py_DECREF(val);
+    return MEMCACHED_FAILURE;
+}
+
 static PyObject *PylibMC_Client_get_stats(PylibMC_Client *self, PyObject *args) {
     memcached_stat_st *stats;
     memcached_return rc;
     char *mc_args;
-    PyObject *retval;
-    Py_ssize_t nservers, serveridx;
-    memcached_server_st *servers;
+    Py_ssize_t nservers;
+    _PylibMC_StatsContext context;
 
     mc_args = NULL;
     if (!PyArg_ParseTuple(args, "|s:get_stats", &mc_args))
@@ -1494,80 +1553,53 @@ static PyObject *PylibMC_Client_get_stats(PylibMC_Client *self, PyObject *args) 
     if (rc != MEMCACHED_SUCCESS)
         return PylibMC_ErrFromMemcached(self, "get_stats", rc);
 
-    nservers = (Py_ssize_t)memcached_server_count(self->mc);
-    servers = memcached_server_list(self->mc);
-    retval = PyList_New(nservers);
-
     /** retval contents:
-     * [('<addr, 127.0.0.1:11211> (<num, 1>),
-     *   {stat: stat, stat: stat}),
+     * [('<addr, 127.0.0.1:11211> (<num, 1>)', {stat: stat, stat: stat}),
      *  (str, dict),
      *  (str, dict)]
      */
+    nservers = (Py_ssize_t)memcached_server_count(self->mc);
 
-    for (serveridx = 0; serveridx < nservers; serveridx++) {
-        memcached_server_st *server;
-        memcached_stat_st *stat;
+    /* Setup stats callback context */
+    context.self = (PyObject *)self;
+    context.retval = PyList_New(nservers);
+    context.stats = stats;
+    context.servers = NULL;  /* DEPRECATED */
+    context.index = 0;
+
+#ifndef LIBMEMCACHED_VERSION_HEX
+#  define LIBMEMCACHED_VERSION_HEX 0x0
+#endif
+
+#if LIBMEMCACHED_VERSION_HEX >= 0x00038000
+    memcached_server_function callbacks[] = {
+        (memcached_server_function)_PylibMC_AddServerCallback
+    };
+
+    rc = memcached_server_cursor(self->mc, callbacks, (void *)&context, 1);
+#else /* ver < libmemcached 0.38 */
+    context.servers = memcached_server_list(self->mc);
+
+    for (; context.index < nservers; context.index++) {
+        memcached_server_st *server = context.servers + context.index;
         memcached_return rc;
-        PyObject *desc, *val;
-        char **stat_keys = NULL;
-        char **curr_key;
 
-        server = servers + serveridx;
-        stat = stats + serveridx;
-
-        val = PyDict_New();
-        if (val == NULL)
-            goto error;
-
-        stat_keys = memcached_stat_get_keys(self->mc, stat, &rc);
+        rc = _PylibMC_AddServerCallback(self->mc, server, (void *)&context);
         if (rc != MEMCACHED_SUCCESS)
-            goto loop_error;
+            break;
+    }
+#endif
 
-        for (curr_key = stat_keys; *curr_key; curr_key++) {
-            PyObject *curr_value;
-            char *mc_val;
-            memcached_return get_val_rc;
-            int fail;
-
-            mc_val = memcached_stat_get_value(self->mc, stat, *curr_key,
-                                              &get_val_rc);
-            if (get_val_rc != MEMCACHED_SUCCESS) {
-                PylibMC_ErrFromMemcached(self, "get_stats val", get_val_rc);
-                goto loop_error;
-            }
-
-            curr_value = PyString_FromString(mc_val);
-            free(mc_val);
-            if (curr_value == NULL)
-                goto loop_error;
-
-            fail = PyDict_SetItemString(val, *curr_key, curr_value);
-            Py_DECREF(curr_value);
-            if (fail)
-                goto loop_error;
-        }
-
-        free(stat_keys);
-
-        desc = PyString_FromFormat("%s:%d (%u)",
-                server->hostname, server->port,
-                (unsigned int)serveridx);
-        PyList_SET_ITEM(retval, serveridx, Py_BuildValue("NN", desc, val));
-        continue;
-loop_error:
-        free(stat_keys);
-        Py_DECREF(val);
-        goto error;
+    if (rc != MEMCACHED_SUCCESS) {
+        if (!PyErr_Occurred())
+            PyErr_SetString(PyExc_RuntimeError, "unknown error occured");
+        Py_DECREF(context.retval);
+        context.retval = NULL;
     }
 
-    free(stats);
+    free(context.stats);
 
-    return retval;
-error:
-    Py_DECREF(retval);
-    free(stats);
-    return NULL;
+    return context.retval;
 }
 
 static PyObject *PylibMC_Client_flush_all(PylibMC_Client *self,
