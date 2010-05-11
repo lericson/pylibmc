@@ -1738,6 +1738,10 @@ static int _PylibMC_CheckKeyStringAndSize(char *key, Py_ssize_t size) {
         PyErr_Format(PyExc_ValueError, "key too long, max is %d",
                 MEMCACHED_MAX_KEY);
         return 0;
+#ifdef NO_EMPTY_KEYS  /* I wish... */
+    } else if (size == 0) {
+        PyErr_Format(PyExc_ValueError, "key cannot be empty");
+#endif
     }
     /* TODO Check key contents here. */
 
