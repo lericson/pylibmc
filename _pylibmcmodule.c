@@ -1032,60 +1032,71 @@ static bool _PylibMC_IncrDecr(PylibMC_Client *self,
 }
 /* }}} */
 
-memcached_return pylibmc_memcached_fetch_multi(memcached_st* mc,
-                                               char** keys,
-                                               size_t nkeys,
-                                               size_t* key_lens,
-                                               pylibmc_mget_result* results,
-                                               size_t* nresults,
-                                               char** err_func) {
+memcached_return pylibmc_memcached_fetch_multi(
+        memcached_st *mc, char **keys, size_t nkeys, size_t *key_lens,
+        pylibmc_mget_result **results, size_t *nresults, char **err_func) {
+    /**
+     * Completely GIL-free multi getter
+     *
+     * Takes a set of keys given by *keys*, and stuffs the results into heap
+     * memory returned by *results*.
+     *
+     * If an error occured during retrieval, this function returns
+     * non-MEMCACHED_SUCCESS and *err_func* will point to a useful error
+     * function name.
+     *
+     * FIXME *results* is expected to be able to hold one more result than
+     * there are keys asked for, because of an implementation detail.
+     */
 
-  /* the part of PylibMC_Client_get_multi that does the blocking I/O
-     and can be called while not holding the GIL. Builds an
-     intermediate result set into 'results' that is turned into a
-     PyDict before being returned to the caller */
+    memcached_return rc;
 
-  memcached_return rc;
-  char curr_key[MEMCACHED_MAX_KEY];
-  size_t curr_key_len = 0;
-  char* curr_value = NULL;
-  size_t curr_value_len = 0;
-  uint32_t curr_flags = 0;
+    rc = memcached_mget(mc, (const char **)keys, key_lens, nkeys);
 
-  *nresults = 0;
-
-  rc = memcached_mget(mc, (const char **)keys, key_lens, nkeys);
-
-  if(rc != MEMCACHED_SUCCESS) {
-    *err_func = "memcached_mget";
-    return rc;
-  }
-
-  while((curr_value = memcached_fetch(mc, curr_key, &curr_key_len,
-                                      &curr_value_len, &curr_flags, &rc))
-        != NULL) {
-    if(curr_value == NULL && rc == MEMCACHED_END) {
-      return MEMCACHED_SUCCESS;
-    } else if(rc == MEMCACHED_BAD_KEY_PROVIDED
-           || rc == MEMCACHED_NO_KEY_PROVIDED) {
-      /* just skip this key */
-    } else if (rc != MEMCACHED_SUCCESS) {
-      *err_func = "memcached_fetch";
-      return rc;
-    } else {
-      pylibmc_mget_result r = {"",
-                               curr_key_len,
-                               curr_value,
-                               curr_value_len,
-                               curr_flags};
-      assert(curr_key_len <= MEMCACHED_MAX_KEY);
-      bcopy(curr_key, r.key, curr_key_len);
-      results[*nresults] = r;
-      *nresults += 1;
+    if (rc != MEMCACHED_SUCCESS) {
+        *err_func = "memcached_mget";
+        return rc;
     }
-  }
 
-  return MEMCACHED_SUCCESS;
+    /* Allocate as much as could possibly be needed, and an extra because of
+     * how libmemcached signals EOF. */
+    *results = PyMem_New(pylibmc_mget_result, nkeys + 1);
+
+    /* Note that nresults will not be off by one with this because the loops
+     * runs a half pass after the last key has been fetched, thus bumping the
+     * count once. */
+    for (*nresults = 0; ; (*nresults)++) {
+        pylibmc_mget_result *res = *results + *nresults;
+
+        res->value = memcached_fetch(mc, res->key, &res->key_len,
+                                     &res->value_len, &res->flags, &rc);
+        assert(res->value_len < MEMCACHED_MAX_KEY);
+
+        if (res->value == NULL && rc == MEMCACHED_END) {
+            /* This is how libmecached signals EOF. */
+            break;
+        } else if (rc == MEMCACHED_BAD_KEY_PROVIDED
+                || rc == MEMCACHED_NO_KEY_PROVIDED) {
+            continue;
+        } else if (rc != MEMCACHED_SUCCESS) {
+            memcached_quit(mc);  /* Reset fetch state */
+            *err_func = "memcached_fetch";
+
+            /* Clean-up procedure */
+            do {
+                res = *results + *nresults;
+                free(res->value);
+            } while ((*nresults)--);
+
+            PyMem_Free(*results);
+            *results = NULL;
+            *nresults = 0;
+
+            return rc;
+        }
+    }
+
+    return MEMCACHED_SUCCESS;
 }
 
 
@@ -1110,16 +1121,12 @@ static PyObject *PylibMC_Client_get_multi(
 
     if ((nkeys = (size_t)PySequence_Length(key_seq)) == -1)
         return NULL;
-    /* this is over-allocating in the majority of cases */
-    results = PyMem_New(pylibmc_mget_result, nkeys);
 
     /* Populate keys and key_lens. */
     keys = PyMem_New(char *, nkeys);
     key_lens = PyMem_New(size_t, nkeys);
     key_objs = PyMem_New(PyObject *, nkeys);
-    if (results == NULL || keys == NULL || key_lens == NULL
-     || key_objs == NULL) {
-        PyMem_Free(results);
+    if (!keys || !key_lens || !key_objs) {
         PyMem_Free(keys);
         PyMem_Free(key_lens);
         PyMem_Free(key_objs);
@@ -1131,35 +1138,40 @@ static PyObject *PylibMC_Client_get_multi(
     PyErr_Clear();
 
     /* Iterate through all keys and set lengths etc. */
-    i = 0;
     key_it = PyObject_GetIter(key_seq);
-    while (!PyErr_Occurred()
-            && i < nkeys
-            && (ckey = PyIter_Next(key_it)) != NULL) {
+    i = 0;
+    while ((ckey = PyIter_Next(key_it)) != NULL) {
         PyObject *rkey;
 
-        if (!_PylibMC_CheckKey(ckey)) {
-            break;
-        } else {
-            key_lens[i] = (size_t)(PyString_GET_SIZE(ckey) + prefix_len);
-            if (prefix != NULL) {
-                rkey = PyString_FromFormat("%s%s",
-                        prefix, PyString_AS_STRING(ckey));
-                Py_DECREF(ckey);
-            } else {
-                rkey = ckey;
-            }
-            keys[i] = PyString_AS_STRING(rkey);
-            key_objs[i++] = rkey;
+        assert(i < nkeys);
+
+        if (PyErr_Occurred() || !_PylibMC_CheckKey(ckey)) {
+            nkeys = i;
+            goto earlybird;
         }
+
+        key_lens[i] = (size_t)(PyString_GET_SIZE(ckey) + prefix_len);
+
+        /* Skip empty keys */
+        if (!key_lens[i])
+            continue;
+
+        /* Prefix */
+        if (prefix != NULL) {
+            rkey = PyString_FromFormat("%s%s",
+                    prefix, PyString_AS_STRING(ckey));
+            Py_DECREF(ckey);
+        } else {
+            rkey = ckey;
+        }
+
+        keys[i] = PyString_AS_STRING(rkey);
+        key_objs[i++] = rkey;
     }
+    nkeys = i;
     Py_XDECREF(key_it);
 
-    if (nkeys != 0 && i != nkeys) {
-        /* There were keys given, but some keys didn't pass validation. */
-        nkeys = 0;
-        goto cleanup;
-    } else if (nkeys == 0) {
+    if (nkeys == 0) {
         retval = PyDict_New();
         goto earlybird;
     } else if (PyErr_Occurred()) {
