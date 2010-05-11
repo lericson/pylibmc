@@ -120,7 +120,7 @@ Getting stats is fun!
 ...     while ks:
 ...         cks, ks = ks[:6], ks[6:]
 ...         print ", ".join(cks)
-localhost:11211 (0)
+127.0.0.1:11211 (0)
 pid, total_items, uptime, version, limit_maxbytes, rusage_user
 bytes_read, rusage_system, cmd_get, curr_connections, threads, total_connections
 cmd_set, curr_items, get_misses, evictions, bytes, connection_structures
@@ -329,7 +329,12 @@ class TestCmemcached(unittest.TestCase):
         self.assertEqual(result, "I Do")
 # }}}
 
-test_server = (_pylibmc.server_type_tcp, "localhost", 11211)
+from os import environ
+
+test_server = (
+    _pylibmc.server_type_tcp,
+    str(environ.get("MEMCACHED_HOST", "127.0.0.1")),
+    int(environ.get("MEMCACHED_PORT", "11211")))
 
 def get_version(addr):
     (type_, host, port) = addr
