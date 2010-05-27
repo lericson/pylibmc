@@ -1200,28 +1200,37 @@ static PyObject *PylibMC_Client_get_multi(
     retval = PyDict_New();
 
     for (i = 0; i < nresults; i++) {
-        PyObject *val;
+        PyObject *val, *key_obj;
+        int rc;
+
         res = results + i;
 
-        /* This is safe because libmemcached's max key length
-         * includes space for a NUL-byte. */
-        res->key[res->key_len] = '\0';
+        /* Explicitly construct a key string object so that NUL-bytes and the
+         * likes can be contained within the keys (this is possible in the
+         * binary protocol.) */
+        key_obj = PyString_FromStringAndSize(res->key + prefix_len,
+                                             res->key_len - prefix_len);
+        if (key_obj == NULL)
+            goto unpack_error;
+
+        /* Parse out value */
         val = _PylibMC_parse_memcached_value(res->value, res->value_len,
                                              res->flags);
-        if (val == NULL) {
-            /* PylibMC_parse_memcached_value raises the exception on its own */
-            Py_DECREF(retval);
-            break;
-        }
+        if (val == NULL)
+            goto unpack_error;
 
-        PyDict_SetItemString(retval, res->key + prefix_len, val);
+        rc = PyDict_SetItem(retval, key_obj, val);
+        Py_DECREF(key_obj);
         Py_DECREF(val);
 
-        if (PyErr_Occurred()) {
-            /* only PyDict_SetItemString can incur this one */
+        if (rc != 0)
+            goto unpack_error;
+
+        continue;
+
+unpack_error:
             Py_DECREF(retval);
             break;
-        }
     }
 
 earlybird:

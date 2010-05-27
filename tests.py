@@ -1,4 +1,4 @@
-"""Tests. They want YOU!!
+r"""Tests. They want YOU!!
 
 
 Basic functionality.
@@ -245,6 +245,13 @@ Python-wrapped behaviors dict
 'fnv1a_32'
 >>> super(pylibmc.Client, pc).get_behaviors()["hash"]
 6
+
+Ormod's Zero-byte Adventure Story
+>>> bc = _pylibmc.client([test_server], binary=True)
+>>> bc.set("\0\0", "ORMOD")
+True
+>>> bc.get_multi(["\0\0"])
+{'\x00\x00': 'ORMOD'}
 """
 
 # Used to test pickling.
