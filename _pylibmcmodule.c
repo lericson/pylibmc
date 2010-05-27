@@ -453,12 +453,12 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client* self,
     PyObject * retval = NULL;
     size_t idx = 0;
 
-    static char *kws[] = { "keys", "key_prefix", "time", "min_compress_len", NULL };
+    static char *kws[] = { "keys", "time", "key_prefix", "min_compress_len", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|O!II", kws,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|ISI", kws,
                                      &PyDict_Type, &keys,
-                                     &PyString_Type, &key_prefix,
-                                     &time, &min_compress)) {
+                                     &time, &key_prefix,
+                                     &min_compress)) {
         return NULL;
     }
 

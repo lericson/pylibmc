@@ -74,11 +74,15 @@ True
 >>> c.get("hi")
 >>> c.set("hi", "loretta", int(time()) + 2)
 True
+>>> c.set_multi({"hi2": "charlotta"}, 1)
+[]
 >>> c.get("hi")
 'loretta'
+>>> c.get("hi2")
+'charlotta'
 >>> sleep(3.1)
->>> c.get("hi")
->>>
+>>> c.get("hi"), c.get("hi2")
+(None, None)
 
 See issue #1 ``http://github.com/lericson/pylibmc/issues/#issue/1`` -- delete
 should not accept a time argument.
