@@ -675,13 +675,15 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
                                    _PylibMC_SetCommand f, char *fname,
                                    pylibmc_mset* msets, size_t nkeys,
                                    size_t min_compress) {
+    PyGILState_STATE gstate;
     memcached_st* mc = self->mc;
     memcached_return rc = MEMCACHED_SUCCESS;
     int pos;
     bool error = false;
     bool allsuccess = true;
 
-    Py_BEGIN_ALLOW_THREADS;
+    gstate = PyGILState_Ensure();
+    PyGILState_Release(gstate);
 
     for (pos=0; pos < nkeys && !error; pos++) {
         pylibmc_mset* mset = &msets[pos];
@@ -694,12 +696,14 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
         char* compressed_value = NULL;
         size_t compressed_len = 0;
 
-        if(min_compress && value_len >= min_compress) {
+        if (min_compress && value_len >= min_compress) {
+            gstate = PyGILState_Ensure();
             _PylibMC_Deflate(value, value_len,
                              &compressed_value, &compressed_len);
+            PyGILState_Release(gstate);
         }
 
-        if(compressed_value != NULL) {
+        if (compressed_value != NULL) {
             /* Will want to change this if this function 
              * needs to get back at the old *value at some point */
             value = compressed_value;
@@ -709,7 +713,7 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
 #endif
 
         /* Finally go and call the actual libmemcached function */
-        if(mset->key_len == 0) {
+        if (mset->key_len == 0) {
             /* Most other implementations ignore zero-length keys, so
                we'll just do that */
             rc = MEMCACHED_NOTSTORED;
@@ -719,12 +723,12 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
         }
 
 #ifdef USE_ZLIB
-        if(compressed_value != NULL) {
+        if (compressed_value != NULL) {
             free(compressed_value);
         }
 #endif
 
-      switch(rc) {
+      switch (rc) {
           case MEMCACHED_SUCCESS:
               mset->success = true;
               break;
@@ -745,7 +749,7 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
 
     } /* end for each mset */
 
-    Py_END_ALLOW_THREADS;
+    gstate = PyGILState_Ensure();
 
     /* We only return the last return value, even for a _multi
        operation, but we do set the success on the mset */
