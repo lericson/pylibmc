@@ -51,6 +51,19 @@ IRC
 Change Log
 ==========
 
+New in version 1.1
+------------------
+
+- Removed deprecated space-based behavior names.
+- Acquire and release the GIL properly, thanks ketralnis__
+- Add support for ``libmemcached 0.40``
+- Included a more useful command-line interface
+- Fixed handling of NUL-byte keys in ``get_multi`` in binary protocol
+- Fixed some valgrind-reported memory warnings
+- Fixed bogus usage of time argument for delete.
+
+__ http://www.ketralnis.com/
+
 New in version 1.0
 ------------------
 
