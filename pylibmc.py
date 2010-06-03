@@ -63,7 +63,6 @@ See http://sendapatch.se/projects/pylibmc/
 """
 
 import _pylibmc
-from warnings import warn
 from Queue import Queue
 
 __all__ = ["hashers", "distributions", "Client"]
@@ -158,11 +157,6 @@ class Client(_pylibmc.client):
         This also happens for `distribution`.
         """
         behaviors = behaviors.copy()
-        if any(" " in k for k in behaviors):
-            warn(DeprecationWarning("space-delimited behavior names "
-                                    "are deprecated"))
-            for k in [k for k in behaviors if " " in k]:
-                behaviors[k.replace(" ", "_")] = behaviors.pop(k)
         if behaviors.get("hash") is not None:
             behaviors["hash"] = hashers[behaviors["hash"]]
         if behaviors.get("ketama_hash") is not None:
