@@ -113,6 +113,8 @@ class Client(_pylibmc.client):
 
         If *binary* is True, the binary memcached protocol is used.
         """
+        self.binary = binary
+        self.addresses = list(servers)
         addr_tups = []
         for server in servers:
             addr = server
@@ -134,6 +136,15 @@ class Client(_pylibmc.client):
                 stype = _pylibmc.server_type_tcp
             addr_tups.append((stype, addr, port))
         super(Client, self).__init__(servers=addr_tups, binary=binary)
+
+    def __repr__(self):
+        return "%s(%r, binary=%r)" % (self.__class__.__name__,
+                                      self.addresses, self.binary)
+
+    def __str__(self):
+        addrs = ", ".join(map(str, self.addresses))
+        return "<%s for %s, binary=%r>" % (self.__class__.__name__,
+                                           addrs, self.binary)
 
     def get_behaviors(self):
         """Gets the behaviors from the underlying C client instance.
