@@ -283,6 +283,10 @@ if __name__ == "__main__":
     sys.stderr.write("pylibmc interactive shell\n\n")
     sys.stderr.write("Input list of servers, end by a blank line\n")
 
+    binary = False
+    if sys.argv[1:] == ["--binary"]:
+        binary = True
+
     while True:
         in_addr = raw_input("Address: ")
         if not in_addr:
@@ -290,5 +294,5 @@ if __name__ == "__main__":
     if not svr_addrs:
         svr_addrs.append("127.0.0.1")
 
-    mc = Client(svr_addrs)
+    mc = Client(svr_addrs, binary=binary)
     code.interact(banner="\nmc client available as `mc`", local={"mc": mc})
