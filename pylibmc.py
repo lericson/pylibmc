@@ -62,6 +62,8 @@ Further Reading
 See http://sendapatch.se/projects/pylibmc/
 """
 
+from __future__ import with_statement
+
 import _pylibmc
 from Queue import Queue
 
