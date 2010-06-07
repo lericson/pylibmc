@@ -61,6 +61,7 @@ New in version 1.1
 - Fixed handling of NUL-byte keys in ``get_multi`` in binary protocol
 - Fixed some valgrind-reported memory warnings
 - Fixed bogus usage of time argument for delete.
+- 1.1.1: Fixed tests under Python 2.5
 
 __ http://www.ketralnis.com/
 
