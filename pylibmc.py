@@ -183,6 +183,13 @@ class Client(_pylibmc.client):
     def behaviours(self):
         raise AttributeError("nobody uses british spellings")
 
+    def clone(self):
+        obj = super(Client, self).clone()
+        obj.addresses = list(self.addresses)
+        obj.binary = self.binary
+        return obj
+
+
 from contextlib import contextmanager
 
 class ClientPool(Queue):
