@@ -1715,7 +1715,7 @@ static PyObject *_PylibMC_GetPickles(const char *attname) {
 static PyObject *_PylibMC_Unpickle(const char *buff, size_t size) {
     PyObject *pickle_load;
     PyObject *retval = NULL;
-    
+
     retval = NULL;
     pickle_load = _PylibMC_GetPickles("loads");
     if (pickle_load != NULL) {
@@ -1754,9 +1754,10 @@ static int _PylibMC_CheckKey(PyObject *key) {
 }
 
 static int _PylibMC_CheckKeyStringAndSize(char *key, Py_ssize_t size) {
-    if (size > MEMCACHED_MAX_KEY) {
+	/* libmemcached pads max_key_size with one byte for null termination */
+    if (size >= MEMCACHED_MAX_KEY) {
         PyErr_Format(PyExc_ValueError, "key too long, max is %d",
-                MEMCACHED_MAX_KEY);
+                MEMCACHED_MAX_KEY - 1);
         return 0;
 #ifdef NO_EMPTY_KEYS  /* I wish... */
     } else if (size == 0) {

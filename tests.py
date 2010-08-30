@@ -256,6 +256,13 @@ Ormod's Zero-byte Adventure Story
 True
 >>> bc.get_multi(["\0\0"])
 {'\x00\x00': 'ORMOD'}
+
+Test server/client max length
+>>> mc.get('x'*250)
+>>> mc.get('x'*251)
+Traceback (most recent call last):
+  ...
+ValueError: key too long, max is 250
 """
 
 # Used to test pickling.
