@@ -263,6 +263,33 @@ Test server/client max length
 Traceback (most recent call last):
   ...
 ValueError: key too long, max is 250
+
+Test CAS
+>>> mc.behaviors['cas'] = True
+>>> mc.delete('foo') and False
+False
+>>> mc.gets('foo') == None
+True
+>>> mc.set('foo', 'bar')
+True
+>>> foostr, cas = mc.gets('foo')
+>>> foostr
+'bar'
+>>> mc.cas('foo', 'quux', cas+1)
+False
+>>> mc.cas('foo', 'baz', cas)
+True
+>>> mc.get('foo')
+'baz'
+>>> mc.behaviors['cas'] = False
+>>> mc.gets('foo')
+Traceback (most recent call last):
+...
+ValueError: gets without cas behavior
+>>> mc.cas('foo', 'bar', 1)
+Traceback (most recent call last):
+...
+ValueError: cas without cas behavior
 """
 
 # Used to test pickling.
