@@ -308,7 +308,9 @@ error:
 
 static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
         uint32_t flags) {
-    PyObject *retval, *tmp;
+    PyObject *retval = NULL;
+    PyObject *tmp = NULL;
+    uint32_t dtype = flags & PYLIBMC_FLAG_TYPES;
 
 #if USE_ZLIB
     PyObject *inflated = NULL;
@@ -327,22 +329,26 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
     }
 #endif
 
-    retval = NULL;
-
-    switch (flags & PYLIBMC_FLAG_TYPES) {
+    switch (dtype) {
         case PYLIBMC_FLAG_PICKLE:
             retval = _PylibMC_Unpickle(value, size);
             break;
         case PYLIBMC_FLAG_INTEGER:
         case PYLIBMC_FLAG_LONG:
-            retval = PyInt_FromString(value, NULL, 10);
-            break;
         case PYLIBMC_FLAG_BOOL:
-            if ((tmp = PyInt_FromString(value, NULL, 10)) == NULL) {
-                return NULL;
+            /* PyInt_FromString doesn't take a length param and we're
+               not NULL-terminated, so we'll have to make an
+               intermediate Python string out of it */
+            tmp = PyString_FromStringAndSize(value, size);
+            if(tmp == NULL) {
+              goto cleanup;
             }
-            retval = PyBool_FromLong(PyInt_AS_LONG(tmp));
-            Py_DECREF(tmp);
+            retval = PyInt_FromString(PyString_AS_STRING(tmp), NULL, 10);
+            if(retval != NULL && dtype == PYLIBMC_FLAG_BOOL) {
+              Py_DECREF(tmp);
+              tmp = retval;
+              retval = PyBool_FromLong(PyInt_AS_LONG(tmp));
+            }
             break;
         case PYLIBMC_FLAG_NONE:
             retval = PyString_FromStringAndSize(value, (Py_ssize_t)size);
@@ -352,9 +358,13 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
                     "unknown memcached key flags %u", flags);
     }
 
+cleanup:
+
 #if USE_ZLIB
     Py_XDECREF(inflated);
 #endif
+
+    Py_XDECREF(tmp);
 
     return retval;
 }
@@ -431,7 +441,7 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
 
     Py_END_ALLOW_THREADS;
 
-    if (results != NULL) {
+    if (rc == MEMCACHED_SUCCESS && results != NULL) {
         const char *mc_val = memcached_result_value(results);
         size_t val_size = memcached_result_length(results);
         uint32_t flags = memcached_result_flags(results);
@@ -441,7 +451,7 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
         if(r != NULL) {
           ret = Py_BuildValue("(OL)", r, cas);
           /* we don't need our own reference to r, it just belongs to
-             the ret tuple */
+           the ret tuple */
           Py_DECREF(r);
         }
         memcached_quit(self->mc);
@@ -542,8 +552,6 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client* self,
     if (serialized == NULL) {
         goto cleanup;
     }
-
-    memset((void *)serialized, 0x0, nkeys * sizeof(pylibmc_mset));
 
     /**
      * We're pointing into existing Python memory with the 'key' members of
@@ -686,6 +694,9 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
                                    PyObject* value_obj,
                                    time_t time,
                                    pylibmc_mset* serialized) {
+    /* first zero the whole structure out */
+    memset((void *)serialized, 0x0, sizeof(pylibmc_mset));
+
     serialized->time = time;
     serialized->success = false;
     serialized->flags = PYLIBMC_FLAG_NONE;
@@ -787,7 +798,7 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
     }
 
     /* So now we have a reference to a string that we may have
-       created. we need that to keep existing while we release the HIL,
+       created. we need that to keep existing while we release the GIL,
        so we need to hold the reference, but we need to free it up when
        we're done */
     serialized->value_obj = store_val;
