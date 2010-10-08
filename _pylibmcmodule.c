@@ -448,22 +448,22 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
 
         ret = _PylibMC_parse_memcached_value((char *)mc_val, val_size, flags);
         ret = Py_BuildValue("(NL)", ret, cas);
-
-        /* reset cursor if mget for some reason returned more than one result.
-           this should be a no-op otherwise. */
-        memcached_quit(self->mc);
-
-        /* deallocate any indirect buffers, even though the struct itself
-           is on our stack */
-        memcached_result_free(&results_obj);
-
-        return ret;
     } else if (rc == MEMCACHED_END) {
         /* Key not found => (None, None) */
         return Py_BuildValue("(OO)", Py_None, Py_None);
     } else {
         return PylibMC_ErrFromMemcached(self, "memcached_gets", rc);
     }
+
+    /* reset cursor if mget for some reason returned more than one result.
+       this should be a no-op otherwise. */
+    memcached_quit(self->mc);
+
+    /* deallocate any indirect buffers, even though the struct itself
+       is on our stack */
+    memcached_result_free(&results_obj);
+
+    return ret;
 }
 
 /* {{{ Set commands (set, replace, add, prepend, append) */
