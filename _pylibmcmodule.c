@@ -455,10 +455,6 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
         return PylibMC_ErrFromMemcached(self, "memcached_gets", rc);
     }
 
-    /* reset cursor if mget for some reason returned more than one result.
-       this should be a no-op otherwise. */
-    memcached_quit(self->mc);
-
     /* deallocate any indirect buffers, even though the struct itself
        is on our stack */
     memcached_result_free(&results_obj);
