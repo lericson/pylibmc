@@ -448,11 +448,19 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
 
         ret = _PylibMC_parse_memcached_value((char *)mc_val, val_size, flags);
         ret = Py_BuildValue("(NL)", ret, cas);
+
+        /* we have to fetch the last result from the mget cursor */
+        memcached_fetch_result(self->mc, &results_obj, &rc);
+        if (rc != MEMCACHED_END) {
+            Py_DECREF(ret);
+            ret = NULL;
+            PyErr_SetString(PyExc_RuntimeError, "fetch not done");
+        }
     } else if (rc == MEMCACHED_END) {
         /* Key not found => (None, None) */
-        return Py_BuildValue("(OO)", Py_None, Py_None);
+        ret = Py_BuildValue("(OO)", Py_None, Py_None);
     } else {
-        return PylibMC_ErrFromMemcached(self, "memcached_gets", rc);
+        ret = PylibMC_ErrFromMemcached(self, "memcached_gets", rc);
     }
 
     /* deallocate any indirect buffers, even though the struct itself
