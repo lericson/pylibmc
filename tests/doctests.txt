@@ -1,0 +1,266 @@
+Basic functionality.
+>>> import pylibmc, _pylibmc
+>>> from tests import make_test_client
+>>> _pylibmc.__version__ == pylibmc.__version__
+True
+>>> c = make_test_client(_pylibmc.client)
+>>> c.get("hello")
+>>> c.set("test_key", 123)
+True
+>>> c.get("test_key")
+123
+>>> c.get("test_key_2")
+>>> c.delete("test_key")
+True
+>>> c.get("test_key")
+>>>
+
+We should handle empty values just nicely.
+>>> c.set("foo", "")
+True
+>>> c.get("foo")
+''
+
+Now this section is because most other implementations ignore zero-keys.
+>>> c.get("")
+>>> c.set("", "hi")
+False
+>>> c.delete("")
+False
+>>>
+
+Multi functionality.
+>>> c.set_multi({"a": 1, "b": 2, "c": 3})
+[]
+>>> c.get_multi("abc").keys() == ["a", "c", "b"]
+True
+>>> c.delete_multi("abc")
+True
+>>> c.get_multi("abc").keys() == []
+True
+>>> c.set_multi(dict(zip("abc", "def")), key_prefix="test_")
+[]
+>>> list(sorted(c.get_multi("abc", key_prefix="test_").iteritems()))
+[('a', 'd'), ('b', 'e'), ('c', 'f')]
+>>> c.get("test_a")
+'d'
+>>> c.delete_multi("abc", key_prefix="test_")
+True
+>>> bool(c.get_multi("abc", key_prefix="test_"))
+False
+
+Zero-key-test-time!
+>>> c.get_multi([""])
+{}
+>>> c.delete_multi([""])
+False
+>>> c.set_multi({"": "hi"})
+['']
+>>> c.delete_multi({"a": "b"})
+Traceback (most recent call last):
+  ...
+TypeError: keys must be a sequence, not a mapping
+
+Timed stuff. The reason we, at UNIX times, set it two seconds in the future and
+then sleep for >3 is that memcached might round the time up and down and left
+and yeah, so you know...
+>>> from time import sleep, time
+>>> c.set("hi", "steven", 1)
+True
+>>> c.get("hi")
+'steven'
+>>> sleep(2.1)
+>>> c.get("hi")
+>>> c.set("hi", "loretta", int(time()) + 2)
+True
+>>> c.set_multi({"hi2": "charlotta"}, 1)
+[]
+>>> c.get("hi")
+'loretta'
+>>> c.get("hi2")
+'charlotta'
+>>> sleep(3.1)
+>>> c.get("hi"), c.get("hi2")
+(None, None)
+
+See issue #1 ``http://github.com/lericson/pylibmc/issues/#issue/1`` -- delete
+should not accept a time argument.
+>>> c.delete("foo", 123)
+Traceback (most recent call last):
+  ...
+TypeError: delete() takes exactly 1 argument (2 given)
+>>> c.delete_multi(["foo"], time=123)
+Traceback (most recent call last):
+  ...
+TypeError: 'time' is an invalid keyword argument for this function
+
+Now for keys with funny types.
+>>> c.set(1, "hi")
+Traceback (most recent call last):
+  ...
+TypeError: argument 1 must be string, not int
+>>> c.get(1)
+Traceback (most recent call last):
+  ...
+TypeError: key must be an instance of str
+>>> c.set_multi({1: True})
+Traceback (most recent call last):
+  ...
+TypeError: key must be an instance of str
+>>> c.get_multi([1, 2])
+Traceback (most recent call last):
+  ...
+TypeError: key must be an instance of str
+
+This didn't use to work, but now it does.
+>>> c.get_multi([])
+{}
+
+Getting stats is fun!
+>>> for (svr, stats) in c.get_stats():
+...     print svr
+...     ks = stats.keys()
+...     while ks:
+...         cks, ks = ks[:6], ks[6:]
+...         print ", ".join(cks)
+127.0.0.1:11211 (0)
+pid, total_items, uptime, version, limit_maxbytes, rusage_user
+bytes_read, rusage_system, cmd_get, curr_connections, threads, total_connections
+cmd_set, curr_items, get_misses, evictions, bytes, connection_structures
+bytes_written, time, pointer_size, get_hits
+
+Also test some flush all.
+>>> c.set("hi", "guys")
+True
+>>> c.get("hi")
+'guys'
+>>> c.flush_all()
+True
+>>> c.get("hi")
+>>>
+
+Get and set booleans.
+>>> c.set("greta", True)
+True
+>>> c.get("greta")
+True
+>>> c.set("greta", False)
+True
+>>> c.get("greta")
+False
+>>> c.delete("greta")
+True
+
+Complex data types!
+>>> v = ValueError("what?")
+>>> v.args
+('what?',)
+>>> c.set("tengil", v)
+True
+>>> c.get("tengil")
+ValueError('what?',)
+
+Cloning (ethically, I don't know about it.)
+>>> c is not c.clone()
+True
+>>> c2 = c.clone()
+>>> c.set("test", "hello")
+True
+>>> c2.get("test")
+'hello'
+>>> c2.delete("test")
+True
+>>> del c2
+
+Per-error exceptions
+>>> c.incr("test")
+Traceback (most recent call last):
+  ...
+NotFound: error 16 from memcached_increment: NOT FOUND
+>>> c.incr(chr(0))
+Traceback (most recent call last):
+  ...
+ProtocolError: error 8 from memcached_increment: PROTOCOL ERROR
+
+Behaviors.
+>>> c.set_behaviors({"tcp_nodelay": True, "hash": 6})
+>>> list(sorted((k, v) for (k, v) in c.get_behaviors().items()
+...             if k in ("tcp_nodelay", "hash")))
+[('hash', 6), ('tcp_nodelay', 1)]
+
+Binary protocol!
+>>> c = make_test_client(_pylibmc.client, binary=True)
+>>> c.set("hello", "world")
+True
+>>> c.get("hello")
+'world'
+>>> c.delete("hello")
+True
+
+incr_multi
+>>> c.add_multi({'a': 1, 'b': 0, 'c': 4})
+[]
+>>> c.incr_multi(('a', 'b', 'c'), delta=1)
+>>> list(sorted(c.get_multi(('a', 'b', 'c')).items()))
+[('a', 2), ('b', 1), ('c', 5)]
+>>> c.delete_multi(('a', 'b', 'c'))
+True
+>>> c.add_multi({'a': 1, 'b': 0, 'c': 4}, key_prefix='x')
+[]
+>>> c.incr_multi(('a', 'b', 'c'), key_prefix='x', delta=5)
+>>> list(sorted(c.get_multi(('a', 'b', 'c'), key_prefix='x').items()))
+[('a', 6), ('b', 5), ('c', 9)]
+>>> c.delete_multi(('a', 'b', 'c'), key_prefix='x')
+True
+>>> c.add('a', 1)
+True
+>>> c.incr_multi(('a', 'b', 'c'), key_prefix='x', delta=1)
+Traceback (most recent call last):
+ ...
+NotFound: error 16 from memcached_increment: NOT FOUND
+>>> c.delete('xa')
+False
+
+Empty server lists are bad for your health.
+>>> c = _pylibmc.client([])
+Traceback (most recent call last):
+  ...
+MemcachedError: empty server list
+
+Python-wrapped behaviors dict
+>>> pc = make_test_client()
+>>> (pc.behaviors["hash"], pc.behaviors["distribution"])
+('default', 'modula')
+>>> pc.behaviors.update({"hash": "fnv1a_32", "distribution": "consistent"})
+>>> (pc.behaviors["hash"], pc.behaviors["distribution"])
+('fnv1a_32', 'consistent')
+
+>>> pc = make_test_client()
+>>> b = pc.behaviors
+>>> ks = list(sorted(k for k in b.keys() if not k.startswith("_")))
+>>> ks  # doctest: +NORMALIZE_WHITESPACE
+['buffer_requests', 'cache_lookups', 'cas', 'connect_timeout', 'distribution',
+ 'failure_limit', 'hash', 'ketama', 'ketama_hash', 'ketama_weighted',
+ 'no_block', 'receive_timeout', 'send_timeout', 'tcp_nodelay', 'verify_keys']
+>>> b["hash"]
+'default'
+>>> b["hash"] = 'fnv1a_32'
+>>> pc.behaviors["hash"]
+'fnv1a_32'
+>>> super(pylibmc.Client, pc).get_behaviors()["hash"]
+6
+
+Ormod's Zero-byte Adventure Story
+>>> bc = make_test_client(_pylibmc.client, binary=True)
+>>> bc.set("\0\0", "ORMOD")
+True
+>>> bc.get_multi(["\0\0"])
+{'\x00\x00': 'ORMOD'}
+
+Test server/client max length
+>>> mc = make_test_client()
+>>> mc.get('x'*250)
+>>> mc.get('x'*251)
+Traceback (most recent call last):
+  ...
+ValueError: key too long, max is 250

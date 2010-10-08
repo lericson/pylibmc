@@ -5,6 +5,26 @@ from .consts import (hashers, distributions,
                      hashers_rvs, distributions_rvs,
                      BehaviorDict)
 
+def translate_server_spec(server, port=11211):
+    addr = server
+    port = 11211
+    if server.startswith("udp:"):
+        stype = _pylibmc.server_type_udp
+        addr = addr[4:]
+        if ":" in addr:
+            (addr, port) = addr.split(":", 1)
+            port = int(port)
+    elif ":" in server:
+        stype = _pylibmc.server_type_tcp
+        (addr, port) = server.split(":", 1)
+        port = int(port)
+    elif "/" in server:
+        stype = _pylibmc.server_type_unix
+        port = 0
+    else:
+        stype = _pylibmc.server_type_tcp
+    return (stype, addr, port)
+
 class Client(_pylibmc.client):
     def __init__(self, servers, binary=False):
         """Initialize a memcached client instance.
@@ -19,24 +39,12 @@ class Client(_pylibmc.client):
         self.addresses = list(servers)
         addr_tups = []
         for server in servers:
-            addr = server
-            port = 11211
-            if server.startswith("udp:"):
-                stype = _pylibmc.server_type_udp
-                addr = addr[4:]
-                if ":" in server:
-                    (addr, port) = addr.split(":", 1)
-                    port = int(port)
-            elif ":" in addr:
-                stype = _pylibmc.server_type_tcp
-                (addr, port) = server.split(":", 1)
-                port = int(port)
-            elif "/" in server:
-                stype = _pylibmc.server_type_unix
-                port = 0
+            # Anti-pattern for convenience
+            if isinstance(server, tuple) and len(server) == 3:
+                addr_tup = server
             else:
-                stype = _pylibmc.server_type_tcp
-            addr_tups.append((stype, addr, port))
+                addr_tup = translate_server_spec(server)
+            addr_tups.append(addr_tup)
         super(Client, self).__init__(servers=addr_tups, binary=binary)
 
     def __repr__(self):
