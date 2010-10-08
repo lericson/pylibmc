@@ -460,7 +460,7 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
         return ret;
     } else if (rc == MEMCACHED_END) {
         /* Key not found => (None, None) */
-        Py_RETURN_NONE;
+        return Py_BuildValue("(OO)", Py_None, Py_None);
     } else {
         return PylibMC_ErrFromMemcached(self, "memcached_gets", rc);
     }
