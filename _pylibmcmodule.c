@@ -405,6 +405,13 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
 }
 
 static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
+    const char* keys[2];
+    size_t keylengths[2];
+    memcached_result_st results_obj;
+    memcached_result_st *results = NULL;
+    memcached_return_t rc;
+    PyObject* ret = NULL;
+
     if (!_PylibMC_CheckKey(arg)) {
         return NULL;
     } else if (!PySequence_Length(arg)) {
@@ -415,28 +422,20 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
         return NULL;
     }
 
-    /* we have to do this with mget because that's the only function
-     * that libmemcached exposes that returns a memcached_result_st,
-     * which is the only way to get at the returned cas value */
-
-    const char* keys[2] = {PyString_AS_STRING(arg), NULL};
-    size_t keylengths[2] = {(size_t)PyString_GET_SIZE(arg), 0};
-    memcached_result_st results_obj;
-    memcached_result_st *results = NULL;
-    memcached_return_t rc;
-    PyObject* ret = NULL;
+    /* Use an mget to fetch the key.
+     * mget is the only function that returns a memcached_result_st,
+     * which is the only way to get at the returned cas value. */
+    *keys = PyString_AS_STRING(arg);
+    *keylengths = (size_t)PyString_GET_SIZE(arg);
 
     Py_BEGIN_ALLOW_THREADS;
 
     rc = memcached_mget(self->mc, keys, keylengths, 1);
-    if(rc == MEMCACHED_SUCCESS) {
-      /* we don't have to check if the allocation was successful
-         because it's right on our stack */
-      results = memcached_result_create(self->mc, &results_obj);
-
-      /* this will be NULL if the key wasn't found, or
-         memcached_result_st if it was */
-      results = memcached_fetch_result(self->mc, &results_obj, &rc);
+    if (rc == MEMCACHED_SUCCESS) {
+        memcached_result_create(self->mc, &results_obj);
+        /* this will be NULL if the key wasn't found, or
+           memcached_result_st if it was */
+        results = memcached_fetch_result(self->mc, &results_obj, &rc);
     }
 
     Py_END_ALLOW_THREADS;
@@ -447,27 +446,24 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
         uint32_t flags = memcached_result_flags(results);
         uint64_t cas = memcached_result_cas(results);
 
-        PyObject *r = _PylibMC_parse_memcached_value((char*)mc_val, val_size, flags);
-        if(r != NULL) {
-          ret = Py_BuildValue("(OL)", r, cas);
-          /* we don't need our own reference to r, it just belongs to
-           the ret tuple */
-          Py_DECREF(r);
-        }
-        memcached_quit(self->mc);
-    } else if (rc == MEMCACHED_END) {
-        /* Since python-memcache returns None when the key doesn't exist,
-         * so shall we. */
-        ret = Py_None;
-        Py_INCREF(Py_None);
-    } else {
-        ret = PylibMC_ErrFromMemcached(self, "memcached_gets", rc);
-    }
+        ret = _PylibMC_parse_memcached_value((char *)mc_val, val_size, flags);
+        ret = Py_BuildValue("(NL)", ret, cas);
 
-    /* deallocate any indirect buffers, even though the struct itself
-       is on our stack */
-    memcached_result_free(&results_obj);
-    return ret;
+        /* reset cursor if mget for some reason returned more than one result.
+           this should be a no-op otherwise. */
+        memcached_quit(self->mc);
+
+        /* deallocate any indirect buffers, even though the struct itself
+           is on our stack */
+        memcached_result_free(&results_obj);
+
+        return ret;
+    } else if (rc == MEMCACHED_END) {
+        /* Key not found => (None, None) */
+        Py_RETURN_NONE;
+    } else {
+        return PylibMC_ErrFromMemcached(self, "memcached_gets", rc);
+    }
 }
 
 /* {{{ Set commands (set, replace, add, prepend, append) */
@@ -659,16 +655,16 @@ static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *self,
     Py_END_ALLOW_THREADS;
 
     switch(rc) {
-    case MEMCACHED_SUCCESS:
-        Py_INCREF(Py_True);
-        ret = Py_True;
-        break;
-    case MEMCACHED_DATA_EXISTS:
-        Py_INCREF(Py_False);
-        ret = Py_False;
-        break;
-    default:
-      PylibMC_ErrFromMemcached(self, "memcached_cas", rc);
+        case MEMCACHED_SUCCESS:
+            Py_INCREF(Py_True);
+            ret = Py_True;
+            break;
+        case MEMCACHED_DATA_EXISTS:
+            Py_INCREF(Py_False);
+            ret = Py_False;
+            break;
+        default:
+            PylibMC_ErrFromMemcached(self, "memcached_cas", rc);
     }
 
 cleanup:
@@ -786,9 +782,9 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
         return false;
     }
 
-    if(PyString_AsStringAndSize(store_val, &serialized->value,
-                                &serialized->value_len) == -1) {
-        if(serialized->flags == PYLIBMC_FLAG_NONE) {
+    if (PyString_AsStringAndSize(store_val, &serialized->value,
+                                 &serialized->value_len) == -1) {
+        if (serialized->flags == PYLIBMC_FLAG_NONE) {
             /* For some reason we weren't able to extract the value/size
                from a string that we were explicitly passed, that we
                INCREF'd above */

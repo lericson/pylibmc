@@ -268,8 +268,8 @@ Test CAS
 >>> mc.behaviors['cas'] = True
 >>> mc.delete('foo') and False
 False
->>> mc.gets('foo') == None
-True
+>>> mc.gets('foo')
+(None, None)
 >>> mc.set('foo', 'bar')
 True
 >>> foostr, cas = mc.gets('foo')
