@@ -238,11 +238,13 @@ static PylibMC_Client *PylibMC_ClientType_new(PyTypeObject *, PyObject *,
 static void PylibMC_ClientType_dealloc(PylibMC_Client *);
 static int PylibMC_Client_init(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_get(PylibMC_Client *, PyObject *arg);
+static PyObject *PylibMC_Client_gets(PylibMC_Client *, PyObject *arg);
 static PyObject *PylibMC_Client_set(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_replace(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_add(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_prepend(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_append(PylibMC_Client *, PyObject *, PyObject *);
+static PyObject *PylibMC_Client_cas(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_delete(PylibMC_Client *, PyObject *);
 static PyObject *PylibMC_Client_incr(PylibMC_Client *, PyObject *);
 static PyObject *PylibMC_Client_decr(PylibMC_Client *, PyObject *);
@@ -287,6 +289,8 @@ static bool _PylibMC_IncrDecr(PylibMC_Client*, pylibmc_incr*, size_t);
 static PyMethodDef PylibMC_ClientType_methods[] = {
     {"get", (PyCFunction)PylibMC_Client_get, METH_O,
         "Retrieve a key from a memcached."},
+    {"gets", (PyCFunction)PylibMC_Client_gets, METH_O,
+        "Retrieve a key and cas_id from a memcached."},
     {"set", (PyCFunction)PylibMC_Client_set, METH_VARARGS|METH_KEYWORDS,
         "Set a key unconditionally."},
     {"replace", (PyCFunction)PylibMC_Client_replace, METH_VARARGS|METH_KEYWORDS,
@@ -297,6 +301,8 @@ static PyMethodDef PylibMC_ClientType_methods[] = {
         "Prepend data to  a key."},
     {"append", (PyCFunction)PylibMC_Client_append, METH_VARARGS|METH_KEYWORDS,
         "Append data to a key."},
+    {"cas", (PyCFunction)PylibMC_Client_cas, METH_VARARGS|METH_KEYWORDS,
+        "Attempt to compare-and-store a key by CAS ID."},
     {"delete", (PyCFunction)PylibMC_Client_delete, METH_VARARGS,
         "Delete a key."},
     {"incr", (PyCFunction)PylibMC_Client_incr, METH_VARARGS,
