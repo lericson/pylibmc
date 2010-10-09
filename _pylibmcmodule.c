@@ -584,7 +584,7 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client* self,
 
     bool allsuccess = _PylibMC_RunSetCommand(self, f, fname,
                                              serialized, nkeys, 
-                                             time);
+                                             min_compress);
 
     if (PyErr_Occurred() != NULL) {
         goto cleanup;
