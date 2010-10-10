@@ -831,8 +831,10 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
         size_t compressed_len = 0;
 
         if (min_compress && value_len >= min_compress) {
+            Py_BLOCK_THREADS;
             _PylibMC_Deflate(value, value_len,
                              &compressed_value, &compressed_len);
+            Py_UNBLOCK_THREADS;
         }
 
         if (compressed_value != NULL) {
