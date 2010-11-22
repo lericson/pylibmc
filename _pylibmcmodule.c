@@ -475,16 +475,17 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
         _PylibMC_SetCommand f, char *fname, PyObject *args,
         PyObject *kwds) {
     /* function called by the set/add/etc commands */
-    static char *kws[] = { "key", "val", "time", "min_compress_len", NULL };
+    static char *kws[] = { "key", "val", "time", "use_custom_flag", "min_compress_len", NULL };
     PyObject *key;
     PyObject *value;
     unsigned int time = 0; /* this will be turned into a time_t */
+    unsigned int use_custom_flag = 0;
     unsigned int min_compress = 0;
     bool success = false;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "SO|II", kws,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "SO|III", kws,
                                      &key, &value,
-                                     &time, &min_compress)) {
+                                     &time, &use_custom_flag, &min_compress)) {
       return NULL;
     }
 
@@ -504,6 +505,7 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
 
     success = _PylibMC_RunSetCommand(self, f, fname,
                                      &serialized, 1,
+                                     use_custom_flag,
                                      min_compress);
 
 cleanup:
@@ -526,14 +528,16 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client* self,
     PyObject* key_prefix = NULL;
     unsigned int time = 0;
     unsigned int min_compress = 0;
+    unsigned int use_custom_flag = 0;
     PyObject * retval = NULL;
     size_t idx = 0;
 
-    static char *kws[] = { "keys", "time", "key_prefix", "min_compress_len", NULL };
+    static char *kws[] = { "keys", "time", "key_prefix", "use_custom_flag", "min_compress_len", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|ISI", kws,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|ISII", kws,
                                      &PyDict_Type, &keys,
                                      &time, &key_prefix,
+                                     &use_custom_flag,
                                      &min_compress)) {
         return NULL;
     }
@@ -584,6 +588,7 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client* self,
 
     bool allsuccess = _PylibMC_RunSetCommand(self, f, fname,
                                              serialized, nkeys, 
+                                             use_custom_flag,
                                              min_compress);
 
     if (PyErr_Occurred() != NULL) {
@@ -810,6 +815,7 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
 static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
                                    _PylibMC_SetCommand f, char *fname,
                                    pylibmc_mset* msets, size_t nkeys,
+                                   size_t use_custom_flag,
                                    size_t min_compress) {
     memcached_st* mc = self->mc;
     memcached_return rc = MEMCACHED_SUCCESS;
@@ -825,6 +831,10 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
         char* value = mset->value;
         size_t value_len = mset->value_len;
         uint32_t flags = mset->flags;
+        
+        if (use_custom_flag) {
+            flags |= PYLIBMC_FLAG_CUSTOM;
+        }
 
 #ifdef USE_ZLIB
         char* compressed_value = NULL;
