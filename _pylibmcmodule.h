@@ -62,7 +62,6 @@ typedef ssize_t Py_ssize_t;
 #define PYLIBMC_FLAG_LONG    (1 << 2)
 /* Note: this is an addition! python-memcached doesn't handle bools. */
 #define PYLIBMC_FLAG_BOOL    (1 << 4)
-#define PYLIBMC_FLAG_CUSTOM  (1 << 5)
 #define PYLIBMC_FLAG_TYPES   (PYLIBMC_FLAG_PICKLE | PYLIBMC_FLAG_INTEGER | \
                               PYLIBMC_FLAG_LONG | PYLIBMC_FLAG_BOOL | PYLIBMC_FLAG_CUSTOM)
 /* Modifier flags */
@@ -279,7 +278,7 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client* self,
 static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
                                    _PylibMC_SetCommand f, char *fname,
                                    pylibmc_mset* msets, size_t nkeys,
-                                   size_t use_custom_flag,
+                                   size_t custom_flag,
                                    size_t min_compress);
 static int _PylibMC_Deflate(char* value, size_t value_len,
                             char** result, size_t *result_len);
