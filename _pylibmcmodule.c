@@ -317,7 +317,9 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
 
     /* Decompress value if necessary. */
     if (flags & PYLIBMC_FLAG_ZLIB) {
-        inflated = _PylibMC_Inflate(value, size);
+        if ((inflated = _PylibMC_Inflate(value, size)) == NULL) {
+            return NULL;
+        }
         value = PyString_AS_STRING(inflated);
         size = PyString_GET_SIZE(inflated);
     }
