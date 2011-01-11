@@ -28,13 +28,11 @@ def collect_servers():
     else:
         yield "127.0.0.1"
 
-banner = ("\nmc client available as `mc`\n"
-          "memface available as mf")
+banner = "\nmc client available as `mc`\n"
 def interact(servers, banner=banner, binary=False):
     mc = pylibmc.Client(servers, binary=binary)
-    mf = pylibmc.Memface(servers, binary=binary)
     local = {"pylibmc": pylibmc,
-             "mf": mf, "mc": mc}
+             "mc": mc}
     code.interact(banner=banner, local=local)
 
 def main():
