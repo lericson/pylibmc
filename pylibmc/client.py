@@ -48,6 +48,27 @@ class Client(_pylibmc.client):
         return "<%s for %s, binary=%r>" % (self.__class__.__name__,
                                            addrs, self.binary)
 
+    # {{{ Mapping interface
+    def __getitem__(self, key):
+        value = self.get(key)
+        if value is None:
+            raise KeyError(key)
+        else:
+            return value
+
+    def __setitem__(self, key, value):
+        if not self.set(key, value):
+            raise KeyError("failed setting %r" % (key,))
+
+    def __delitem__(self, key):
+        if not self.delete(key):
+            raise KeyError(key)
+
+    def __contains__(self, key):
+        return self.get(key) is not None
+    # }}}
+
+    # {{{ Behaviors
     def get_behaviors(self):
         """Gets the behaviors from the underlying C client instance.
 
@@ -82,6 +103,7 @@ class Client(_pylibmc.client):
     @property
     def behaviours(self):
         raise AttributeError("nobody uses british spellings")
+    # }}}
 
     def clone(self):
         obj = super(Client, self).clone()
