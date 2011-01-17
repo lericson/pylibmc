@@ -1980,6 +1980,7 @@ Oh, and: plankton.\n");
         char excnam[64];
         snprintf(excnam, 64, "_pylibmc.%s", err->name);
         err->exc = PyErr_NewException(excnam, PylibMCExc_MemcachedError, NULL);
+        PyObject_SetAttrString(err->exc, "retcode", PyInt_FromLong(err->rc));
         PyModule_AddObject(module, err->name, (PyObject *)err->exc);
         PyList_Append(exc_objs,
             Py_BuildValue("sO", err->name, (PyObject *)err->exc));
