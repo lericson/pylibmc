@@ -32,6 +32,9 @@ for arg in sys.argv[1:]:
     elif arg == "--without-zlib":
         use_zlib = False
         continue
+    elif arg == "--with-sasl2":
+        libs.append("sasl2")
+        continue
     elif arg == "--gen-setup":
         cmd = arg[2:]
     elif "=" in arg:
