@@ -21,10 +21,10 @@ def print_header(outf=sys.stdout):
 
 def collect_servers():
     in_addr = raw_input("Address [127.0.0.1]: ")
-    while in_addr:
-        in_addr = raw_input("Address [<stop>]: ")
-        if in_addr:
+    if in_addr:
+        while in_addr:
             yield in_addr
+            in_addr = raw_input("Address [<stop>]: ")
     else:
         yield "127.0.0.1"
 
