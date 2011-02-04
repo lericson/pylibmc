@@ -1193,6 +1193,7 @@ memcached_return pylibmc_memcached_fetch_multi(
      */
 
     memcached_return rc;
+    *err_func = NULL;
 
     rc = memcached_mget(mc, (const char **)keys, key_lens, nkeys);
 
@@ -1214,9 +1215,10 @@ memcached_return pylibmc_memcached_fetch_multi(
         /* if loop spins out of control, this fails */
         assert(nkeys >= (*nresults));
 
+        res->key_len = 0;
         res->value = memcached_fetch(mc, res->key, &res->key_len,
                                      &res->value_len, &res->flags, &rc);
-        assert(res->value_len < MEMCACHED_MAX_KEY);
+        assert(res->key_len < MEMCACHED_MAX_KEY);
 
         if (res->value == NULL || rc == MEMCACHED_END) {
             /* This is how libmecached signals EOF. */
