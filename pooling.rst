@@ -42,7 +42,7 @@ concurrently:
     import pylibmc
     from contextlib import contextmanager
     from pprint import pformat
-    from werkzeug import Request, Response
+    from werkzeug.wrappers import Request, Response
     from werkzeug.exceptions import NotFound
 
     class ClientPool(list):
@@ -66,10 +66,14 @@ concurrently:
                 return NotFound(key)
             return Response(pformat(val))
 
+    if __name__ == "__main__":
+        from werkzeug.serving import run_simple
+        run_simple("0.0.0.0", 5050, my_app)
+
 It's fully-functional example of how one could implement pooling with
 `pylibmc`, and very much so in the same way that people do with
-`libmemcachedutil`. To start it, you could use Spawning like so:
-``spawn -s 1 -t 12 my_wsgi_app.my_app``
+`libmemcachedutil`. To start it, just copy the code, run ``python <<PY``, paste
+the code and type ``PY`` on a line of its own.
 
 I don't know if I think the above methodology is the best one though, another
 possibility is to have a dict with thread names as keys and client objects for
