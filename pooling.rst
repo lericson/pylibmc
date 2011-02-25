@@ -80,11 +80,47 @@ It's fully-functional example of how one could implement pooling with
 `libmemcachedutil`. To start it, just copy the code, run ``python <<PY``, paste
 the code and type ``PY`` on a line of its own.
 
+The above type of pool is actually already implemented in `pylibmc` as
+``pylibmc.ClientPool`` -- it has a slightly different API for creation:
+
+.. code-block:: python
+
+    # Configuration
+    n_threads = 12
+    mc_addrs = "10.0.1.1", "10.0.1.2", "10.0.1.3"
+    mc_pool_size = n_threads
+
+    # Application
+    import pylibmc
+    from contextlib import contextmanager
+    from pprint import pformat
+    from werkzeug.wrappers import Request, Response
+    from werkzeug.exceptions import NotFound
+
+    mc = pylibmc.Client(mc_addrs)
+    mc_pool = pylibmc.ClientPool()
+    mc_pool.fill(mc, mc_pool_size)
+
+    @Request.application
+    def my_app(request):
+        with mc_pool.reserve() as mc:
+            key = request.path[1:].encode("ascii")
+            val = mc.get(key)
+            if not val:
+                return NotFound(key)
+            return Response(pformat(val))
+
+    if __name__ == "__main__":
+        from werkzeug.serving import run_simple
+        run_simple("0.0.0.0", 5050, my_app)
+
 I don't know if I think the above methodology is the best one though, another
 possibility is to have a dict with thread names as keys and client objects for
 values, then, each thread would look up its own client object in the dict on
 each request, and if none exists, it clones a master just like the pooling
-thing above.
+thing above. This would have to be a sort of LRU cache though, to avoid many
+useless connections -- also would require some sort of garbage reuse mechanism,
+complicated... Threads, I digress.
 
 It'd be neat if there was a generic Python API for doing any variant of
 pooling, per-thread or the list-based version, and then you'd be able to switch
