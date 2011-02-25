@@ -58,6 +58,10 @@ class ThreadMappedPool(dict):
     If a client is reserved, this class checks for a key based on the current
     thread, and if none exists, clones the master client and inserts that key.
 
+    Of course this requires that you let the pool know when a thread is done
+    with its reserved instance, so therefore ``relinquish`` must be called
+    before thread exit.
+
     >>> mc = Client(["127.0.0.1"])
     >>> pool = ThreadMappedPool(mc)
     >>> with pool.reserve() as mc:
@@ -74,6 +78,10 @@ class ThreadMappedPool(dict):
     def __init__(self, master):
         self.master = master
 
+    @property
+    def current_key(self):
+        return thread.get_ident()
+
     @contextmanager
     def reserve(self):
         """Reserve a client.
@@ -81,7 +89,7 @@ class ThreadMappedPool(dict):
         Creates a new client based on the master client if none exists for the
         current thread.
         """
-        key = thread.get_ident()
+        key = self.current_key
         mc = self.pop(key, None)
         if mc is None:
             mc = self.master.clone()
@@ -89,6 +97,14 @@ class ThreadMappedPool(dict):
             yield mc
         finally:
             self[key] = mc
+
+    def relinquish(self):
+        """Relinquish any reserved client for the current context.
+
+        Call this method before exiting a thread if it might potentially use
+        this pool.
+        """
+        return self.pop(self.current_key, None)
 
 # This makes sure ThreadMappedPool doesn't exist with non-thread Pythons.
 try:

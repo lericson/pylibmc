@@ -122,6 +122,6 @@ thing above. This would have to be a sort of LRU cache though, to avoid many
 useless connections -- also would require some sort of garbage reuse mechanism,
 complicated... Threads, I digress.
 
-It'd be neat if there was a generic Python API for doing any variant of
-pooling, per-thread or the list-based version, and then you'd be able to switch
-between them seamlessly. Hm.
+`pylibmc` has a helper class for this thread-mapped approach as well, but it's
+a little broken in that it won't work very well when the average thread
+lifespan is short compared to process lifetime: it wastes connections.
