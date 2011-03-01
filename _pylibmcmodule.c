@@ -467,7 +467,9 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
 
     /* deallocate any indirect buffers, even though the struct itself
        is on our stack */
-    memcached_result_free(&results_obj);
+    if (results != NULL) {
+        memcached_result_free(results);
+    }
 
     return ret;
 }
