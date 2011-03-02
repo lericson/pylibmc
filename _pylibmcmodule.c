@@ -2000,6 +2000,15 @@ Oh, and: plankton.\n");
 #ifdef LIBMEMCACHED_WITH_SASL_SUPPORT
     Py_INCREF(Py_True);
     PyModule_AddObject(module, "support_sasl", Py_True);
+    /* sasl_client_init needs to be called once before using SASL, and
+     * sasl_done after all SASL usage is done (so basically, once per process
+     * lifetime). */
+    sasl_client_init(NULL);
+    /* Terrible, terrible hack. Need to call sasl_done, but the Python/C API
+     * doesn't provide a hook for when the module is unloaded, so register an
+     * atexit handler. This is particularly problematic because
+     * "At most 32 cleanup functions can be registered". */
+    Py_AtExit(sasl_done);
 #else
     Py_INCREF(Py_False);
     PyModule_AddObject(module, "support_sasl", Py_False);
