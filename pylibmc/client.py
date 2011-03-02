@@ -15,7 +15,8 @@ class Client(_pylibmc.client):
 
         If *binary* is True, the binary memcached protocol is used.
 
-        SASL authentication is supported. Requires both username and password.
+        SASL authentication is supported if libmemcached supports it (check
+        *pylibmc.support_sasl*). Requires both username and password.
         Note that SASL requires *binary*=True.
         """
         self.binary = binary
