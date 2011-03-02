@@ -59,6 +59,9 @@ static PylibMC_Client *PylibMC_ClientType_new(PyTypeObject *type,
 
 static void PylibMC_ClientType_dealloc(PylibMC_Client *self) {
     if (self->mc != NULL) {
+#ifdef LIBMEMCACHED_WITH_SASL_SUPPORT
+        memcached_destroy_sasl_auth_data(self->mc);
+#endif
         memcached_free(self->mc);
     }
 
@@ -70,13 +73,37 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
         PyObject *kwds) {
     PyObject *srvs, *srvs_it, *c_srv;
     unsigned char set_stype = 0, bin = 0, got_server = 0;
+    const char *user = NULL, *pass = NULL;
+    memcached_return rc;
 
-    static char *kws[] = { "servers", "binary", NULL };
+    static char *kws[] = { "servers", "binary", "username", "password", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|b", kws, &srvs, &bin)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|bzz", kws, &srvs, &bin,
+                                     &user, &pass)) {
         return -1;
     } else if ((srvs_it = PyObject_GetIter(srvs)) == NULL) {
         return -1;
+    }
+
+    if (user != NULL || pass != NULL) {
+#ifdef LIBMEMCACHED_WITH_SASL_SUPPORT
+        if (user == NULL || pass == NULL) {
+            PyErr_SetString(PyExc_TypeError, "SASL requires both username and password");
+            return -1;
+        }
+        if (!bin) {
+            PyErr_SetString(PyExc_TypeError, "SASL requires the memcached binary protocol");
+            return -1;
+        }
+        rc = memcached_set_sasl_auth_data(self->mc, user, pass);
+        if (rc != MEMCACHED_SUCCESS) {
+            PylibMC_ErrFromMemcached(self, "memcached_set_sasl_auth_data", rc);
+            return -1;
+        }
+#else
+        PyErr_SetString(PyExc_TypeError, "libmemcached does not support SASL");
+        return -1;
+#endif
     }
 
     memcached_behavior_set(self->mc, MEMCACHED_BEHAVIOR_BINARY_PROTOCOL, bin);
@@ -85,7 +112,6 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
         unsigned char stype;
         char *hostname;
         unsigned short int port;
-        memcached_return rc;
 
         got_server |= 1;
         port = 0;
@@ -1969,6 +1995,14 @@ Oh, and: plankton.\n");
 #else
     Py_INCREF(Py_False);
     PyModule_AddObject(module, "support_compression", Py_False);
+#endif
+
+#ifdef LIBMEMCACHED_WITH_SASL_SUPPORT
+    Py_INCREF(Py_True);
+    PyModule_AddObject(module, "support_sasl", Py_True);
+#else
+    Py_INCREF(Py_False);
+    PyModule_AddObject(module, "support_sasl", Py_False);
 #endif
 
     PylibMCExc_MemcachedError = PyErr_NewException(

@@ -6,7 +6,7 @@ from .consts import (hashers, distributions,
                      BehaviorDict)
 
 class Client(_pylibmc.client):
-    def __init__(self, servers, binary=False):
+    def __init__(self, servers, binary=False, username=None, password=None):
         """Initialize a memcached client instance.
 
         This connects to the servers in *servers*, which will default to being
@@ -14,6 +14,9 @@ class Client(_pylibmc.client):
         prefixed with `udp:`, a UDP connection.
 
         If *binary* is True, the binary memcached protocol is used.
+
+        SASL authentication is supported. Requires both username and password.
+        Note that SASL requires *binary*=True.
         """
         self.binary = binary
         self.addresses = list(servers)
@@ -37,7 +40,7 @@ class Client(_pylibmc.client):
             else:
                 stype = _pylibmc.server_type_tcp
             addr_tups.append((stype, addr, port))
-        super(Client, self).__init__(servers=addr_tups, binary=binary)
+        super(Client, self).__init__(servers=addr_tups, binary=binary, username=username, password=password)
 
     def __repr__(self):
         return "%s(%r, binary=%r)" % (self.__class__.__name__,

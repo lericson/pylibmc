@@ -457,6 +457,7 @@ if __name__ == "__main__":
     print "Reported libmemcached version:", _pylibmc.libmemcached_version
     print "Reported pylibmc version:", _pylibmc.__version__
     print "Support compression:", _pylibmc.support_compression
+    print "Support SASL:", _pylibmc.support_sasl
 
     if not is_alive(test_server):
         raise SystemExit("Test server (%r) not alive." % (test_server,))

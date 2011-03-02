@@ -68,6 +68,8 @@ from .client import Client
 from .pools import ClientPool, ThreadMappedPool
 
 support_compression = _pylibmc.support_compression
+support_sasl = _pylibmc.support_sasl
+
 __version__ = _pylibmc.__version__
 __all__ = ["hashers", "distributions", "Client",
            "ClientPool", "ThreadMappedPool"]
