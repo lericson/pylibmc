@@ -1923,7 +1923,7 @@ static int _PylibMC_CheckKey(PyObject *key) {
 }
 
 static int _PylibMC_CheckKeyStringAndSize(char *key, Py_ssize_t size) {
-	/* libmemcached pads max_key_size with one byte for null termination */
+    /* libmemcached pads max_key_size with one byte for null termination */
     if (size >= MEMCACHED_MAX_KEY) {
         PyErr_Format(PyExc_ValueError, "key too long, max is %d",
                 MEMCACHED_MAX_KEY - 1);
@@ -1948,6 +1948,7 @@ PyMODINIT_FUNC init_pylibmc(void) {
     PylibMC_McErr *err;
     int libmemcached_version_minor;
     char name[128];
+    int rc;
 
     /* Check minimum requirement of libmemcached version */
     libmemcached_version_minor = \
@@ -2000,19 +2001,39 @@ Oh, and: plankton.\n");
 #ifdef LIBMEMCACHED_WITH_SASL_SUPPORT
     Py_INCREF(Py_True);
     PyModule_AddObject(module, "support_sasl", Py_True);
+
     /* sasl_client_init needs to be called once before using SASL, and
      * sasl_done after all SASL usage is done (so basically, once per process
      * lifetime). */
-    sasl_client_init(NULL);
+    if ((rc = sasl_client_init(NULL)) != SASL_OK) {
+        if (rc == SASL_NOMEM) {
+            PyErr_NoMemory();
+        } else if (rc == SASL_BADVERS) {
+            PyErr_Format(PyExc_RuntimeError,
+                    "SASL: Mechanism version mismatch");
+        } else if (rc == SASL_BADPARAM) {
+            PyErr_Format(PyExc_RuntimeError,
+                    "SASL: missing getopt callback or error in config file");
+        } else if (rc == SASL_NOMECH) {
+            PyErr_Format(PyExc_RuntimeError, "SASL: No mechanisms available");
+        } else {
+            /* Just in case a new code pops up. */
+            PyErr_Format(PyExc_RuntimeError, "SASL error");
+        }
+        return;
+    }
+
     /* Terrible, terrible hack. Need to call sasl_done, but the Python/C API
      * doesn't provide a hook for when the module is unloaded, so register an
      * atexit handler. This is particularly problematic because
      * "At most 32 cleanup functions can be registered". */
-    Py_AtExit(sasl_done);
+    if (Py_AtExit(sasl_done)) {
+        PyErr_Format(PyExc_RuntimeError, "Failed to register atexit handler");
+    }
 #else
     Py_INCREF(Py_False);
     PyModule_AddObject(module, "support_sasl", Py_False);
-#endif
+#endif // #ifdef LIBMEMCACHED_WITH_SASL_SUPPORT
 
     PylibMCExc_MemcachedError = PyErr_NewException(
             "_pylibmc.MemcachedError", NULL, NULL);
