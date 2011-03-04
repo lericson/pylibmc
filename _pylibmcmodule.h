@@ -236,6 +236,7 @@ static PylibMC_Behavior PylibMC_distributions[] = {
 typedef struct {
     PyObject_HEAD
     memcached_st *mc;
+    uint8_t sasl_set;
 } PylibMC_Client;
 
 /* {{{ Prototypes */

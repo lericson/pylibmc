@@ -57,7 +57,7 @@ static PylibMC_Client *PylibMC_ClientType_new(PyTypeObject *type,
 
     if (self != NULL) {
         self->mc = memcached_create(NULL);
-        self->mc->sasl = NULL;
+        self->sasl_set = false;
     }
 
     return self;
@@ -66,7 +66,7 @@ static PylibMC_Client *PylibMC_ClientType_new(PyTypeObject *type,
 static void PylibMC_ClientType_dealloc(PylibMC_Client *self) {
     if (self->mc != NULL) {
 #ifdef LIBMEMCACHED_WITH_SASL_SUPPORT
-        if (self->mc->sasl != NULL) {
+        if (self->sasl_set) {
             memcached_destroy_sasl_auth_data(self->mc);
         }
 #endif
@@ -114,6 +114,10 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
             PylibMC_ErrFromMemcached(self, "memcached_set_sasl_auth_data", rc);
             goto error;
         }
+
+        /* Can't just look at the memcached_st->sasl data, because then it
+         * breaks in libmemcached 0.43 and potentially earlier. */
+        self->sasl_set = true;
 
 #else
         PyErr_SetString(PyExc_TypeError, "libmemcached does not support SASL");
