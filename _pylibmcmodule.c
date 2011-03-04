@@ -40,6 +40,11 @@
   PyErr_Format(PylibMCExc_MemcachedError, "zlib error %d in " s, rc);
 #endif
 
+#define PyBool_TEST(t) ((t) ? Py_True : Py_False)
+#define PyModule_ADD_REF(mod, nam, obj) \
+    { Py_INCREF(obj); \
+      PyModule_AddObject(mod, nam, obj); }
+
 
 /* {{{ Type methods */
 static PylibMC_Client *PylibMC_ClientType_new(PyTypeObject *type,
@@ -1912,69 +1917,29 @@ static int _PylibMC_CheckKeyStringAndSize(char *key, Py_ssize_t size) {
     return key != NULL;
 }
 
-static PyMethodDef PylibMC_functions[] = {
-    {NULL, NULL, 0, NULL}
-};
-
-PyMODINIT_FUNC init_pylibmc(void) {
-    PyObject *module, *exc_objs;
-    PylibMC_Behavior *b;
-    PylibMC_McErr *err;
+static int _check_libmemcached_version(void) {
     int libmemcached_version_minor;
-    char name[128];
 
     /* Check minimum requirement of libmemcached version */
     libmemcached_version_minor = \
         atoi(strchr(LIBMEMCACHED_VERSION_STRING, '.') + 1);
+
     if (libmemcached_version_minor < 32) {
         PyErr_Format(PyExc_RuntimeError,
             "pylibmc requires >= libmemcached 0.32, was compiled with %s",
             LIBMEMCACHED_VERSION_STRING);
-        return;
+        return false;
+    } else {
+        return true;
     }
+}
 
-    if (PyType_Ready(&PylibMC_ClientType) < 0) {
-        return;
-    }
-
-    module = Py_InitModule3("_pylibmc", PylibMC_functions,
-            "Hand-made wrapper for libmemcached.\n\
-\n\
-You ought to look at python-memcached's documentation for now, seeing\n\
-as this module is more or less a drop-in replacement, the difference\n\
-being in how you connect. Therefore that's documented here::\n\
-\n\
-    c = _pylibmc.client([(_pylibmc.server_type_tcp, 'localhost', 11211)])\n\
-\n\
-As you see, a list of three-tuples of (type, host, port) is used. If \n\
-type is `server_type_unix`, no port should be given. A simpler form \n\
-can be used as well::\n\
-\n\
-   c = _pylibmc.client('localhost')\n\
-\n\
-See libmemcached's memcached_servers_parse for more info on that. I'm told \n\
-you can use UNIX domain sockets by specifying paths, and multiple servers \n\
-by using comma-separation. Good luck with that.\n\
-\n\
-Oh, and: plankton.\n");
-    if (module == NULL) {
-        return;
-    }
-
-    PyModule_AddStringConstant(module, "__version__", PYLIBMC_VERSION);
-
-#ifdef USE_ZLIB
-    Py_INCREF(Py_True);
-    PyModule_AddObject(module, "support_compression", Py_True);
-#else
-    Py_INCREF(Py_False);
-    PyModule_AddObject(module, "support_compression", Py_False);
-#endif
+static void _make_excs(PyObject *module) {
+    PyObject *exc_objs;
+    PylibMC_McErr *err;
 
     PylibMCExc_MemcachedError = PyErr_NewException(
             "_pylibmc.MemcachedError", NULL, NULL);
-    PyModule_AddObject(module, "MemcachedError",
-                       (PyObject *)PylibMCExc_MemcachedError);
 
     exc_objs = PyList_New(0);
     PyList_Append(exc_objs,
@@ -1990,25 +1955,74 @@ Oh, and: plankton.\n");
             Py_BuildValue("sO", err->name, (PyObject *)err->exc));
     }
 
+    PyModule_AddObject(module, "MemcachedError",
+                       (PyObject *)PylibMCExc_MemcachedError);
     PyModule_AddObject(module, "exceptions", exc_objs);
+}
 
-    Py_INCREF(&PylibMC_ClientType);
-    PyModule_AddObject(module, "client", (PyObject *)&PylibMC_ClientType);
+static void _make_behavior_consts(PyObject *mod) {
+    PylibMC_Behavior *b;
+    char name[128];
+
+    /* Add hasher and distribution constants. */
+    for (b = PylibMC_hashers; b->name != NULL; b++) {
+        sprintf(name, "hash_%s", b->name);
+        PyModule_AddIntConstant(mod, name, b->flag);
+    }
+
+    for (b = PylibMC_distributions; b->name != NULL; b++) {
+        sprintf(name, "distribution_%s", b->name);
+        PyModule_AddIntConstant(mod, name, b->flag);
+    }
+}
+
+static PyMethodDef PylibMC_functions[] = {
+    {NULL, NULL, 0, NULL}
+};
+
+PyMODINIT_FUNC init_pylibmc(void) {
+    PyObject *module;
+
+    if (!_check_libmemcached_version())
+        return;
+
+    if (PyType_Ready(&PylibMC_ClientType) < 0) {
+        return;
+    }
+
+    module = Py_InitModule3("_pylibmc", PylibMC_functions,
+            "Hand-made wrapper for libmemcached.\n\
+\n\
+You should really use the Python wrapper around this library.\n\
+\n\
+    c = _pylibmc.client([(_pylibmc.server_type_tcp, 'localhost', 11211)])\n\
+\n\
+Three-tuples of (type, host, port) are used. If type is `server_type_unix`,\n\
+no port should be given. libmemcached can parse strings as well::\n\
+\n\
+   c = _pylibmc.client('localhost')\n\
+\n\
+See libmemcached's memcached_servers_parse for more info on that. I'm told \n\
+you can use UNIX domain sockets by specifying paths, and multiple servers \n\
+by using comma-separation. Good luck with that.\n");
+    if (module == NULL) {
+        return;
+    }
+
+    _make_excs(module);
+
+    PyModule_AddStringConstant(module, "__version__", PYLIBMC_VERSION);
+
+    PyModule_ADD_REF(module, "client", (PyObject *)&PylibMC_ClientType);
+
+    PyModule_AddStringConstant(module,
+            "libmemcached_version", LIBMEMCACHED_VERSION_STRING);
+
+    PyModule_ADD_REF(module, "support_compression", PyBool_TEST(USE_ZLIB));
 
     PyModule_AddIntConstant(module, "server_type_tcp", PYLIBMC_SERVER_TCP);
     PyModule_AddIntConstant(module, "server_type_udp", PYLIBMC_SERVER_UDP);
     PyModule_AddIntConstant(module, "server_type_unix", PYLIBMC_SERVER_UNIX);
 
-    /* Add hasher and distribution constants. */
-    for (b = PylibMC_hashers; b->name != NULL; b++) {
-        sprintf(name, "hash_%s", b->name);
-        PyModule_AddIntConstant(module, name, b->flag);
-    }
-    for (b = PylibMC_distributions; b->name != NULL; b++) {
-        sprintf(name, "distribution_%s", b->name);
-        PyModule_AddIntConstant(module, name, b->flag);
-    }
-
-    PyModule_AddStringConstant(module,
-            "libmemcached_version", LIBMEMCACHED_VERSION_STRING);
+    _make_behavior_consts(module);
 }
