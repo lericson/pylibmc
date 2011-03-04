@@ -83,31 +83,39 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
 
     static char *kws[] = { "servers", "binary", "username", "password", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|bzz", kws, &srvs, &bin,
-                                     &user, &pass)) {
-        return -1;
-    } else if ((srvs_it = PyObject_GetIter(srvs)) == NULL) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|bzz", kws,
+                                     &srvs, &bin, &user, &pass)) {
         return -1;
     }
 
+    if ((srvs_it = PyObject_GetIter(srvs)) == NULL) {
+        return -1;
+    }
+
+    /* setup sasl */
     if (user != NULL || pass != NULL) {
+
 #ifdef LIBMEMCACHED_WITH_SASL_SUPPORT
         if (user == NULL || pass == NULL) {
             PyErr_SetString(PyExc_TypeError, "SASL requires both username and password");
-            return -1;
+            goto error;
         }
+
         if (!bin) {
             PyErr_SetString(PyExc_TypeError, "SASL requires the memcached binary protocol");
-            return -1;
+            goto error;
         }
+
         rc = memcached_set_sasl_auth_data(self->mc, user, pass);
         if (rc != MEMCACHED_SUCCESS) {
             PylibMC_ErrFromMemcached(self, "memcached_set_sasl_auth_data", rc);
-            return -1;
+            goto error;
         }
+
 #else
         PyErr_SetString(PyExc_TypeError, "libmemcached does not support SASL");
-        return -1;
+        goto error;
+
 #endif
     }
 
