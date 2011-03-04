@@ -46,8 +46,19 @@ def translate_server_spec(server, port=11211):
         port = int(port)
     return (stype, addr, port)
 
+def translate_server_specs(servers):
+    addr_tups = []
+    for server in servers:
+        # Anti-pattern for convenience
+        if isinstance(server, tuple) and len(server) == 3:
+            addr_tup = server
+        else:
+            addr_tup = translate_server_spec(server)
+        addr_tups.append(addr_tup)
+    return addr_tups
+
 class Client(_pylibmc.client):
-    def __init__(self, servers, behaviors=None, binary=False):
+    def __init__(self, servers, binary=False, username=None, password=None):
         """Initialize a memcached client instance.
 
         This connects to the servers in *servers*, which will default to being
@@ -55,18 +66,16 @@ class Client(_pylibmc.client):
         prefixed with `udp:`, a UDP connection.
 
         If *binary* is True, the binary memcached protocol is used.
+
+        SASL authentication is supported if libmemcached supports it (check
+        *pylibmc.support_sasl*). Requires both username and password.
+        Note that SASL requires *binary*=True.
         """
         self.binary = binary
         self.addresses = list(servers)
-        addr_tups = []
-        for server in servers:
-            # Anti-pattern for convenience
-            if isinstance(server, tuple) and len(server) == 3:
-                addr_tup = server
-            else:
-                addr_tup = translate_server_spec(server)
-            addr_tups.append(addr_tup)
-        super(Client, self).__init__(servers=addr_tups, binary=binary)
+        super(Client, self).__init__(servers=translate_server_spec(servers),
+                                     binary=binary, username=username,
+                                     password=password)
         if behaviors is not None:
             self.set_behaviors(behaviors)
 

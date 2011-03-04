@@ -30,6 +30,7 @@ def dump_infos():
     logger.info("libmemcached version: %s", _pylibmc.libmemcached_version)
     logger.info("pylibmc version: %s", _pylibmc.__version__)
     logger.info("support compression: %s", _pylibmc.support_compression)
+    logger.info("support sasl auth: %s", _pylibmc.support_sasl)
 
 class PylibmcVersionDumper(Plugin):
     name = "info"

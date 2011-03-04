@@ -64,6 +64,9 @@ static PylibMC_Client *PylibMC_ClientType_new(PyTypeObject *type,
 
 static void PylibMC_ClientType_dealloc(PylibMC_Client *self) {
     if (self->mc != NULL) {
+#ifdef LIBMEMCACHED_WITH_SASL_SUPPORT
+        memcached_destroy_sasl_auth_data(self->mc);
+#endif
         memcached_free(self->mc);
     }
 
@@ -75,13 +78,37 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
         PyObject *kwds) {
     PyObject *srvs, *srvs_it, *c_srv;
     unsigned char set_stype = 0, bin = 0, got_server = 0;
+    const char *user = NULL, *pass = NULL;
+    memcached_return rc;
 
-    static char *kws[] = { "servers", "binary", NULL };
+    static char *kws[] = { "servers", "binary", "username", "password", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|b", kws, &srvs, &bin)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|bzz", kws, &srvs, &bin,
+                                     &user, &pass)) {
         return -1;
     } else if ((srvs_it = PyObject_GetIter(srvs)) == NULL) {
         return -1;
+    }
+
+    if (user != NULL || pass != NULL) {
+#ifdef LIBMEMCACHED_WITH_SASL_SUPPORT
+        if (user == NULL || pass == NULL) {
+            PyErr_SetString(PyExc_TypeError, "SASL requires both username and password");
+            return -1;
+        }
+        if (!bin) {
+            PyErr_SetString(PyExc_TypeError, "SASL requires the memcached binary protocol");
+            return -1;
+        }
+        rc = memcached_set_sasl_auth_data(self->mc, user, pass);
+        if (rc != MEMCACHED_SUCCESS) {
+            PylibMC_ErrFromMemcached(self, "memcached_set_sasl_auth_data", rc);
+            return -1;
+        }
+#else
+        PyErr_SetString(PyExc_TypeError, "libmemcached does not support SASL");
+        return -1;
+#endif
     }
 
     memcached_behavior_set(self->mc, MEMCACHED_BEHAVIOR_BINARY_PROTOCOL, bin);
@@ -90,7 +117,6 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
         unsigned char stype;
         char *hostname;
         unsigned short int port;
-        memcached_return rc;
 
         got_server |= 1;
         port = 0;
@@ -1955,6 +1981,43 @@ static int _PylibMC_CheckKeyStringAndSize(char *key, Py_ssize_t size) {
     return key != NULL;
 }
 
+static int _init_sasl(void) {
+#ifdef LIBMEMCACHED_WITH_SASL_SUPPORT
+    int rc;
+
+    /* sasl_client_init needs to be called once before using SASL, and
+     * sasl_done after all SASL usage is done (so basically, once per process
+     * lifetime). */
+    rc = sasl_client_init(NULL);
+    if (rc == SASL_NOMEM) {
+        PyErr_NoMemory();
+    } else if (rc == SASL_BADVERS) {
+        PyErr_Format(PyExc_RuntimeError, "SASL: Mechanism version mismatch");
+    } else if (rc == SASL_BADPARAM) {
+        PyErr_Format(PyExc_RuntimeError, "SASL: Error in config file");
+    } else if (rc == SASL_NOMECH) {
+        PyErr_Format(PyExc_RuntimeError, "SASL: No mechanisms available");
+    } else if (rc != SASL_OK) {
+        PyErr_Format(PyExc_RuntimeError, "SASL: Unknown error (rc=%d)", rc);
+    }
+
+    if (rc != SASL_OK) {
+        return false;
+    }
+
+    /* Terrible, terrible hack. Need to call sasl_done, but the Python/C API
+     * doesn't provide a hook for when the module is unloaded, so register an
+     * atexit handler. This is particularly problematic because
+     * "At most 32 cleanup functions can be registered". */
+    if (Py_AtExit(sasl_done)) {
+        PyErr_Format(PyExc_RuntimeError, "Failed to register atexit handler");
+        return false;
+    }
+#endif
+
+    return true;
+}
+
 static int _check_libmemcached_version(void) {
     int libmemcached_version_minor;
 
@@ -2024,6 +2087,9 @@ PyMODINIT_FUNC init_pylibmc(void) {
     if (!_check_libmemcached_version())
         return;
 
+    if (!_init_sasl())
+        return;
+
     if (PyType_Ready(&PylibMC_ClientType) < 0) {
         return;
     }
@@ -2056,6 +2122,8 @@ by using comma-separation. Good luck with that.\n");
     PyModule_AddStringConstant(module,
             "libmemcached_version", LIBMEMCACHED_VERSION_STRING);
 
+    PyModule_ADD_REF(module, "support_sasl",
+                     PyBool_TEST(LIBMEMCACHED_WITH_SASL_SUPPORT));
     PyModule_ADD_REF(module, "support_compression", PyBool_TEST(USE_ZLIB));
 
     PyModule_AddIntConstant(module, "server_type_tcp", PYLIBMC_SERVER_TCP);
