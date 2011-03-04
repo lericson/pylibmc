@@ -57,6 +57,7 @@ static PylibMC_Client *PylibMC_ClientType_new(PyTypeObject *type,
 
     if (self != NULL) {
         self->mc = memcached_create(NULL);
+        self->mc->sasl = NULL;
     }
 
     return self;
@@ -65,7 +66,9 @@ static PylibMC_Client *PylibMC_ClientType_new(PyTypeObject *type,
 static void PylibMC_ClientType_dealloc(PylibMC_Client *self) {
     if (self->mc != NULL) {
 #ifdef LIBMEMCACHED_WITH_SASL_SUPPORT
-        memcached_destroy_sasl_auth_data(self->mc);
+        if (self->mc->sasl != NULL) {
+            memcached_destroy_sasl_auth_data(self->mc);
+        }
 #endif
         memcached_free(self->mc);
     }
