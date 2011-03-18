@@ -27,7 +27,7 @@ class Client(_pylibmc.client):
                 if ":" in server:
                     (addr, port) = addr.split(":", 1)
                     port = int(port)
-            elif ":" in server:
+            elif ":" in addr:
                 stype = _pylibmc.server_type_tcp
                 (addr, port) = server.split(":", 1)
                 port = int(port)
