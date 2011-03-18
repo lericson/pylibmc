@@ -6,8 +6,23 @@ from .consts import (hashers, distributions,
                      BehaviorDict)
 
 def translate_server_spec(server, port=11211):
+    """Translate/normalize specification *server* into three-tuple (tp, addr, port).
+
+    This is format is used by the extension module.
+
+    >>> translate_server_spec("127.0.0.1")
+    (1, '127.0.0.1', 11211)
+    >>> translate_server_spec("udp:127.0.0.1")
+    (2, '127.0.0.1', 11211)
+    >>> translate_server_spec("/var/run/memcached.sock")
+    (4, '/var/run/memcached.sock', 0)
+
+    >>> translate_server_spec("127.0.0.1:22122")
+    (1, '127.0.0.1', 22122)
+    >>> translate_server_spec("127.0.0.1", port=1234)
+    (1, '127.0.0.1', 1234)
+    """
     addr = server
-    port = 11211
     if server.startswith("udp:"):
         stype = _pylibmc.server_type_udp
         addr = addr[4:]
@@ -118,3 +133,7 @@ class Client(_pylibmc.client):
         obj.addresses = list(self.addresses)
         obj.binary = self.binary
         return obj
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
