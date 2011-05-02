@@ -120,15 +120,15 @@ This didn't use to work, but now it does.
 Getting stats is fun!
 >>> for (svr, stats) in c.get_stats():
 ...     print svr
-...     ks = stats.keys()
+...     ks = list(sorted(stats))
 ...     while ks:
 ...         cks, ks = ks[:6], ks[6:]
 ...         print ", ".join(cks)
 127.0.0.1:11211 (0)
-pid, total_items, uptime, version, limit_maxbytes, rusage_user
-bytes_read, rusage_system, cmd_get, curr_connections, threads, total_connections
-cmd_set, curr_items, get_misses, evictions, bytes, connection_structures
-bytes_written, time, pointer_size, get_hits
+bytes, bytes_read, bytes_written, cmd_get, cmd_set, connection_structures
+curr_connections, curr_items, evictions, get_hits, get_misses, limit_maxbytes
+pid, pointer_size, rusage_system, rusage_user, threads, time
+total_connections, total_items, uptime, version
 
 Also test some flush all.
 >>> c.set("hi", "guys")
