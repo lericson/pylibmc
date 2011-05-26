@@ -56,8 +56,11 @@ if use_zlib:
 # Apple OS X 10.6 with Xcode 4 has Python compiled with PPC but removes support
 # for compiling with that arch, so we have to override ARCHFLAGS.
 if sys.platform == "darwin":
-    if "ppc" not in os.listdir("/usr/libexec/gcc/darwin"):
-        os.environ["ARCHFLAGS"] = "-arch i386 -arch x86_64"
+    compiler_dirn = "/usr/libexec/gcc/darwin"
+    if os.path.exists(compiler_dirn):
+        dir_items = os.listdir(compiler_dirn)
+        if "ppc" not in dir_items:
+            os.environ["ARCHFLAGS"] = "-arch i386 -arch x86_64"
  
 pylibmc_ext = Extension("_pylibmc", ["_pylibmcmodule.c"],
                         libraries=libs, include_dirs=incdirs,
