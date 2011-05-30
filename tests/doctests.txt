@@ -239,10 +239,10 @@ Python-wrapped behaviors dict
 >>> b = pc.behaviors
 >>> ks = list(sorted(k for k in b.keys() if not k.startswith("_")))
 >>> ks  # doctest: +NORMALIZE_WHITESPACE
-['buffer_requests', 'cache_lookups', 'cas', 'connect_timeout', 'distribution',
- 'failure_limit', 'hash', 'ketama', 'ketama_hash', 'ketama_weighted',
- 'no_block', 'num_replicas', 'receive_timeout', 'send_timeout', 'tcp_nodelay',
- 'verify_keys']
+['auto_eject', 'buffer_requests', 'cache_lookups', 'cas', 'connect_timeout',
+ 'distribution', 'failure_limit', 'hash', 'ketama', 'ketama_hash',
+ 'ketama_weighted', 'no_block', 'num_replicas', 'receive_timeout',
+ 'send_timeout', 'tcp_nodelay', 'verify_keys']
 >>> b["hash"]
 'default'
 >>> b["hash"] = 'fnv1a_32'
