@@ -2,6 +2,8 @@ import os
 import sys
 from setuptools import setup, Extension
 
+## Command-line argument parsing
+
 # --with-zlib: use zlib for compressing and decompressing
 # --without-zlib: ^ negated
 # --with-zlib=<dir>: path to zlib if needed
@@ -53,14 +55,19 @@ if use_zlib:
     libs.append("z")
     defs.append(("USE_ZLIB", None))
 
-# Apple OS X 10.6 with Xcode 4 has Python compiled with PPC but removes support
-# for compiling with that arch, so we have to override ARCHFLAGS.
-if sys.platform == "darwin":
+## OS X non-PPC workaround
+
+# Apple OS X 10.6 with Xcode 4 have Python compiled with PPC but they removed
+# support for compiling with that arch, so we have to override ARCHFLAGS.
+if sys.platform == "darwin" and not os.environ.get("ARCHFLAGS"):
     compiler_dirn = "/usr/libexec/gcc/darwin"
     if os.path.exists(compiler_dirn):
         dir_items = os.listdir(compiler_dirn)
         if "ppc" not in dir_items:
+            print >>sys.stderr, "enabling osx-specific ARCHFLAGS/ppc hack"
             os.environ["ARCHFLAGS"] = "-arch i386 -arch x86_64"
+
+## Extension definitions
  
 pylibmc_ext = Extension("_pylibmc", ["_pylibmcmodule.c"],
                         libraries=libs, include_dirs=incdirs,
