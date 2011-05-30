@@ -41,7 +41,7 @@ def translate_server_spec(server, port=11211):
     return (stype, addr, port)
 
 class Client(_pylibmc.client):
-    def __init__(self, servers, binary=False):
+    def __init__(self, servers, behaviors=None, binary=False):
         """Initialize a memcached client instance.
 
         This connects to the servers in *servers*, which will default to being
@@ -61,6 +61,8 @@ class Client(_pylibmc.client):
                 addr_tup = translate_server_spec(server)
             addr_tups.append(addr_tup)
         super(Client, self).__init__(servers=addr_tups, binary=binary)
+        if behaviors is not None:
+            self.set_behaviors(behaviors)
 
     def __repr__(self):
         return "%s(%r, binary=%r)" % (self.__class__.__name__,
