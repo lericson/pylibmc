@@ -187,9 +187,15 @@ static PylibMC_Behavior PylibMC_behaviors[] = {
     { MEMCACHED_BEHAVIOR_CONNECT_TIMEOUT, "connect_timeout" },
     { MEMCACHED_BEHAVIOR_SND_TIMEOUT, "send_timeout" },
     { MEMCACHED_BEHAVIOR_RCV_TIMEOUT, "receive_timeout" },
-    { MEMCACHED_BEHAVIOR_SERVER_FAILURE_LIMIT, "failure_limit" },
     { MEMCACHED_BEHAVIOR_NUMBER_OF_REPLICAS, "num_replicas" },
     { MEMCACHED_BEHAVIOR_AUTO_EJECT_HOSTS, "auto_eject" },
+#if LIBMEMCACHED_VERSION_HEX >= 0x00049000
+    { MEMCACHED_BEHAVIOR_REMOVE_FAILED_SERVERS, "remove_failed" },
+#endif
+    /* make sure failure_limit is set after remove_failed
+     * as the latter overwrites the former. */
+    { MEMCACHED_BEHAVIOR_SERVER_FAILURE_LIMIT, "failure_limit" },
+
     { MEMCACHED_BEHAVIOR_IO_MSG_WATERMARK, "_io_msg_watermark" },
     { MEMCACHED_BEHAVIOR_IO_BYTES_WATERMARK, "_io_bytes_watermark" },
     { MEMCACHED_BEHAVIOR_IO_KEY_PREFETCH, "_io_key_prefetch" },
