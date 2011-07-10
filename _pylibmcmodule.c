@@ -408,7 +408,9 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
         Py_RETURN_NONE;
     }
 
-    return PylibMC_ErrFromMemcached(self, "memcached_get", error);
+    return PylibMC_ErrFromMemcachedWithKey(self, "memcached_get", error,
+                                           PyString_AS_STRING(arg), 
+                                           PyString_GET_SIZE(arg));
 }
 
 static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
@@ -677,7 +679,8 @@ static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *self,
             ret = Py_False;
             break;
         default:
-            PylibMC_ErrFromMemcached(self, "memcached_cas", rc);
+            PylibMC_ErrFromMemcachedWithKey(self, "memcached_cas", rc,
+                                            mset.key, mset.key_len);
     }
 
 cleanup:
@@ -966,7 +969,8 @@ static PyObject *PylibMC_Client_delete(PylibMC_Client *self, PyObject *args) {
                 Py_RETURN_FALSE;
                 break;
             default:
-                return PylibMC_ErrFromMemcached(self, "memcached_delete", rc);
+                return PylibMC_ErrFromMemcachedWithKey(self, "memcached_delete", 
+                                                       rc, key, key_sz);
         }
     }
 
@@ -1813,11 +1817,35 @@ static PyObject *PylibMC_Client_clone(PylibMC_Client *self) {
 }
 /* }}} */
 
-static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *self, const char *what,
-        memcached_return error) {
+
+static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *self, 
+        const char *what, memcached_return error) {
+    return PylibMC_ErrFromMemcachedWithKey(self, what, error, NULL, 0);
+}
+
+static PyObject *PylibMC_ErrFromMemcachedWithKey(PylibMC_Client *self, 
+        const char *what, memcached_return error, const char* key, int len) {
+    memcached_server_instance_st server = NULL;
+    if (key != NULL) {
+        memcached_return by_key_error;
+
+        server = memcached_server_by_key(self->mc, key, len, 
+                                         &by_key_error);
+    }
+
     if (error == MEMCACHED_ERRNO) {
-        PyErr_Format(PylibMCExc_MemcachedError,
-                "system error %d from %s: %s", errno, what, strerror(errno));
+        if (server != NULL) {
+            PyErr_Format(PylibMCExc_MemcachedError,
+                    "system error %d from %s on %s:%d: %s", 
+                    errno, what, 
+                    server->hostname, server->port,
+                    strerror(errno));
+
+        } else {
+            PyErr_Format(PylibMCExc_MemcachedError,
+                    "system error %d from %s: %s", 
+                    errno, what, strerror(errno));
+        }
     /* The key exists, but it has no value */
     } else if (error == MEMCACHED_SUCCESS) {
         PyErr_Format(PyExc_RuntimeError, "error == 0? %s:%d",
@@ -1833,8 +1861,14 @@ static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *self, const char *what
             }
         }
 
-        PyErr_Format(exc, "error %d from %s: %s", error, what,
-                     memcached_strerror(self->mc, error));
+        if (server != NULL) {
+            PyErr_Format(exc, "error %d from %s on %s:%d: %s", error, what,
+                         server->hostname, server->port, 
+                         memcached_strerror(self->mc, error));
+        } else {
+            PyErr_Format(exc, "error %d from %s: %s", error, what,
+                         memcached_strerror(self->mc, error));
+        }
     }
     return NULL;
 }
