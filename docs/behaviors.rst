@@ -68,12 +68,6 @@ libmemcached behavior constants.
    Enables asychronous I/O. This is the fastest transport available for storage
    functions.
 
-.. _failure_limit:
-
-``"failure_limit"``
-   Setting this behavior will remove a server from the server list after it has
-   failed continuously for the specified number of times.
-
 .. _tcp_nodelay:
 
 ``"tcp_nodelay"``
@@ -120,6 +114,28 @@ libmemcached behavior constants.
    "[Replication] does not dedicate certain memcached servers to store the
    replicas in, but instead it will store the replicas together with all of the
    other objects (on the 'n' next servers specified in your server list)."
+
+.. _remove_failed:
+
+``"remove_failed"``
+   Remove a server from the server list after operations on it have failed for
+   the specified number of times in a row. See the `section on failover <failover>`.
+
+.. _failure_limit:
+
+``"failure_limit"`` : deprecated
+   Use ``"remove_failed"`` if at all possible.
+
+   Remove a server from the server list after operations on it have failed for
+   the specified number of times in a row.
+
+.. _auto_eject:
+
+``"auto_eject"`` : deprecated
+   Use ``"remove_failed"`` if at all possible.
+
+   With this behavior set, hosts which have been disabled will be removed from
+   the list of servers after ``"failure_limit"``.
 
 Hashing
 -------
@@ -193,3 +209,12 @@ Consistent hashing solves this at the price of a more costly key-to-server
 lookup function, `last.fm's RJ explains how it works`__.
 
 __ http://www.last.fm/user/RJ/journal/2007/04/10/rz_libketama_-_a_consistent_hashing_algo_for_memcache_clients
+
+Failover
+--------
+
+When libmemcached introduced a behavior called ``remove_failed``, two other
+behaviors were deprecated in its stead called ``auto_eject`` and
+``failure_limit`` -- this new behavior is a combination of the latter two. When
+enabled, the numeric value is the number of times a server may fail before it
+is ejected, and when not, no ejection occurs.
