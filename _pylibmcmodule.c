@@ -409,7 +409,7 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
     }
 
     return PylibMC_ErrFromMemcachedWithKey(self, "memcached_get", error,
-                                           PyString_AS_STRING(arg), 
+                                           PyString_AS_STRING(arg),
                                            PyString_GET_SIZE(arg));
 }
 
@@ -594,7 +594,7 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client* self,
     }
 
     bool allsuccess = _PylibMC_RunSetCommand(self, f, fname,
-                                             serialized, nkeys, 
+                                             serialized, nkeys,
                                              min_compress);
 
     if (PyErr_Occurred() != NULL) {
@@ -850,7 +850,7 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
         }
 
         if (compressed_value != NULL) {
-            /* Will want to change this if this function 
+            /* Will want to change this if this function
              * needs to get back at the old *value at some point */
             value = compressed_value;
             value_len = compressed_len;
@@ -969,7 +969,7 @@ static PyObject *PylibMC_Client_delete(PylibMC_Client *self, PyObject *args) {
                 Py_RETURN_FALSE;
                 break;
             default:
-                return PylibMC_ErrFromMemcachedWithKey(self, "memcached_delete", 
+                return PylibMC_ErrFromMemcachedWithKey(self, "memcached_delete",
                                                        rc, key, key_sz);
         }
     }
@@ -1067,7 +1067,7 @@ static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self,
      * into a list of pylibmc_incr objects that can be incred in one
      * go. We're not going to own references to the prefixed keys: so
      * that we can free them all at once, we'll give ownership to a list
-     * of them (prefixed_keys) which we'll DECR once at the end 
+     * of them (prefixed_keys) which we'll DECR once at the end
      */
 
     while((key = PyIter_Next(iterator)) != NULL) {
@@ -1818,39 +1818,39 @@ static PyObject *PylibMC_Client_clone(PylibMC_Client *self) {
 /* }}} */
 
 
-static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *self, 
+static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *self,
         const char *what, memcached_return error) {
     return PylibMC_ErrFromMemcachedWithKey(self, what, error, NULL, 0);
 }
 
-static PyObject *PylibMC_ErrFromMemcachedWithKey(PylibMC_Client *self, 
+static PyObject *PylibMC_ErrFromMemcachedWithKey(PylibMC_Client *self,
         const char *what, memcached_return error, const char* key, int len) {
     memcached_server_instance_st server = NULL;
     if (key != NULL) {
         memcached_return by_key_error;
 
-        server = memcached_server_by_key(self->mc, key, len, 
+        server = memcached_server_by_key(self->mc, key, len,
                                          &by_key_error);
     }
 
     if (error == MEMCACHED_ERRNO) {
         if (server != NULL) {
             PyErr_Format(PylibMCExc_MemcachedError,
-                    "system error %d from %s on %s:%d: %s", 
-                    errno, what, 
+                    "system error %d from %s on %s:%d: %s",
+                    errno, what,
                     server->hostname, server->port,
                     strerror(errno));
 
         } else {
             PyErr_Format(PylibMCExc_MemcachedError,
-                    "system error %d from %s: %s", 
+                    "system error %d from %s: %s",
                     errno, what, strerror(errno));
         }
     /* The key exists, but it has no value */
     } else if (error == MEMCACHED_SUCCESS) {
         PyErr_Format(PyExc_RuntimeError, "error == 0? %s:%d",
                      __FILE__, __LINE__);
-    } else { 
+    } else {
         PylibMC_McErr *err;
         PyObject *exc = (PyObject *)PylibMCExc_MemcachedError;
 
@@ -1863,7 +1863,7 @@ static PyObject *PylibMC_ErrFromMemcachedWithKey(PylibMC_Client *self,
 
         if (server != NULL) {
             PyErr_Format(exc, "error %d from %s on %s:%d: %s", error, what,
-                         server->hostname, server->port, 
+                         server->hostname, server->port,
                          memcached_strerror(self->mc, error));
         } else {
             PyErr_Format(exc, "error %d from %s: %s", error, what,
@@ -1936,7 +1936,7 @@ static int _PylibMC_CheckKey(PyObject *key) {
 }
 
 static int _PylibMC_CheckKeyStringAndSize(char *key, Py_ssize_t size) {
-	/* libmemcached pads max_key_size with one byte for null termination */
+    /* libmemcached pads max_key_size with one byte for null termination */
     if (size >= MEMCACHED_MAX_KEY) {
         PyErr_Format(PyExc_ValueError, "key too long, max is %d",
                 MEMCACHED_MAX_KEY - 1);
