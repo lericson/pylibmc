@@ -266,7 +266,7 @@ static PyObject *PylibMC_Client_flush_all(PylibMC_Client *, PyObject *, PyObject
 static PyObject *PylibMC_Client_disconnect_all(PylibMC_Client *);
 static PyObject *PylibMC_Client_clone(PylibMC_Client *);
 static PyObject *PylibMC_ErrFromMemcachedWithKey(PylibMC_Client *, const char *,
-        memcached_return, const char*, int);
+        memcached_return, const char *, int);
 static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *, const char *,
         memcached_return);
 static PyObject *_PylibMC_Unpickle(const char *, size_t);
