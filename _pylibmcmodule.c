@@ -222,7 +222,7 @@ static int _PylibMC_Deflate(char* value, size_t value_len,
     /* Don't ask me about this one. Got it from zlibmodule.c in Python 2.6. */
     size_t out_sz = value_len + value_len / 1000 + 12 + 1;
 
-    if ((*result = malloc(sizeof(char) * out_sz)) == NULL) {
+    if ((*result = malloc(out_sz)) == NULL) {
       goto error;
     }
 
@@ -864,7 +864,7 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
                                    _PylibMC_SetCommand f, char *fname,
                                    pylibmc_mset* msets, size_t nkeys,
                                    size_t min_compress) {
-    memcached_st* mc = self->mc;
+    memcached_st *mc = self->mc;
     memcached_return rc = MEMCACHED_SUCCESS;
     int pos;
     bool error = false;
@@ -873,14 +873,14 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
     Py_BEGIN_ALLOW_THREADS;
 
     for (pos=0; pos < nkeys && !error; pos++) {
-        pylibmc_mset* mset = &msets[pos];
+        pylibmc_mset *mset = &msets[pos];
 
-        char* value = mset->value;
+        char *value = mset->value;
         size_t value_len = mset->value_len;
         uint32_t flags = mset->flags;
 
 #ifdef USE_ZLIB
-        char* compressed_value = NULL;
+        char *compressed_value = NULL;
         size_t compressed_len = 0;
 
         if (min_compress && value_len >= min_compress) {
