@@ -2,7 +2,7 @@
  Reference
 ===========
 
-.. class:: pylibmc.Client(servers[, binary=False])
+.. class:: pylibmc.Client(servers[, binary=False, behaviors=None])
 
    Interface to a set of memcached servers.
 
@@ -10,6 +10,9 @@
 
    *binary* specifies whether or not to use the binary protocol to talk to the
    memcached servers.
+
+   *behaviors*, if given, is passed to :meth:`Client.set_behaviors` after
+   initialization.
 
    Supported transport mechanisms are TCP, UDP and UNIX domain sockets. The
    default transport type is TCP.

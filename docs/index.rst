@@ -25,8 +25,9 @@ Example usage
 Create a memcached connection and configure it::
 
     >>> import pylibmc
-    >>> mc = pylibmc.Client(["127.0.0.1"], binary=True)
-    >>> mc.behaviors = {"tcp_nodelay": True, "ketama": True}
+    >>> mc = pylibmc.Client(["127.0.0.1"], binary=True,
+    ...                     behaviors={"tcp_nodelay": True,
+    ...                                "ketama": True})
 
 Basic memcached operations can be accomplished with the mapping interface::
 
