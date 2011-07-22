@@ -21,23 +21,29 @@ def translate_server_spec(server, port=11211):
     (1, '127.0.0.1', 22122)
     >>> translate_server_spec("127.0.0.1", port=1234)
     (1, '127.0.0.1', 1234)
+
+    >>> translate_server_spec("[::1]:22122")
+    (1, '::1', 22122)
+    >>> translate_server_spec("[::1]")
+    (1, '::1', 11211)
     """
     addr = server
-    if server.startswith("udp:"):
-        stype = _pylibmc.server_type_udp
-        addr = addr[4:]
-        if ":" in addr:
-            (addr, port) = addr.split(":", 1)
-            port = int(port)
-    elif ":" in server:
-        stype = _pylibmc.server_type_tcp
-        (addr, port) = server.split(":", 1)
-        port = int(port)
-    elif "/" in server:
+    if server.startswith("/"):
         stype = _pylibmc.server_type_unix
         port = 0
     else:
         stype = _pylibmc.server_type_tcp
+        if server.startswith("udp:"):
+            stype = _pylibmc.server_type_udp
+            addr = server[4:]
+        if not addr.startswith("["):
+            if ':' in addr:
+                (addr, port) = server.split(":", 1)
+        else:
+            if not addr.endswith("]"):
+                (addr, port) = addr.rsplit(":", 1)
+                addr = addr[1:-1]
+        port = int(port)
     return (stype, addr, port)
 
 class Client(_pylibmc.client):
