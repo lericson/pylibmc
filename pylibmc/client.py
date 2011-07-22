@@ -37,7 +37,7 @@ def translate_server_spec(server, port=11211):
             stype = _pylibmc.server_type_udp
             addr = server[4:]
         if not addr.startswith("["):
-            if ':' in addr:
+            if ":" in addr:
                 (addr, port) = server.split(":", 1)
         else:
             if not addr.endswith("]"):
@@ -58,7 +58,8 @@ def translate_server_specs(servers):
     return addr_tups
 
 class Client(_pylibmc.client):
-    def __init__(self, servers, binary=False, username=None, password=None):
+    def __init__(self, servers, behaviors=None, binary=False,
+                 username=None, password=None):
         """Initialize a memcached client instance.
 
         This connects to the servers in *servers*, which will default to being
@@ -73,7 +74,7 @@ class Client(_pylibmc.client):
         """
         self.binary = binary
         self.addresses = list(servers)
-        super(Client, self).__init__(servers=translate_server_spec(servers),
+        super(Client, self).__init__(servers=translate_server_specs(servers),
                                      binary=binary, username=username,
                                      password=password)
         if behaviors is not None:
