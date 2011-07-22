@@ -209,27 +209,30 @@ error:
 
 /* {{{ Compression helpers */
 #ifdef USE_ZLIB
-static int _PylibMC_Deflate(char* value, size_t value_len,
-                    char** result, size_t *result_len) {
+static int _PylibMC_Deflate(char *value, size_t value_len,
+                    char **result, size_t *result_len) {
+    /* FIXME Failures are entirely silent. */
     int rc;
-    /* todo: failures in here are entirely silent. this should probably
-       be fixed */
 
     z_stream strm;
     *result = NULL;
     *result_len = 0;
 
     /* Don't ask me about this one. Got it from zlibmodule.c in Python 2.6. */
-    size_t out_sz = value_len + value_len / 1000 + 12 + 1;
+    ssize_t out_sz = value_len + value_len / 1000 + 12 + 1;
 
     if ((*result = malloc(out_sz)) == NULL) {
       goto error;
     }
 
-    strm.avail_in = value_len;
-    strm.avail_out = out_sz;
-    strm.next_in = (Bytef*)value;
-    strm.next_out = (Bytef*)*result;
+    /* TODO Should break up next_in into blocks of max 0xffffffff in length. */
+    assert(value_len < 0xffffffffU);
+    assert(out_sz < 0xffffffffU);
+
+    strm.avail_in = (uInt)value_len;
+    strm.avail_out = (uInt)out_sz;
+    strm.next_in = (Bytef *)value;
+    strm.next_out = (Bytef *)*result;
 
     /* we just pre-allocated all of it up front */
     strm.zalloc = (alloc_func)NULL;
@@ -289,8 +292,12 @@ static PyObject *_PylibMC_Inflate(char *value, size_t size) {
     }
     out = PyString_AS_STRING(out_obj);
 
+    /* TODO 64-bit fix size/rvalsz */
+    assert(size < 0xffffffffU);
+    assert(rvalsz < 0xffffffffU);
+
     /* Set up zlib stream. */
-    strm.avail_in = size;
+    strm.avail_in = (uInt)size;
     strm.avail_out = (uInt)rvalsz;
     strm.next_in = (Byte *)value;
     strm.next_out = (Byte *)out;
@@ -329,7 +336,7 @@ static PyObject *_PylibMC_Inflate(char *value, size_t size) {
             /* Wind forward */
             out = PyString_AS_STRING(out_obj);
             strm.next_out = (Byte *)(out + rvalsz);
-            strm.avail_out = rvalsz;
+            strm.avail_out = (uInt)rvalsz;
             rvalsz = rvalsz << 1;
             break;
         default:
@@ -1860,7 +1867,7 @@ static PyObject *PylibMC_Client_clone(PylibMC_Client *self) {
 /* }}} */
 
 static char *_get_lead(memcached_st *mc, char *buf, int n, const char *what,
-        memcached_return error, const char *key, int len) {
+        memcached_return error, const char *key, Py_ssize_t len) {
     int sz = snprintf(buf, n, "error %d from %s", error, what);
 
     if (key != NULL) {
@@ -1899,7 +1906,7 @@ static void _set_error(memcached_st *mc, memcached_return error, char *lead) {
 }
 
 static PyObject *PylibMC_ErrFromMemcachedWithKey(PylibMC_Client *self,
-        const char *what, memcached_return error, const char *key, int len) {
+        const char *what, memcached_return error, const char *key, Py_ssize_t len) {
     char lead[128];
 
     _get_lead(self->mc, lead, sizeof(lead), what, error, key, len);
@@ -2137,8 +2144,12 @@ by using comma-separation. Good luck with that.\n");
     PyModule_AddStringConstant(module,
             "libmemcached_version", LIBMEMCACHED_VERSION_STRING);
 
-    PyModule_ADD_REF(module, "support_sasl",
-                     PyBool_TEST(LIBMEMCACHED_WITH_SASL_SUPPORT));
+#ifdef LIBMEMCACHED_WITH_SASL_SUPPORT
+    PyModule_ADD_REF(module, "support_sasl", Py_True);
+#else
+    PyModule_ADD_REF(module, "support_sasl", Py_False);
+#endif
+
     PyModule_ADD_REF(module, "support_compression", PyBool_TEST(USE_ZLIB));
 
     PyModule_AddIntConstant(module, "server_type_tcp", PYLIBMC_SERVER_TCP);
