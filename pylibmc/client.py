@@ -42,7 +42,7 @@ def translate_server_spec(server, port=11211):
         else:
             if not addr.endswith("]"):
                 (addr, port) = addr.rsplit(":", 1)
-                addr = addr[1:-1]
+            addr = addr[1:-1]
         port = int(port)
     return (stype, addr, port)
 
