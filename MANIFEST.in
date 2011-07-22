@@ -1,4 +1,7 @@
-include README.rst LICENSE MANIFEST MANIFEST.in pooling.rst
+include README.rst LICENSE MANIFEST.in setup.py
 include _pylibmcmodule.c _pylibmcmodule.h pylibmc-version.h
-include pylibmc.py
-include setup.py tests.py
+recursive-include pylibmc *.py
+recursive-include tests *.py
+
+include docs/Makefile docs/make.bat docs/conf.py
+recursive-include docs *.rst
