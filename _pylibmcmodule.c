@@ -466,7 +466,7 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
     size_t keylengths[2];
     memcached_result_st results_obj;
     memcached_result_st *results = NULL;
-    memcached_return_t rc;
+    memcached_return rc;
     PyObject* ret = NULL;
 
     if (!_PylibMC_CheckKey(arg)) {
@@ -1870,6 +1870,11 @@ static char *_get_lead(memcached_st *mc, char *buf, int n, const char *what,
         memcached_return error, const char *key, Py_ssize_t len) {
     int sz = snprintf(buf, n, "error %d from %s", error, what);
 
+    /*
+     * Need to protect from libmemcached versions as their
+     * memcached_server_instance_st are called (memcached_server_st *).
+     */
+#if LIBMEMCACHED_VERSION_HEX >= 0x00038000
     if (key != NULL) {
         memcached_return rc = MEMCACHED_FAILURE;
         memcached_server_instance_st svr = NULL;
@@ -1880,6 +1885,7 @@ static char *_get_lead(memcached_st *mc, char *buf, int n, const char *what,
                            svr->hostname, svr->port);
         }
     }
+#endif
 
     return buf;
 }
