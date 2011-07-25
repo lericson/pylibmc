@@ -32,13 +32,13 @@ class ClientPool(Queue):
             self.fill(mc, n_slots)
 
     @contextmanager
-    def reserve(self, timeout=0):
+    def reserve(self, block=False):
         """Context manager for reserving a client from the pool.
 
-        *timeout* specifiecs how long to wait for a client to become available.
-        If None, waits indefinitely.
+        If *block* is given and the pool is exhausted, the pool waits for
+        another thread to fill it before returning.
         """
-        mc = self.get(True, timeout=timeout)
+        mc = self.get(block)
         try:
             yield mc
         finally:
