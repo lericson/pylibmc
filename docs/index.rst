@@ -91,6 +91,7 @@ Further Reading
 
    install
    reference
+   pooling
    behaviors
    misc
 
