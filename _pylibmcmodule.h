@@ -180,7 +180,6 @@ static PylibMC_Behavior PylibMC_behaviors[] = {
     { MEMCACHED_BEHAVIOR_KETAMA, "ketama" },
     { MEMCACHED_BEHAVIOR_KETAMA_WEIGHTED, "ketama_weighted" },
     { MEMCACHED_BEHAVIOR_DISTRIBUTION, "distribution" },
-    { MEMCACHED_BEHAVIOR_CACHE_LOOKUPS, "cache_lookups" },
     { MEMCACHED_BEHAVIOR_SUPPORT_CAS, "cas" },
     { MEMCACHED_BEHAVIOR_BUFFER_REQUESTS, "buffer_requests" },
     { MEMCACHED_BEHAVIOR_VERIFY_KEY, "verify_keys" },
