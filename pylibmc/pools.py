@@ -14,8 +14,8 @@ class ClientPool(Queue):
 
     The solution is a pool, and this class is a helper for that.
 
-    >>> from pylibmc import Client
-    >>> mc = Client(["127.0.0.1"])
+    >>> from pylibmc.test import make_test_client
+    >>> mc = make_test_client()
     >>> pool = ClientPool()
     >>> pool.fill(mc, 4)
     >>> with pool.reserve() as mc:
@@ -63,8 +63,8 @@ class ThreadMappedPool(dict):
     with its reserved instance, so therefore ``relinquish`` must be called
     before thread exit.
 
-    >>> from pylibmc import Client
-    >>> mc = Client(["127.0.0.1"])
+    >>> from pylibmc.test import make_test_client
+    >>> mc = make_test_client()
     >>> pool = ThreadMappedPool(mc)
     >>> with pool.reserve() as mc:
     ...     mc.set("hi", "ho")

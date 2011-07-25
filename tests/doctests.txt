@@ -118,12 +118,10 @@ This didn't use to work, but now it does.
 
 Getting stats is fun!
 >>> for (svr, stats) in c.get_stats():
-...     print svr
 ...     ks = stats.keys()
 ...     while ks:
 ...         cks, ks = ks[:6], ks[6:]
 ...         print ", ".join(cks)
-127.0.0.1:11211 (0)
 pid, total_items, uptime, version, limit_maxbytes, rusage_user
 bytes_read, rusage_system, cmd_get, curr_connections, threads, total_connections
 cmd_set, curr_items, get_misses, evictions, bytes, connection_structures

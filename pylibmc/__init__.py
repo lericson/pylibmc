@@ -11,8 +11,13 @@ Example usage
 Create a connection and configure it::
 
     >>> import pylibmc
-    >>> mc = pylibmc.Client(["127.0.0.1"], binary=True)
-    >>> mc.behaviors = {"tcp_nodelay": True, "ketama": True}
+    >>> m = pylibmc.Client(["10.0.0.1"], binary=True)
+    >>> m.behaviors = {"tcp_nodelay": True, "ketama": True}
+
+Nevermind this doctest shim::
+
+    >>> from pylibmc.test import make_test_client
+    >>> mc = make_test_client(behaviors=m.behaviors)
 
 Basic operation::
 
