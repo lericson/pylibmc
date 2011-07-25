@@ -1663,23 +1663,27 @@ static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *self,
     PylibMC_Behavior *b;
 
     for (b = PylibMC_behaviors; b->name != NULL; b++) {
-        PyObject *v;
+        PyObject *py_v;
+        uint64_t v;
         memcached_return r;
 
         if (!PyMapping_HasKeyString(behaviors, b->name)) {
             continue;
-        } else if ((v = PyMapping_GetItemString(behaviors, b->name)) == NULL) {
+        } else if ((py_v = PyMapping_GetItemString(behaviors, b->name)) == NULL) {
             goto error;
-        } else if (!PyInt_Check(v)) {
-            PyErr_Format(PyExc_TypeError, "behavior %s must be int", b->name);
+        } else if (!PyInt_Check(py_v)) {
+            PyErr_Format(PyExc_TypeError, "behavior %.32s must be int", b->name);
             goto error;
         }
 
-        r = memcached_behavior_set(self->mc, b->flag, (uint64_t)PyInt_AS_LONG(v));
-        Py_DECREF(v);
+        v = (uint64_t)PyInt_AS_LONG(py_v);
+        Py_DECREF(py_v);
+
+        r = memcached_behavior_set(self->mc, b->flag, v);
         if (r != MEMCACHED_SUCCESS) {
             PyErr_Format(PylibMCExc_MemcachedError,
-                         "memcached_behavior_set returned %d", r);
+                         "memcached_behavior_set returned %d for "
+                         "behavior '%.32s' = %llu", r, b->name, v);
             goto error;
         }
     }
