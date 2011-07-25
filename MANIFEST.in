@@ -1,4 +1,4 @@
-include README.rst LICENSE MANIFEST.in setup.py
+include README.rst LICENSE MANIFEST.in setup.py setup.cfg runtests.py
 include _pylibmcmodule.c _pylibmcmodule.h pylibmc-version.h
 recursive-include pylibmc *.py
 recursive-include tests *.py
