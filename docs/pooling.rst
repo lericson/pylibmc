@@ -9,13 +9,8 @@
 __ http://lericson.blogg.se/code/2009/september/draft-sept-20-2009.html
 __ http://lericson.blogg.se/code/2009/september/pooling-with-pylibmc-pt-2.html
 
-.. This is really a blog post, I do write them in ReST occasionally. Provided
-   here for the sake of convenience.
-
-.. Protip, you can make an HTML file out of this by executing:
-     rst2html.py pooling.rst >pooling.html
-   and then just
-     open pooling.html
+.. note:: This is really a blog post, I do write them in ReST occasionally.
+   Provided here for the sake of convenience.
 
 I was discussing how to implement pooling for `pylibmc` when I realized what
 `libmemcachedutil`'s pooling is - or rather, what it isn't.
