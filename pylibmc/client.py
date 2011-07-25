@@ -1,9 +1,11 @@
 """Python-level wrapper client"""
 
 import _pylibmc
-from .consts import (hashers, distributions,
+from .consts import (hashers, distributions, all_behaviors,
                      hashers_rvs, distributions_rvs,
                      BehaviorDict)
+
+_all_behaviors_set = set(all_behaviors)
 
 def translate_server_spec(server, port=11211):
     """Translate/normalize specification *server* into three-tuple (tp, addr, port).
@@ -131,13 +133,19 @@ class Client(_pylibmc.client):
 
         This also happens for `distribution`.
         """
+        unknown = set(behaviors).difference(_all_behaviors_set)
+        if unknown:
+            names = ", ".join(map(str, sorted(unknown)))
+            raise ValueError("unknown behavior names: %s" % (names,))
+
         behaviors = behaviors.copy()
         if behaviors.get("hash") is not None:
             behaviors["hash"] = hashers[behaviors["hash"]]
-        if behaviors.get("ketama_hash") is not None:
+        if behaviors.get("ketama_hash") in hashers:
             behaviors["ketama_hash"] = hashers[behaviors["ketama_hash"]]
         if behaviors.get("distribution") is not None:
             behaviors["distribution"] = distributions[behaviors["distribution"]]
+
         return super(Client, self).set_behaviors(behaviors)
 
     behaviors = property(get_behaviors, set_behaviors)

@@ -13,6 +13,7 @@ for name, exc in _pylibmc.exceptions:
     setattr(modself, name, exc)
     setattr(modpkg, name, exc)
 
+all_behaviors = _pylibmc.all_behaviors
 hashers, hashers_rvs = {}, {}
 distributions, distributions_rvs = {}, {}
 # Not the prettiest way of doing things, but works well.

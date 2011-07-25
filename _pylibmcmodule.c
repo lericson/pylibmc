@@ -2094,6 +2094,7 @@ static void _make_excs(PyObject *module) {
 }
 
 static void _make_behavior_consts(PyObject *mod) {
+    PyObject *behavior_names;
     PylibMC_Behavior *b;
     char name[128];
 
@@ -2107,6 +2108,14 @@ static void _make_behavior_consts(PyObject *mod) {
         sprintf(name, "distribution_%s", b->name);
         PyModule_AddIntConstant(mod, name, b->flag);
     }
+
+    behavior_names = PyList_New(0);
+
+    for (b = PylibMC_behaviors; b->name != NULL; b++) {
+        PyList_Append(behavior_names, PyString_FromString(b->name));
+    }
+
+    PyModule_AddObject(mod, "all_behaviors", behavior_names);
 }
 
 static PyMethodDef PylibMC_functions[] = {
