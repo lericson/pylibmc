@@ -32,11 +32,11 @@ class ClientPool(Queue):
             self.fill(mc, n_slots)
 
     @contextmanager
-    def reserve(self, timeout=None):
+    def reserve(self, timeout=0):
         """Context manager for reserving a client from the pool.
 
-        If *timeout* is given, it specifiecs how long to wait for a client to
-        become available.
+        *timeout* specifiecs how long to wait for a client to become available.
+        If None, waits indefinitely.
         """
         mc = self.get(True, timeout=timeout)
         try:
