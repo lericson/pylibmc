@@ -51,6 +51,37 @@ IRC
 Change Log
 ==========
 
+New in version 1.2.0
+--------------------
+
+This release is for the people behind `reddit.com`__, for helping push
+development forward. Keep doing your thing.
+
+__ http://code.reddit.com/
+
+- `sevmer.org`__ versioning scheme
+- Fixed GIL issues
+- Added CAS support (ketralnis)
+- Added SASL authentication (Remoun)
+- Added more detail to errors (spladug)
+- Added mapping-like behavior for clients
+- Fixed build errors on Mac OS X
+- Moved to nose__ for testing
+- Added ``auto_eject`` behavior
+- Added ``num_replicas`` behavior
+- Added ``remove_failed`` behavior
+- Removed ``cache_lookups`` behavior
+- Improved repr of clients (noah256)
+- Improved IPv6 support (JshWright)
+- Improved pooling behavior so it doesn't cause lock-ups
+- Improved tests and testing foundation
+- Improved documentation and structure
+- Internalized Sphinx documentation
+- Bunch of other stuff
+
+__ http://semver.org/
+__ http://somethingaboutorange.com/mrl/projects/nose/
+
 New in version 1.1
 ------------------
 
