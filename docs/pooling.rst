@@ -1,8 +1,8 @@
 .. currentmodule:: pylibmc.pools
 
-=====================
- What about pooling? 
-=====================
+=========
+ Pooling 
+=========
 
 :Author: Ludvig Ericson <ludvig circled-a lericson dot se>
 :See also: `Pooling with pylibmc`__ (this document, first revision)
