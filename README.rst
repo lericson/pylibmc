@@ -1,52 +1,16 @@
-`pylibmc` is a quick and small Python client for memcached__ written in C.
+`pylibmc` is a Python client for `memcached <http://memcached.org/>`_ written in C.
 
-__ http://memcached.org/
-
-It builds on the famous `libmemcached`__ C client from TangentOrg__, notable for
-its speed and flexibility.
-
-__ http://tangent.org/552/libmemcached.html
-__ http://tangent.org/
-
-`libmemcached` must be installed separately, and be available to the compiler
-and linker.
-
-For installation instructions, usage notes and reference documentation, see
-pylibmc__'s home at http://sendapatch.se/projects/pylibmc/.
+See `the documentation at sendapatch.se/projects/pylibmc/`__ for more information.
 
 __ http://sendapatch.se/projects/pylibmc/
 
-Comparison to other libraries
-=============================
+Contact
+=======
 
-Why use `pylibmc`? Because it's fast.
-
-`See this (a bit old) speed comparison`__, or `amix.dk's comparison`__.
-
-__ http://lericson.blogg.se/code/2008/november/pylibmc-051.html
-__ http://amix.dk/blog/viewEntry/19471
-
-Installation
-============
-
-Building needs libmemcached and optionally zlib, the path to which can be
-specified using command-line options to ``setup.py``
-
-``--with-libmemcached=DIR``
-    Build against libmemcached in DIR
-``--with-zlib=DIR``
-    Build against zlib in DIR
-``--without-zlib``
-    Disable zlib (disables compression)
-
-So for example, if one were to use MacPorts to install libmemcached, your
-libmemcached would end up in ``/opt/local``, hence
-``--with-libmemcached=/opt/local``.
-
-IRC
-===
-
-``#sendapatch`` on ``chat.freenode.net``.
+- Website: `sendapatch.se/ <http://sendapatch.se/>`_
+- Github: `github.com/lericson <http://github.com/lericson>`_
+- IRC: ``lericson`` in ``#sendapatch`` on ``chat.freenode.net``
+- E-mail: ``ludvig`` at ``sendapatch.se``
 
 Change Log
 ==========
