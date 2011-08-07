@@ -40,7 +40,7 @@ def translate_server_spec(server, port=11211):
             addr = server[4:]
         if not addr.startswith("["):
             if ":" in addr:
-                (addr, port) = server.split(":", 1)
+                (addr, port) = addr.split(":", 1)
         else:
             if not addr.endswith("]"):
                 (addr, port) = addr.rsplit(":", 1)
