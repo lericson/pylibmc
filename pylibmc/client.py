@@ -7,6 +7,33 @@ from .consts import (hashers, distributions, all_behaviors,
 
 _all_behaviors_set = set(all_behaviors)
 
+server_type_map = {"tcp":   _pylibmc.server_type_tcp,
+                   "udp":   _pylibmc.server_type_udp,
+                   "unix":  _pylibmc.server_type_unix}
+
+def _split_spec_type(spec):
+    if spec.startswith("/"):
+        return ("unix", spec)
+    else:
+        if spec.startswith("udp:"):
+            return ("udp", spec[4:])
+        else:
+            return ("tcp", spec)
+
+def _splitport(spec, port=None):
+    if spec.startswith("["):
+        if "]" not in spec:
+            raise ValueError(spec)
+        if spec.endswith("]"):
+            addr = addr[1:-1]
+        else:
+            (addr, port) = spec[1:].rsplit("]:", 1)
+    elif ":" in spec:
+        (addr, port) = spec.split(":", 1)
+    else:
+        addr = spec
+    return (addr, port)
+
 def translate_server_spec(server, port=11211):
     """Translate/normalize specification *server* into three-tuple (tp, addr, port).
 
@@ -29,24 +56,13 @@ def translate_server_spec(server, port=11211):
     >>> translate_server_spec("[::1]")
     (1, '::1', 11211)
     """
-    addr = server
-    if server.startswith("/"):
-        stype = _pylibmc.server_type_unix
-        port = 0
-    else:
-        stype = _pylibmc.server_type_tcp
-        if server.startswith("udp:"):
-            stype = _pylibmc.server_type_udp
-            addr = server[4:]
-        if not addr.startswith("["):
-            if ":" in addr:
-                (addr, port) = addr.split(":", 1)
-        else:
-            if not addr.endswith("]"):
-                (addr, port) = addr.rsplit(":", 1)
-            addr = addr[1:-1]
-        port = int(port)
-    return (stype, addr, port)
+    (scheme, spec) = _split_spec_type(server)
+    stype = server_type_map[scheme]
+    if scheme == "unix":
+        (addr, port) = (spec, 0)
+    elif scheme in ("tcp", "udp"):
+        (addr, port) = _splitport(spec, port=port)
+    return (stype, str(addr), int(port))
 
 def translate_server_specs(servers):
     addr_tups = []
