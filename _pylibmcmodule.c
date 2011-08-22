@@ -1348,29 +1348,37 @@ static PyObject *PylibMC_Client_get_multi(
     key_it = PyObject_GetIter(key_seq);
     i = 0;
     while ((ckey = PyIter_Next(key_it)) != NULL) {
+        char *key;
+        Py_ssize_t key_len;
         PyObject *rkey;
 
         assert(i < nkeys);
+        PyString_AsStringAndSize(ckey, &key, &key_len);
 
         if (PyErr_Occurred() || !_PylibMC_CheckKey(ckey)) {
             nkeys = i;
             goto earlybird;
         }
 
-        key_lens[i] = (size_t)(PyString_GET_SIZE(ckey) + prefix_len);
+        key_lens[i] = (size_t)(key_len + prefix_len);
 
         /* Skip empty keys */
         if (!key_lens[i])
             continue;
 
-        /* Prefix */
+        /* determine rkey, the prefixed ckey */
         if (prefix != NULL) {
+            rkey = PyString_FromStringAndSize(prefix, prefix_len);
+            PyString_Concat(&rkey, ckey);
+            if (rkey == NULL)
+                goto earlybird;
             rkey = PyString_FromFormat("%s%s",
                     prefix, PyString_AS_STRING(ckey));
-            Py_DECREF(ckey);
         } else {
+            Py_INCREF(ckey);
             rkey = ckey;
         }
+        Py_DECREF(ckey);
 
         keys[i] = PyString_AS_STRING(rkey);
         key_objs[i++] = rkey;
