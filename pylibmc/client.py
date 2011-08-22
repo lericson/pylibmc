@@ -25,7 +25,7 @@ def _splitport(spec, port=None):
         if "]" not in spec:
             raise ValueError(spec)
         if spec.endswith("]"):
-            addr = addr[1:-1]
+            addr = spec[1:-1]
         else:
             (addr, port) = spec[1:].rsplit("]:", 1)
     elif ":" in spec:
