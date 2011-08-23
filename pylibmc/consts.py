@@ -7,7 +7,7 @@ errors = tuple(e for (n, e) in _pylibmc.exceptions)
 # *Cough* Uhm, not the prettiest of things but this unpacks all exception
 # objects and sets them on the package module object currently constructed.
 import sys
-modpkg = sys.modules[__package__]
+modpkg = sys.modules[__name__.split(".", 1)[0]]
 modself = sys.modules[__name__]
 for name, exc in _pylibmc.exceptions:
     setattr(modself, name, exc)
