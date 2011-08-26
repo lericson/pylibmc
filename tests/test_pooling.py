@@ -1,3 +1,5 @@
+from __future__ import with_statement
+
 import Queue
 import pylibmc
 from nose.tools import eq_, ok_
