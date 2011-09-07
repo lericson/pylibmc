@@ -6,7 +6,7 @@ Requirements
 ============
 
 * Python 2.5 or later
-* libmemcached 0.32 or later (last test with 0.49)
+* libmemcached 0.32 or later (last test with 0.51)
 * zlib (required for compression support)
 * libsasl2 (required for authentication support)
 
