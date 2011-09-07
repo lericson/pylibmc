@@ -424,6 +424,12 @@ cleanup:
     return retval;
 }
 
+static PyObject *_PylibMC_parse_memcached_result(memcached_result_st *res) {
+        return _PylibMC_parse_memcached_value((char *)memcached_result_value(res),
+                                              memcached_result_length(res),
+                                              memcached_result_flags(res));
+}
+
 static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
     char *mc_val;
     size_t val_size;
@@ -464,8 +470,7 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
 static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
     const char* keys[2];
     size_t keylengths[2];
-    memcached_result_st results_obj;
-    memcached_result_st *results = NULL;
+    memcached_result_st *res, *res0;
     memcached_return rc;
     PyObject* ret = NULL;
 
@@ -489,26 +494,23 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
 
     rc = memcached_mget(self->mc, keys, keylengths, 1);
     if (rc == MEMCACHED_SUCCESS) {
-        memcached_result_create(self->mc, &results_obj);
+        res0 = memcached_result_create(self->mc, NULL);
         /* this will be NULL if the key wasn't found, or
            memcached_result_st if it was */
-        results = memcached_fetch_result(self->mc, &results_obj, &rc);
+        res = memcached_fetch_result(self->mc, res0, &rc);
     }
 
     Py_END_ALLOW_THREADS;
 
-    if (rc == MEMCACHED_SUCCESS && results != NULL) {
-        const char *mc_val = memcached_result_value(results);
-        size_t val_size = memcached_result_length(results);
-        uint32_t flags = memcached_result_flags(results);
-        uint64_t cas = memcached_result_cas(results);
-
-        ret = _PylibMC_parse_memcached_value((char *)mc_val, val_size, flags);
-        ret = Py_BuildValue("(NL)", ret, cas);
+    if (rc == MEMCACHED_SUCCESS && res != NULL) {
+        ret = Py_BuildValue("(NL)",
+                            _PylibMC_parse_memcached_result(res),
+                            memcached_result_cas(res));
 
         /* we have to fetch the last result from the mget cursor */
-        memcached_fetch_result(self->mc, &results_obj, &rc);
-        if (rc != MEMCACHED_END) {
+        res = memcached_fetch_result(self->mc, res0, &rc);
+        if (res || rc != MEMCACHED_END) {
+            memcached_quit(self->mc);
             Py_DECREF(ret);
             ret = NULL;
             PyErr_SetString(PyExc_RuntimeError, "fetch not done");
@@ -522,8 +524,8 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
 
     /* deallocate any indirect buffers, even though the struct itself
        is on our stack */
-    if (results != NULL) {
-        memcached_result_free(results);
+    if (res0 != NULL) {
+        memcached_result_free(res0);
     }
 
     return ret;
@@ -1236,7 +1238,7 @@ static bool _PylibMC_IncrDecr(PylibMC_Client *self,
 
 memcached_return pylibmc_memcached_fetch_multi(
         memcached_st *mc, char **keys, size_t nkeys, size_t *key_lens,
-        pylibmc_mget_result **results, size_t *nresults, char **err_func) {
+        memcached_result_st **results, size_t *nresults, char **err_func) {
     /**
      * Completely GIL-free multi getter
      *
@@ -1263,23 +1265,22 @@ memcached_return pylibmc_memcached_fetch_multi(
 
     /* Allocate as much as could possibly be needed, and an extra because of
      * how libmemcached signals EOF. */
-    *results = PyMem_New(pylibmc_mget_result, nkeys + 1);
+    *results = PyMem_New(memcached_result_st, nkeys + 1);
 
     /* Note that nresults will not be off by one with this because the loops
      * runs a half pass after the last key has been fetched, thus bumping the
      * count once. */
     for (*nresults = 0; ; (*nresults)++) {
-        pylibmc_mget_result *res = *results + *nresults;
+        memcached_result_st *res = memcached_result_create(mc, *results + *nresults);
 
         /* if loop spins out of control, this fails */
         assert(nkeys >= (*nresults));
 
-        res->key_len = 0;
-        res->value = memcached_fetch(mc, res->key, &res->key_len,
-                                     &res->value_len, &res->flags, &rc);
-        assert(res->key_len < MEMCACHED_MAX_KEY);
+        res = memcached_fetch_result(mc, res, &rc);
 
-        if (res->value == NULL || rc == MEMCACHED_END) {
+        assert(memcached_result_key_length(res) < MEMCACHED_MAX_KEY);
+
+        if (res == NULL || rc == MEMCACHED_END) {
             /* This is how libmecached signals EOF. */
             break;
         } else if (rc == MEMCACHED_BAD_KEY_PROVIDED
@@ -1291,8 +1292,7 @@ memcached_return pylibmc_memcached_fetch_multi(
 
             /* Clean-up procedure */
             do {
-                res = *results + *nresults;
-                free(res->value);
+                memcached_result_free(*results + *nresults);
             } while ((*nresults)--);
 
             PyMem_Free(*results);
@@ -1312,7 +1312,7 @@ static PyObject *PylibMC_Client_get_multi(
     PyObject *key_seq, **key_objs, *retval = NULL;
     char **keys, *prefix = NULL;
     char *err_func = NULL;
-    pylibmc_mget_result *res, *results = NULL;
+    memcached_result_st *res, *results = NULL;
     Py_ssize_t prefix_len = 0;
     Py_ssize_t i;
     PyObject *key_it, *ckey;
@@ -1423,14 +1423,13 @@ static PyObject *PylibMC_Client_get_multi(
         /* Explicitly construct a key string object so that NUL-bytes and the
          * likes can be contained within the keys (this is possible in the
          * binary protocol.) */
-        key_obj = PyString_FromStringAndSize(res->key + prefix_len,
-                                             res->key_len - prefix_len);
+        key_obj = PyString_FromStringAndSize(memcached_result_key_value(res) + prefix_len,
+                                             memcached_result_key_length(res) - prefix_len);
         if (key_obj == NULL)
             goto unpack_error;
 
         /* Parse out value */
-        val = _PylibMC_parse_memcached_value(res->value, res->value_len,
-                                             res->flags);
+        val = _PylibMC_parse_memcached_result(res);
         if (val == NULL)
             goto unpack_error;
 
@@ -1456,10 +1455,9 @@ earlybird:
         Py_DECREF(key_objs[i]);
     PyMem_Free(key_objs);
 
-    /* libmemcached mallocs, so we need to free that memory */
     if (results != NULL) {
         for (i = 0; i < nresults && results != NULL; i++) {
-            free(results[i].value);
+            memcached_result_free(results + i);
         }
         PyMem_Free(results);
     }
