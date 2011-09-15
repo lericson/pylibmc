@@ -1353,12 +1353,13 @@ static PyObject *PylibMC_Client_get_multi(
         PyObject *rkey;
 
         assert(i < nkeys);
-        PyString_AsStringAndSize(ckey, &key, &key_len);
 
         if (PyErr_Occurred() || !_PylibMC_CheckKey(ckey)) {
             nkeys = i;
             goto earlybird;
         }
+
+        PyString_AsStringAndSize(ckey, &key, &key_len);
 
         key_lens[i] = (size_t)(key_len + prefix_len);
 
