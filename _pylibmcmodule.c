@@ -1278,8 +1278,6 @@ memcached_return pylibmc_memcached_fetch_multi(
 
         res = memcached_fetch_result(mc, res, &rc);
 
-        assert(memcached_result_key_length(res) < MEMCACHED_MAX_KEY);
-
         if (res == NULL || rc == MEMCACHED_END) {
             /* This is how libmecached signals EOF. */
             break;
