@@ -65,7 +65,7 @@ static PylibMC_Client *PylibMC_ClientType_new(PyTypeObject *type,
 
 static void PylibMC_ClientType_dealloc(PylibMC_Client *self) {
     if (self->mc != NULL) {
-#ifdef LIBMEMCACHED_WITH_SASL_SUPPORT
+#if LIBMEMCACHED_WITH_SASL_SUPPORT
         if (self->sasl_set) {
             memcached_destroy_sasl_auth_data(self->mc);
         }
@@ -98,7 +98,7 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
     /* setup sasl */
     if (user != NULL || pass != NULL) {
 
-#ifdef LIBMEMCACHED_WITH_SASL_SUPPORT
+#if LIBMEMCACHED_WITH_SASL_SUPPORT
         if (user == NULL || pass == NULL) {
             PyErr_SetString(PyExc_TypeError, "SASL requires both username and password");
             goto error;
@@ -2019,7 +2019,7 @@ static int _PylibMC_CheckKeyStringAndSize(char *key, Py_ssize_t size) {
 }
 
 static int _init_sasl(void) {
-#ifdef LIBMEMCACHED_WITH_SASL_SUPPORT
+#if LIBMEMCACHED_WITH_SASL_SUPPORT
     int rc;
 
     /* sasl_client_init needs to be called once before using SASL, and
@@ -2168,7 +2168,7 @@ by using comma-separation. Good luck with that.\n");
     PyModule_AddStringConstant(module,
             "libmemcached_version", LIBMEMCACHED_VERSION_STRING);
 
-#ifdef LIBMEMCACHED_WITH_SASL_SUPPORT
+#if LIBMEMCACHED_WITH_SASL_SUPPORT
     PyModule_ADD_REF(module, "support_sasl", Py_True);
 #else
     PyModule_ADD_REF(module, "support_sasl", Py_False);
