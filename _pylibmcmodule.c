@@ -1688,7 +1688,7 @@ static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *self,
         if (r != MEMCACHED_SUCCESS) {
             PyErr_Format(PylibMCExc_MemcachedError,
                          "memcached_behavior_set returned %d for "
-                         "behavior '%.32s' = %llu", r, b->name, v);
+                         "behavior '%.32s' = %zu", r, b->name, v);
             goto error;
         }
     }
