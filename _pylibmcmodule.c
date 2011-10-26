@@ -2174,7 +2174,9 @@ by using comma-separation. Good luck with that.\n");
     PyModule_ADD_REF(module, "support_sasl", Py_False);
 #endif
 
+#ifdef USE_ZLIB
     PyModule_ADD_REF(module, "support_compression", PyBool_TEST(USE_ZLIB));
+#endif
 
     PyModule_AddIntConstant(module, "server_type_tcp", PYLIBMC_SERVER_TCP);
     PyModule_AddIntConstant(module, "server_type_udp", PYLIBMC_SERVER_UDP);
