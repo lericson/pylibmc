@@ -41,6 +41,7 @@
 #endif
 
 #define PyBool_TEST(t) ((t) ? Py_True : Py_False)
+
 #define PyModule_ADD_REF(mod, nam, obj) \
     { Py_INCREF(obj); \
       PyModule_AddObject(mod, nam, obj); }
@@ -2175,7 +2176,9 @@ by using comma-separation. Good luck with that.\n");
 #endif
 
 #ifdef USE_ZLIB
-    PyModule_ADD_REF(module, "support_compression", PyBool_TEST(USE_ZLIB));
+    PyModule_ADD_REF(module, "support_compression", Py_True);
+#else
+    PyModule_ADD_REF(module, "support_compression", Py_False);
 #endif
 
     PyModule_AddIntConstant(module, "server_type_tcp", PYLIBMC_SERVER_TCP);
