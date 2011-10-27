@@ -1,6 +1,6 @@
 import os
 import sys
-from setuptools import setup, Extension
+from distutils.core import setup, Extension
 
 ## Command-line argument parsing
 
@@ -67,11 +67,16 @@ if sys.platform == "darwin" and not os.environ.get("ARCHFLAGS"):
             print >>sys.stderr, "enabling osx-specific ARCHFLAGS/ppc hack"
             os.environ["ARCHFLAGS"] = "-arch i386 -arch x86_64"
 
+# There's a bug in <py3 with Py_True/False that will propagate with GCC's
+# strict aliasing rules. Let's skip this flag for now.
+cflags = ["-fno-strict-aliasing", ]
+
 ## Extension definitions
- 
+
 pylibmc_ext = Extension("_pylibmc", ["_pylibmcmodule.c"],
                         libraries=libs, include_dirs=incdirs,
-                        library_dirs=libdirs, define_macros=defs)
+                        library_dirs=libdirs, define_macros=defs,
+                        extra_compile_args=cflags)
 
 # Hidden secret: if environment variable GEN_SETUP is set, generate Setup file.
 if cmd == "gen-setup":

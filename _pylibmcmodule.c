@@ -41,6 +41,7 @@
 #endif
 
 #define PyBool_TEST(t) ((t) ? Py_True : Py_False)
+
 #define PyModule_ADD_REF(mod, nam, obj) \
     { Py_INCREF(obj); \
       PyModule_AddObject(mod, nam, obj); }
@@ -1688,7 +1689,7 @@ static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *self,
         if (r != MEMCACHED_SUCCESS) {
             PyErr_Format(PylibMCExc_MemcachedError,
                          "memcached_behavior_set returned %d for "
-                         "behavior '%.32s' = %llu", r, b->name, v);
+                         "behavior '%.32s' = %u", r, b->name, (unsigned int)v);
             goto error;
         }
     }
@@ -2174,7 +2175,11 @@ by using comma-separation. Good luck with that.\n");
     PyModule_ADD_REF(module, "support_sasl", Py_False);
 #endif
 
-    PyModule_ADD_REF(module, "support_compression", PyBool_TEST(USE_ZLIB));
+#ifdef USE_ZLIB
+    PyModule_ADD_REF(module, "support_compression", Py_True);
+#else
+    PyModule_ADD_REF(module, "support_compression", Py_False);
+#endif
 
     PyModule_AddIntConstant(module, "server_type_tcp", PYLIBMC_SERVER_TCP);
     PyModule_AddIntConstant(module, "server_type_udp", PYLIBMC_SERVER_UDP);
