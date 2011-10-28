@@ -2057,13 +2057,19 @@ static int _init_sasl(void) {
 }
 
 static int _check_libmemcached_version(void) {
-    int libmemcached_version_minor;
+    uint8_t maj, min;
+    char *ver, *dot, *tmp;
 
-    /* Check minimum requirement of libmemcached version */
-    libmemcached_version_minor = \
-        atoi(strchr(LIBMEMCACHED_VERSION_STRING, '.') + 1);
+    ver = dot = strndup(LIBMEMCACHED_VERSION_STRING, 8);
+    while ((tmp = strrchr(ver, '.')) != NULL) {
+        dot = tmp;
+        *dot = 0;
+    }
 
-    if (libmemcached_version_minor < 32) {
+    maj = atoi(ver);
+    min = atoi(dot + 1);
+
+    if (maj == 0 && min < 32) {
         PyErr_Format(PyExc_RuntimeError,
             "pylibmc requires >= libmemcached 0.32, was compiled with %s",
             LIBMEMCACHED_VERSION_STRING);
