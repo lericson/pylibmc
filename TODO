@@ -1,3 +1,0 @@
- - make a get_stats function
- - add servers after object creation (also related: set_servers)
- - UDP and the binary protocol
