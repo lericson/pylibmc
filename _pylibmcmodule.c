@@ -509,8 +509,7 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
                             memcached_result_cas(res));
 
         /* we have to fetch the last result from the mget cursor */
-        res = memcached_fetch_result(self->mc, res0, &rc);
-        if (res || rc != MEMCACHED_END) {
+        if (NULL != memcached_fetch_result(self->mc, NULL, &rc)) {
             memcached_quit(self->mc);
             Py_DECREF(ret);
             ret = NULL;
