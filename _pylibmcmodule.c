@@ -471,7 +471,7 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
 static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
     const char* keys[2];
     size_t keylengths[2];
-    memcached_result_st *res, *res0;
+    memcached_result_st *res = NULL;
     memcached_return rc;
     PyObject* ret = NULL;
 
@@ -494,12 +494,8 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
     Py_BEGIN_ALLOW_THREADS;
 
     rc = memcached_mget(self->mc, keys, keylengths, 1);
-    if (rc == MEMCACHED_SUCCESS) {
-        res0 = memcached_result_create(self->mc, NULL);
-        /* this will be NULL if the key wasn't found, or
-           memcached_result_st if it was */
-        res = memcached_fetch_result(self->mc, res0, &rc);
-    }
+    if (rc == MEMCACHED_SUCCESS)
+        res = memcached_fetch_result(self->mc, res, &rc);
 
     Py_END_ALLOW_THREADS;
 
@@ -522,10 +518,8 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
         ret = PylibMC_ErrFromMemcached(self, "memcached_gets", rc);
     }
 
-    /* deallocate any indirect buffers, even though the struct itself
-       is on our stack */
-    if (res0 != NULL) {
-        memcached_result_free(res0);
+    if (res != NULL) {
+        memcached_result_free(res);
     }
 
     return ret;
