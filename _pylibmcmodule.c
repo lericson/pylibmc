@@ -993,7 +993,7 @@ static PyObject *PylibMC_Client_cas(PylibMC_Client *self, PyObject *args,
 static PyObject *PylibMC_Client_delete(PylibMC_Client *self, PyObject *args) {
     PyObject *retval;
     char *key;
-    Py_ssize_t key_sz;
+    int key_sz;
     memcached_return rc;
 
     retval = NULL;
@@ -1026,7 +1026,7 @@ static PyObject *_PylibMC_IncrSingle(PylibMC_Client *self,
                                      _PylibMC_IncrCommand incr_func,
                                      PyObject *args) {
     char *key;
-    Py_ssize_t key_len;
+    int key_len;
     unsigned int delta = 1;
 
     if (!PyArg_ParseTuple(args, "s#|I", &key, &key_len, &delta)) {
@@ -1305,7 +1305,7 @@ static PyObject *PylibMC_Client_get_multi(
     char **keys, *prefix = NULL;
     char *err_func = NULL;
     memcached_result_st *res, *results = NULL;
-    Py_ssize_t prefix_len = 0;
+    int prefix_len;
     Py_ssize_t i;
     PyObject *key_it, *ckey;
     size_t *key_lens;
