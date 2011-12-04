@@ -148,6 +148,8 @@ class Client(_pylibmc.client):
         (where it most surely will error out.)
 
         This also happens for `distribution`.
+
+        Translates old underscored behavior names to new ones for API leniency.
         """
         unknown = set(behaviors).difference(_all_behaviors_set)
         if unknown:
@@ -161,6 +163,9 @@ class Client(_pylibmc.client):
             behaviors["ketama_hash"] = hashers[behaviors["ketama_hash"]]
         if behaviors.get("distribution") is not None:
             behaviors["distribution"] = distributions[behaviors["distribution"]]
+
+        if "_retry_timeout" in behaviors:
+            behaviors.setdefault("retry_timeout", behaviors.pop("retry_timeout"))
 
         return super(Client, self).set_behaviors(behaviors)
 

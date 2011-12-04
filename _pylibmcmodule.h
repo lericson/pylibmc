@@ -180,6 +180,7 @@ static PylibMC_Behavior PylibMC_behaviors[] = {
     { MEMCACHED_BEHAVIOR_RCV_TIMEOUT, "receive_timeout" },
     { MEMCACHED_BEHAVIOR_NUMBER_OF_REPLICAS, "num_replicas" },
     { MEMCACHED_BEHAVIOR_AUTO_EJECT_HOSTS, "auto_eject" },
+    { MEMCACHED_BEHAVIOR_RETRY_TIMEOUT, "retry_timeout" },
 #if LIBMEMCACHED_VERSION_HEX >= 0x00049000
     { MEMCACHED_BEHAVIOR_REMOVE_FAILED_SERVERS, "remove_failed" },
 #endif
@@ -193,7 +194,6 @@ static PylibMC_Behavior PylibMC_behaviors[] = {
     { MEMCACHED_BEHAVIOR_HASH_WITH_PREFIX_KEY, "_hash_with_prefix_key" },
     { MEMCACHED_BEHAVIOR_NOREPLY, "_noreply" },
     { MEMCACHED_BEHAVIOR_SORT_HOSTS, "_sort_hosts" },
-    { MEMCACHED_BEHAVIOR_RETRY_TIMEOUT, "_retry_timeout" },
     { MEMCACHED_BEHAVIOR_POLL_TIMEOUT, "_poll_timeout" },
     { MEMCACHED_BEHAVIOR_SOCKET_SEND_SIZE, "_socket_send_size" },
     { MEMCACHED_BEHAVIOR_SOCKET_RECV_SIZE, "_socket_recv_size" },
