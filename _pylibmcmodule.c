@@ -1871,24 +1871,11 @@ static PyObject *PylibMC_Client_clone(PylibMC_Client *self) {
 
 static char *_get_lead(memcached_st *mc, char *buf, int n, const char *what,
         memcached_return error, const char *key, Py_ssize_t len) {
-    int sz = snprintf(buf, n, "error %d from %s", error, what);
+    int sz = snprintf(buf, n, "error %d from %.32s", error, what);
 
-    /*
-     * Need to protect from libmemcached versions as their
-     * memcached_server_instance_st are called (memcached_server_st *).
-     */
-#if LIBMEMCACHED_VERSION_HEX >= 0x00038000
-    if (key != NULL) {
-        memcached_return rc = MEMCACHED_FAILURE;
-        memcached_server_instance_st svr = NULL;
-
-        svr = memcached_server_by_key(mc, key, len, &rc);
-        if (svr && rc == MEMCACHED_SUCCESS) {
-            sz += snprintf(buf + sz, n - sz, " on %s:%d",
-                           svr->hostname, svr->port);
-        }
+    if (key != NULL && len) {
+        sz += snprintf(buf+sz, n-sz, "(%.32s)", key);
     }
-#endif
 
     return buf;
 }
@@ -1910,7 +1897,11 @@ static void _set_error(memcached_st *mc, memcached_return error, char *lead) {
             }
         }
 
-        PyErr_Format(exc, "%s: %s", lead, memcached_strerror(mc, error));
+#if LIBMEMCACHED_VERSION_HEX >= 0x00049000
+        PyErr_Format(exc, "%s: %.200s", lead, memcached_last_error_message(mc));
+#else
+        PyErr_Format(exc, "%s: %.200s", lead, memcached_strerror(mc, error));
+#endif
     }
 }
 
