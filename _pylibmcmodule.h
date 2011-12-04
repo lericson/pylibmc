@@ -151,7 +151,8 @@ static PylibMC_McErr PylibMCExc_mc_errs[] = {
     //{ MEMCACHED_BUFFERED, "Buffer, NULL },
     { MEMCACHED_BAD_KEY_PROVIDED, "BadKeyProvided", NULL },
     { MEMCACHED_INVALID_HOST_PROTOCOL, "InvalidHostProtocolError", NULL },
-    //{ MEMCACHED_SERVER_MARKED_DEAD,
+    { MEMCACHED_SERVER_MARKED_DEAD, "ServerDead", NULL },
+    { MEMCACHED_SERVER_TEMPORARILY_DISABLED, "ServerDown", NULL },
     { MEMCACHED_UNKNOWN_STAT_KEY, "UnknownStatKey", NULL },
     //{ MEMCACHED_E2BIG, "TooBigError", NULL },
     { 0, NULL, NULL }
