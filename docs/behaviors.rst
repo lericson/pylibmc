@@ -213,8 +213,27 @@ __ http://www.last.fm/user/RJ/journal/2007/04/10/rz_libketama_-_a_consistent_has
 Failover
 --------
 
+Most people desire the classical "I don't really care" type of failover
+support: if a server goes down, just use another one. This, sadly, is not an
+option with libmemcached for the time being.
+
 When libmemcached introduced a behavior called ``remove_failed``, two other
 behaviors were deprecated in its stead called ``auto_eject`` and
 ``failure_limit`` -- this new behavior is a combination of the latter two. When
 enabled, the numeric value is the number of times a server may fail before it
 is ejected, and when not, no ejection occurs.
+
+"Ejection" simply means *libmemcached will stop using that server without
+trying any others.*
+
+So, if you configure the behaviors ``remove_failed=4`` and ``retry_timeout=10``
+and one of your four servers go down for some reason, then the first request to
+that server will trigger whatever actual error occurred (connection reset, read
+error, etc), then the subsequent requests to that server within 10 seconds will
+all raise ``ServerDown``, then again an actual request is made and the cycle
+repeats until four consequent errors have occurred, at which point
+``ServerDead`` will be raised immediately.
+
+In other words, ``ServerDown`` means that if the server comes back up, it goes
+into rotation; ``ServerDead`` means that this key is unusable until the client
+is reset.
