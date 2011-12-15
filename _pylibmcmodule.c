@@ -1305,7 +1305,7 @@ static PyObject *PylibMC_Client_get_multi(
     char **keys, *prefix = NULL;
     char *err_func = NULL;
     memcached_result_st *res, *results = NULL;
-    int prefix_len;
+    int prefix_len = 0;
     Py_ssize_t i;
     PyObject *key_it, *ckey;
     size_t *key_lens;
