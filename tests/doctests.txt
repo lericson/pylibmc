@@ -171,14 +171,16 @@ True
 >>> del c2
 
 Per-error exceptions
->>> c.incr("test")
-Traceback (most recent call last):
-  ...
-NotFound: error 16 from memcached_increment: NOT FOUND
->>> c.incr(chr(0))
-Traceback (most recent call last):
-  ...
-ProtocolError: error 8 from memcached_increment: PROTOCOL ERROR
+>>> try:
+...   c.incr("test")
+... except pylibmc.NotFound:
+...   print "ok"
+ok
+>>> try:
+...   c.incr(chr(0))
+... except pylibmc.ProtocolError:
+...   print "ok"
+ok
 
 Behaviors.
 >>> c.set_behaviors({"tcp_nodelay": True, "hash": 6})
