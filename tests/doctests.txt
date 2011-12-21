@@ -217,7 +217,7 @@ True
 >>> c.incr_multi(('a', 'b', 'c'), key_prefix='x', delta=1)
 Traceback (most recent call last):
  ...
-NotFound: error 16 from memcached_increment: NOT FOUND
+NotFound: 3 keys not found
 >>> c.delete('xa')
 False
 

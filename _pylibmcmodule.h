@@ -73,6 +73,8 @@ typedef memcached_return (*_PylibMC_SetCommand)(memcached_st *, const char *,
 typedef memcached_return (*_PylibMC_IncrCommand)(memcached_st *,
         const char *, size_t, unsigned int, uint64_t*);
 
+static PyObject *_exc_by_rc(memcached_return);
+
 typedef struct {
   char *key;
   Py_ssize_t key_len;

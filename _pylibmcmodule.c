@@ -991,12 +991,10 @@ static PyObject *PylibMC_Client_cas(PylibMC_Client *self, PyObject *args,
 }
 
 static PyObject *PylibMC_Client_delete(PylibMC_Client *self, PyObject *args) {
-    PyObject *retval;
     char *key;
     Py_ssize_t key_len = 0;
     memcached_return rc;
 
-    retval = NULL;
     if (PyArg_ParseTuple(args, "s#:delete", &key, &key_len)
             && _PylibMC_CheckKeyStringAndSize(key, key_len)) {
         Py_BEGIN_ALLOW_THREADS;
@@ -1051,132 +1049,95 @@ static PyObject *_PylibMC_IncrSingle(PylibMC_Client *self,
 static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self,
                                     _PylibMC_IncrCommand incr_func,
                                     PyObject *args, PyObject *kwds) {
-  /**
-   * Takes an iterable of keys and a single delta (that defaults to 1)
-   * to be applied to all keys. Consider the return value and exception
-   * behaviour to be undocumented, for now it returns None and throws an
-   * exception on an error incrementing any key
-   */
-
+    PyObject *key = NULL;
     PyObject *keys = NULL;
+    PyObject *keys_tmp = NULL;
     PyObject *key_prefix = NULL;
-    PyObject *prefixed_keys = NULL;
     PyObject *retval = NULL;
     PyObject *iterator = NULL;
     unsigned int delta = 1;
+    size_t nkeys = 0, i = 0;
 
     static char *kws[] = { "keys", "key_prefix", "delta", NULL };
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|SI", kws,
-                                     &keys, &key_prefix, &delta)) {
-        return NULL;
-    }
-
-    size_t nkeys = (size_t)PySequence_Size(keys);
-    if(nkeys == -1)
+                                     &keys, &key_prefix, &delta))
         return NULL;
 
-    if(key_prefix == NULL || PyString_Size(key_prefix) < 1) {
-        /* if it's 0-length, we can safely pretend it doesn't exist */
-        key_prefix = NULL;
-    }
-    if(key_prefix != NULL) {
-        if(!_PylibMC_CheckKey(key_prefix)) {
-            return NULL;
-        }
+    nkeys = (size_t)PySequence_Size(keys);
+    if (nkeys == -1)
+        return NULL;
 
-        prefixed_keys = PyList_New(nkeys);
-        if(prefixed_keys == NULL) {
+    if (key_prefix != NULL) {
+        if (!_PylibMC_CheckKey(key_prefix))
             return NULL;
-        }
+
+        if (PyString_Size(key_prefix) == 0)
+            key_prefix = NULL;
     }
 
-    pylibmc_incr* incrs = PyMem_New(pylibmc_incr, nkeys);
-    if(incrs == NULL) {
+    keys_tmp = PyList_New(nkeys);
+    if (keys_tmp == NULL)
+        return NULL;
+
+    pylibmc_incr *incrs = PyMem_New(pylibmc_incr, nkeys);
+    if (incrs == NULL)
         goto cleanup;
-    }
 
     iterator = PyObject_GetIter(keys);
-    if(iterator == NULL) {
+    if (iterator == NULL)
         goto cleanup;
-    }
 
-    PyObject *key = NULL;
-    size_t idx = 0;
+    /* Build pylibmc_incr structs, prefixed as appropriate. */
+    for (i = 0; (key = PyIter_Next(iterator)) != NULL; i++) {
+        pylibmc_incr *incr = incrs + i;
 
-    /**
-     * Build our list of keys, prefixed as appropriate, and turn that
-     * into a list of pylibmc_incr objects that can be incred in one
-     * go. We're not going to own references to the prefixed keys: so
-     * that we can free them all at once, we'll give ownership to a list
-     * of them (prefixed_keys) which we'll DECR once at the end
-     */
+        if (!_PylibMC_CheckKey(key))
+            goto loopcleanup;
 
-    while((key = PyIter_Next(iterator)) != NULL) {
-        if(!_PylibMC_CheckKey(key)) goto loopcleanup;
-
-        if(key_prefix != NULL) {
-            PyObject* newkey = NULL;
-
-            newkey = PyString_FromFormat("%s%s",
-                                         PyString_AS_STRING(key_prefix),
-                                         PyString_AS_STRING(key));
-
-            if(!_PylibMC_CheckKey(newkey)) {
-                Py_XDECREF(newkey);
-                goto loopcleanup;
-            }
-
-            /* steals our reference */
-            if(PyList_SetItem(prefixed_keys, idx, newkey) == -1) {
-                /* it wasn't stolen before the error */
-                Py_DECREF(newkey);
-                goto loopcleanup;
-            }
-
-            /* the list stole our reference to it, and we're going to rely
-               on that list to maintain it while we release the GIL, but
-               since we DECREF the key in loopcleanup we need to INCREF it
-               here */
+        /* prefix `key` with `key_prefix` */
+        if (key_prefix != NULL) {
+            PyObject* newkey = PyString_FromFormat("%s%s",
+                                                   PyString_AS_STRING(key_prefix),
+                                                   PyString_AS_STRING(key));
             Py_DECREF(key);
-            Py_INCREF(newkey);
             key = newkey;
         }
 
-        if(PyString_AsStringAndSize(key, &incrs[idx].key,
-                                    &incrs[idx].key_len) == -1)
+        Py_INCREF(key);
+        if (PyList_SetItem(keys_tmp, i, key) == -1)
             goto loopcleanup;
 
-        incrs[idx].delta = delta;
-        incrs[idx].incr_func = incr_func;
+        /* Populate pylibmc_incr */
+        if (PyString_AsStringAndSize(key, &incr->key, &incr->key_len) == -1)
+            goto loopcleanup;
+        incr->delta = delta;
+        incr->incr_func = incr_func;
         /* After incring we have no way of knowing whether the real result is 0
          * or if the incr wasn't successful (or if noreply is set), but since
          * we're not actually returning the result that's okay for now */
-        incrs[idx].result = 0;
+        incr->result = 0;
 
 loopcleanup:
         Py_DECREF(key);
-
-        if(PyErr_Occurred())
-            break;
-
-        idx++;
+        if (PyErr_Occurred())
+            goto cleanup;
     } /* end each key */
-
-    /* iteration error */
-    if (PyErr_Occurred()) goto cleanup;
 
     _PylibMC_IncrDecr(self, incrs, nkeys);
 
-    /* if that failed, there's an exception on the stack */
-    if(PyErr_Occurred()) goto cleanup;
-
-    retval = Py_None;
-    Py_INCREF(retval);
+    if (!PyErr_Occurred()) {
+        retval = Py_None;
+        Py_INCREF(retval);
+    } else {
+        Py_XDECREF(retval);
+        retval = NULL;
+    }
 
 cleanup:
-    PyMem_Free(incrs);
-    Py_XDECREF(prefixed_keys);
+    if (incrs != NULL)
+        PyMem_Free(incrs);
+    Py_DECREF(keys_tmp);
     Py_XDECREF(iterator);
 
     return retval;
@@ -1197,34 +1158,42 @@ static PyObject *PylibMC_Client_incr_multi(PylibMC_Client *self, PyObject *args,
 
 static bool _PylibMC_IncrDecr(PylibMC_Client *self,
                               pylibmc_incr *incrs, size_t nkeys) {
-    bool error = false;
     memcached_return rc = MEMCACHED_SUCCESS;
     _PylibMC_IncrCommand f = NULL;
-    size_t i;
+    size_t i, notfound = 0, errors = 0;
 
     Py_BEGIN_ALLOW_THREADS;
-    for (i = 0; i < nkeys && !error; i++) {
+    for (i = 0; i < nkeys; i++) {
         pylibmc_incr *incr = &incrs[i];
         uint64_t result = 0;
 
         f = incr->incr_func;
         rc = f(self->mc, incr->key, incr->key_len, incr->delta, &result);
+        /* TODO Signal errors through `incr` */
         if (rc == MEMCACHED_SUCCESS) {
             incr->result = result;
+        } else if (rc == MEMCACHED_NOTFOUND) {
+            notfound++;
         } else {
-            error = true;
+            errors++;
         }
     }
     Py_END_ALLOW_THREADS;
 
-    if (error) {
-        char *fname = (f == memcached_decrement) ? "memcached_decrement"
-                                               : "memcached_increment";
-        PylibMC_ErrFromMemcached(self, fname, rc);
-        return false;
-    } else {
-        return true;
+    if (errors + notfound) {
+        PyObject *exc = PylibMCExc_MemcachedError;
+
+        if (errors == 0)
+            exc = _exc_by_rc(MEMCACHED_NOTFOUND);
+        else if (errors == 1)
+            exc = _exc_by_rc(rc);
+
+        PyErr_Format(exc, "%d keys %s",
+                     (int)(notfound + errors),
+                     errors ? "failed" : "not found");
     }
+
+    return 0 == (errors + notfound);
 }
 /* }}} */
 
@@ -1432,8 +1401,9 @@ static PyObject *PylibMC_Client_get_multi(
         continue;
 
 unpack_error:
-            Py_DECREF(retval);
-            break;
+        Py_DECREF(retval);
+        retval = NULL;
+        break;
     }
 
 earlybird:
@@ -1865,6 +1835,14 @@ static PyObject *PylibMC_Client_clone(PylibMC_Client *self) {
 }
 /* }}} */
 
+static PyObject *_exc_by_rc(memcached_return rc) {
+    PylibMC_McErr *err;
+    for (err = PylibMCExc_mc_errs; err->name != NULL; err++)
+        if (err->rc == rc)
+            return err->exc;
+    return (PyObject *)PylibMCExc_MemcachedError;
+}
+
 static char *_get_lead(memcached_st *mc, char *buf, int n, const char *what,
         memcached_return error, const char *key, Py_ssize_t len) {
     int sz = snprintf(buf, n, "error %d from %.32s", error, what);
@@ -1883,16 +1861,7 @@ static void _set_error(memcached_st *mc, memcached_return error, char *lead) {
     } else if (error == MEMCACHED_SUCCESS) {
         PyErr_Format(PyExc_RuntimeError, "error == MEMCACHED_SUCCESS");
     } else {
-        PylibMC_McErr *err;
-        PyObject *exc = (PyObject *)PylibMCExc_MemcachedError;
-
-        for (err = PylibMCExc_mc_errs; err->name != NULL; err++) {
-            if (err->rc == error) {
-                exc = err->exc;
-                break;
-            }
-        }
-
+        PyObject *exc = _exc_by_rc(error);
 #if LIBMEMCACHED_VERSION_HEX >= 0x00049000
         PyErr_Format(exc, "%s: %.200s", lead, memcached_last_error_message(mc));
 #else
