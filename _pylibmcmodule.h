@@ -76,15 +76,15 @@ typedef memcached_return (*_PylibMC_IncrCommand)(memcached_st *,
 typedef struct {
   char *key;
   Py_ssize_t key_len;
-  char* value;
+  char *value;
   Py_ssize_t value_len;
   time_t time;
   uint32_t flags;
 
   /* the objects that must be freed after the mset is executed */
-  PyObject* key_obj;
-  PyObject* prefixed_key_obj;
-  PyObject* value_obj;
+  PyObject *key_obj;
+  PyObject *prefixed_key_obj;
+  PyObject *value_obj;
 
   /* the success of executing the mset afterwards */
   int success;

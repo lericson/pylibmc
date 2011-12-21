@@ -879,7 +879,7 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
         pylibmc_mset *mset = &msets[pos];
 
         char *value = mset->value;
-        size_t value_len = mset->value_len;
+        size_t value_len = (size_t)mset->value_len;
         uint32_t flags = mset->flags;
 
 #ifdef USE_ZLIB
@@ -993,28 +993,26 @@ static PyObject *PylibMC_Client_cas(PylibMC_Client *self, PyObject *args,
 static PyObject *PylibMC_Client_delete(PylibMC_Client *self, PyObject *args) {
     PyObject *retval;
     char *key;
-    int key_sz;
+    Py_ssize_t key_len = 0;
     memcached_return rc;
 
     retval = NULL;
-    if (PyArg_ParseTuple(args, "s#:delete", &key, &key_sz)
-            && _PylibMC_CheckKeyStringAndSize(key, key_sz)) {
+    if (PyArg_ParseTuple(args, "s#:delete", &key, &key_len)
+            && _PylibMC_CheckKeyStringAndSize(key, key_len)) {
         Py_BEGIN_ALLOW_THREADS;
-        rc = memcached_delete(self->mc, key, key_sz, 0);
+        rc = memcached_delete(self->mc, key, key_len, 0);
         Py_END_ALLOW_THREADS;
         switch (rc) {
             case MEMCACHED_SUCCESS:
                 Py_RETURN_TRUE;
-                break;
             case MEMCACHED_FAILURE:
             case MEMCACHED_NOTFOUND:
             case MEMCACHED_NO_KEY_PROVIDED:
             case MEMCACHED_BAD_KEY_PROVIDED:
                 Py_RETURN_FALSE;
-                break;
             default:
                 return PylibMC_ErrFromMemcachedWithKey(self, "memcached_delete",
-                                                       rc, key, key_sz);
+                                                       rc, key, key_len);
         }
     }
 
@@ -1026,7 +1024,7 @@ static PyObject *_PylibMC_IncrSingle(PylibMC_Client *self,
                                      _PylibMC_IncrCommand incr_func,
                                      PyObject *args) {
     char *key;
-    int key_len;
+    Py_ssize_t key_len = 0;
     unsigned int delta = 1;
 
     if (!PyArg_ParseTuple(args, "s#|I", &key, &key_len, &delta)) {
@@ -1305,7 +1303,7 @@ static PyObject *PylibMC_Client_get_multi(
     char **keys, *prefix = NULL;
     char *err_func = NULL;
     memcached_result_st *res, *results = NULL;
-    int prefix_len = 0;
+    Py_ssize_t prefix_len = 0;
     Py_ssize_t i;
     PyObject *key_it, *ckey;
     size_t *key_lens;
@@ -1413,9 +1411,7 @@ static PyObject *PylibMC_Client_get_multi(
 
         res = results + i;
 
-        /* Explicitly construct a key string object so that NUL-bytes and the
-         * likes can be contained within the keys (this is possible in the
-         * binary protocol.) */
+        /* Long-winded, but this way we can handle NUL-bytes in keys. */
         key_obj = PyString_FromStringAndSize(memcached_result_key_value(res) + prefix_len,
                                              memcached_result_key_length(res) - prefix_len);
         if (key_obj == NULL)
