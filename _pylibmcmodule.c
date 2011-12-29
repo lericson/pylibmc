@@ -1323,8 +1323,10 @@ static PyObject *PylibMC_Client_get_multi(
         key_lens[i] = (size_t)(key_len + prefix_len);
 
         /* Skip empty keys */
-        if (!key_lens[i])
+        if (!key_lens[i]) {
+            Py_DECREF(ckey);
             continue;
+        }
 
         /* determine rkey, the prefixed ckey */
         if (prefix != NULL) {
@@ -1332,6 +1334,7 @@ static PyObject *PylibMC_Client_get_multi(
             PyString_Concat(&rkey, ckey);
             if (rkey == NULL)
                 goto earlybird;
+            Py_DECREF(rkey);
             rkey = PyString_FromFormat("%s%s",
                     prefix, PyString_AS_STRING(ckey));
         } else {
