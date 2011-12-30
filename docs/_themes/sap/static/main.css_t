@@ -16,7 +16,7 @@
 body {
     font-family: {{ theme_bodyfont }};
     font-size: 100%;
-    background-color: {{ theme_bgcolor }};
+    background: {{ theme_bgcolor }} url('http://sendapatch.se/bg.png');
     color: #000;
     margin: 0;
     padding: 0;

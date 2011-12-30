@@ -29,6 +29,10 @@ Create a memcached connection and configure it::
     ...                     behaviors={"tcp_nodelay": True,
     ...                                "ketama": True})
 
+.. hint:: In earlier versions ``behaviors`` was no keyword
+   argument, only an attribute. To safe-guard version compatibility use
+   ``mc.behaviors = {...}``
+
 Basic memcached operations can be accomplished with the mapping interface::
 
     >>> mc["some_key"] = "Some value"
