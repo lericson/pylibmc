@@ -2011,7 +2011,7 @@ static int _init_sasl(void) {
 static int _check_libmemcached_version(void) {
     uint8_t maj, min;
     char *ver, *dot, *tmp;
-	
+		
 	ver = (char*)malloc(8);
     ver = strncpy(ver, LIBMEMCACHED_VERSION_STRING, 8);
 	dot = ver;
@@ -2022,6 +2022,8 @@ static int _check_libmemcached_version(void) {
 
     maj = atoi(ver);
     min = atoi(dot + 1);
+	
+	free(ver);
 
     if (maj == 0 && min < 32) {
         PyErr_Format(PyExc_RuntimeError,
