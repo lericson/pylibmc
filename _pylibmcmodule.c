@@ -2012,7 +2012,7 @@ static int _check_libmemcached_version(void) {
     uint8_t maj, min;
     char *ver, *dot, *tmp;
 	
-	char *ver = (char*)malloc(8);
+	ver = (char*)malloc(8);
     ver = strncpy(ver, LIBMEMCACHED_VERSION_STRING, 8);
 	dot = ver;
     while ((tmp = strrchr(ver, '.')) != NULL) {
