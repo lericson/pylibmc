@@ -53,8 +53,6 @@ Basic memcached operations can be accomplished with the mapping interface::
     True
     >>> mc.delete("another_key")
     True
-    >>> mc.set("key", "1")  # str or int is fine
-    True
 
 Automatic pickling of complex Python types::
 
@@ -71,6 +69,8 @@ Automatic pickling of complex Python types::
 
 Atomic memcached-side increments and decrements::
 
+    >>> mc.set("key", "1")  # str or int is fine
+    True
     >>> mc.incr("key")
     2L
     >>> mc.decr("key")
