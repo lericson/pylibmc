@@ -1650,12 +1650,12 @@ error:
 static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *self,
         PyObject *behaviors) {
     PylibMC_Behavior *b;
+    PyObject *py_v;
+    uint64_t v;
+    memcached_return r;
+    char *key;
 
     for (b = PylibMC_behaviors; b->name != NULL; b++) {
-        PyObject *py_v;
-        uint64_t v;
-        memcached_return r;
-
         if (!PyMapping_HasKeyString(behaviors, b->name)) {
             continue;
         } else if ((py_v = PyMapping_GetItemString(behaviors, b->name)) == NULL) {
@@ -1673,6 +1673,28 @@ static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *self,
             PyErr_Format(PylibMCExc_MemcachedError,
                          "memcached_behavior_set returned %d for "
                          "behavior '%.32s' = %u", r, b->name, (unsigned int)v);
+            goto error;
+        }
+    }
+
+    for (b = PylibMC_callbacks; b->name != NULL; b++) {
+        if (!PyMapping_HasKeyString(behaviors, b->name)) {
+            continue;
+        } else if ((py_v = PyMapping_GetItemString(behaviors, b->name)) == NULL) {
+            goto error;
+        }
+
+        key = PyString_AS_STRING(py_v);
+
+        r = memcached_callback_set(self->mc, b->flag, key);
+
+        if (r == MEMCACHED_BAD_KEY_PROVIDED) {
+            PyErr_Format(PyExc_ValueError, "bad key provided: %s", key);
+            goto error;
+        } else if (r != MEMCACHED_SUCCESS) {
+            PyErr_Format(PylibMCExc_MemcachedError,
+                         "memcached_callback_set returned %d for "
+                         "callback '%.32s' = %.32s", r, b->name, key);
             goto error;
         }
     }
@@ -2079,7 +2101,7 @@ static void _make_excs(PyObject *module) {
 }
 
 static void _make_behavior_consts(PyObject *mod) {
-    PyObject *behavior_names;
+    PyObject *names;
     PylibMC_Behavior *b;
     char name[128];
 
@@ -2094,13 +2116,23 @@ static void _make_behavior_consts(PyObject *mod) {
         PyModule_AddIntConstant(mod, name, b->flag);
     }
 
-    behavior_names = PyList_New(0);
+    names = PyList_New(0);
 
-    for (b = PylibMC_behaviors; b->name != NULL; b++) {
-        PyList_Append(behavior_names, PyString_FromString(b->name));
+    for (b = PylibMC_callbacks; b->name != NULL; b++) {
+        sprintf(name, "callback_%s", b->name);
+        PyModule_AddIntConstant(mod, name, b->flag);
+        PyList_Append(names, PyString_FromString(b->name));
     }
 
-    PyModule_AddObject(mod, "all_behaviors", behavior_names);
+    PyModule_AddObject(mod, "all_callbacks", names);
+
+    names = PyList_New(0);
+
+    for (b = PylibMC_behaviors; b->name != NULL; b++) {
+        PyList_Append(names, PyString_FromString(b->name));
+    }
+
+    PyModule_AddObject(mod, "all_behaviors", names);
 }
 
 static PyMethodDef PylibMC_functions[] = {

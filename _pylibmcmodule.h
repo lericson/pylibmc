@@ -209,6 +209,10 @@ static PylibMC_Behavior PylibMC_behaviors[] = {
     { 0, NULL }
 };
 
+static PylibMC_Behavior PylibMC_callbacks[] = {
+    { MEMCACHED_CALLBACK_PREFIX_KEY, "prefix_key" },
+    { 0, NULL }
+};
 static PylibMC_Behavior PylibMC_hashers[] = {
     { MEMCACHED_HASH_DEFAULT, "default" },
     { MEMCACHED_HASH_MD5, "md5" },

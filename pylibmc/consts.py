@@ -14,6 +14,7 @@ for name, exc in _pylibmc.exceptions:
     setattr(modpkg, name, exc)
 
 all_behaviors = _pylibmc.all_behaviors
+all_callbacks = _pylibmc.all_callbacks
 hashers, hashers_rvs = {}, {}
 distributions, distributions_rvs = {}, {}
 # Not the prettiest way of doing things, but works well.
