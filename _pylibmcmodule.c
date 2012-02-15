@@ -212,6 +212,11 @@ it_error:
         goto error;
     }
 
+    /* Start with the default picklers for Python (cPickle, pickle) */
+    if (_PylibMC_SetPickler_FromString(self, "cPickle")) {
+        _PylibMC_SetPickler_FromString(self, "pickle");
+    }
+
     Py_DECREF(srvs_it);
     return 0;
 error:
@@ -372,7 +377,7 @@ error:
 /* }}} */
 
 static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
-        uint32_t flags) {
+        uint32_t flags, PylibMC_Client *self) {
     PyObject *retval = NULL;
     PyObject *tmp = NULL;
     uint32_t dtype = flags & PYLIBMC_FLAG_TYPES;
@@ -396,10 +401,9 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
     }
 #endif
 
+    retval = NULL;
+
     switch (dtype) {
-        case PYLIBMC_FLAG_PICKLE:
-            retval = _PylibMC_Unpickle(value, size);
-            break;
         case PYLIBMC_FLAG_INTEGER:
         case PYLIBMC_FLAG_LONG:
         case PYLIBMC_FLAG_BOOL:
@@ -417,6 +421,16 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
               retval = PyBool_FromLong(PyInt_AS_LONG(tmp));
             }
             break;
+        case PYLIBMC_FLAG_PICKLE:
+            if (self->unpickler != NULL) {
+                retval = _PylibMC_Unpickle(value, size, self);
+                break;
+            }
+
+            // Else, no pickler available, issue a warning and return as *string*
+            PyErr_WarnEx(PyExc_UserWarning,
+                         "Value is serialized, but no pickler is available. "
+                         "This is probably not what you wanted.", 1);
         case PYLIBMC_FLAG_NONE:
             retval = PyString_FromStringAndSize(value, (Py_ssize_t)size);
             break;
@@ -436,10 +450,11 @@ cleanup:
     return retval;
 }
 
-static PyObject *_PylibMC_parse_memcached_result(memcached_result_st *res) {
+static PyObject *_PylibMC_parse_memcached_result(memcached_result_st *res, PylibMC_Client *client) {
         return _PylibMC_parse_memcached_value((char *)memcached_result_value(res),
                                               memcached_result_length(res),
-                                              memcached_result_flags(res));
+                                              memcached_result_flags(res),
+                                              client);
 }
 
 static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
@@ -462,7 +477,7 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
     Py_END_ALLOW_THREADS;
 
     if (mc_val != NULL) {
-        PyObject *r = _PylibMC_parse_memcached_value(mc_val, val_size, flags);
+        PyObject *r = _PylibMC_parse_memcached_value(mc_val, val_size, flags, self);
         free(mc_val);
         return r;
     } else if (error == MEMCACHED_SUCCESS) {
@@ -477,6 +492,88 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
     return PylibMC_ErrFromMemcachedWithKey(self, "memcached_get", error,
                                            PyString_AS_STRING(arg),
                                            PyString_GET_SIZE(arg));
+}
+
+static PyObject *PylibMC_Client_set_pickler(PylibMC_Client *self, PyObject *arg) {
+    char *pickler = NULL;
+    int result = 0;
+
+    if (!PySequence_Length(arg)) {
+        Py_RETURN_NONE;
+    }
+
+    if (PyModule_Check(arg) || PyClass_Check(arg)) {
+      result = _PylibMC_SetPickler_FromModule(self, arg);
+    } else {
+      pickler = PyString_AsString(arg);
+
+      if (pickler == NULL) {
+          pickler = "cPickle";
+      }
+
+      result = _PylibMC_SetPickler_FromString(self, pickler);
+    }
+
+    if (result) {
+        PyErr_Format(PyExc_ImportError,
+                     "Invalid pickler: %s. The module must exist and must "
+                     "support both .loads() and .dumps() functions.",
+                     pickler);
+        return NULL;
+    }
+
+    Py_RETURN_TRUE;
+}
+
+static int _PylibMC_SetPickler_FromModule(PylibMC_Client *self, PyObject *module) {
+    int result = -1;
+    PyObject *load = NULL;
+    PyObject *dump = NULL;
+
+    if (self->pickle_module != NULL) {
+        Py_DECREF(self->pickle_module);
+        self->pickle_module = NULL;
+        Py_DECREF(self->pickler);
+        self->pickler = NULL;
+        Py_DECREF(self->unpickler);
+        self->unpickler = NULL;
+    }
+
+    load = PyObject_GetAttrString(module, "loads");
+    if (load == NULL) {
+        goto clean_module;
+    }
+
+    dump = PyObject_GetAttrString(module, "dumps");
+    if (dump == NULL) {
+        goto clean_load;
+    }
+
+    self->pickle_module = module;
+    self->pickler = dump;
+    self->unpickler = load;
+    result = 0;
+    goto done;
+
+clean_load:
+    Py_DECREF(load);
+clean_module:
+    Py_DECREF(module);
+done:
+    return result;
+}
+
+static int _PylibMC_SetPickler_FromString(PylibMC_Client *self, const char *pickler) {
+    PyObject *module = NULL;
+    int result = -1;
+
+    module = PyImport_ImportModule(pickler);
+
+    if (module != NULL) {
+      result = _PylibMC_SetPickler_FromModule(self, module);
+    }
+
+    return result;
 }
 
 static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
@@ -512,7 +609,7 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
 
     if (rc == MEMCACHED_SUCCESS && res != NULL) {
         ret = Py_BuildValue("(NL)",
-                            _PylibMC_parse_memcached_result(res),
+                            _PylibMC_parse_memcached_result(res, NULL),
                             memcached_result_cas(res));
 
         /* we have to fetch the last result from the mget cursor */
@@ -563,7 +660,7 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
 
     pylibmc_mset serialized = { NULL };
 
-    success = _PylibMC_SerializeValue(key, NULL, value, time, &serialized);
+    success = _PylibMC_SerializeValue(key, NULL, value, time, self, &serialized);
 
     if (!success)
         goto cleanup;
@@ -635,6 +732,7 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client* self,
     for (idx = 0; PyDict_Next(keys, &pos, &curr_key, &curr_value); idx++) {
         int success = _PylibMC_SerializeValue(curr_key, key_prefix,
                                               curr_value, time,
+                                              self,
                                               &serialized[idx]);
 
         if (!success || PyErr_Occurred() != NULL) {
@@ -711,7 +809,7 @@ static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *self,
 
     /* TODO: because it's RunSetCommand that does the zlib
        compression, cas can't currently use compressed values. */
-    success = _PylibMC_SerializeValue(key, NULL, value, time, &mset);
+    success = _PylibMC_SerializeValue(key, NULL, value, time, self, &mset);
 
     if (!success || PyErr_Occurred() != NULL) {
         goto cleanup;
@@ -760,6 +858,7 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
                                    PyObject* key_prefix,
                                    PyObject* value_obj,
                                    time_t time,
+                                   PylibMC_Client *client,
                                    pylibmc_mset* serialized) {
     /* first zero the whole structure out */
     memset((void *)serialized, 0x0, sizeof(pylibmc_mset));
@@ -843,9 +942,15 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
         Py_DECREF(tmp);
     } else if(value_obj != NULL) {
         /* we have no idea what it is, so we'll store it pickled */
+        if (client->pickler == NULL) {
+            PyErr_WarnEx(PyExc_UserWarning,
+                         "Cannot store value: no pickler is available.", 1);
+            return false;
+        }
+
         Py_INCREF(value_obj);
         serialized->flags |= PYLIBMC_FLAG_PICKLE;
-        store_val = _PylibMC_Pickle(value_obj);
+        store_val = _PylibMC_Pickle(value_obj, client);
         Py_DECREF(value_obj);
     }
 
@@ -1411,7 +1516,7 @@ static PyObject *PylibMC_Client_get_multi(
             goto unpack_error;
 
         /* Parse out value */
-        val = _PylibMC_parse_memcached_result(res);
+        val = _PylibMC_parse_memcached_result(res, self);
         if (val == NULL)
             goto unpack_error;
 
@@ -1915,48 +2020,22 @@ static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *self,
 }
 
 /* {{{ Pickling */
-static PyObject *_PylibMC_GetPickles(const char *attname) {
-    PyObject *pickle, *pickle_attr;
-
-    pickle_attr = NULL;
-    /* Import cPickle or pickle. */
-    pickle = PyImport_ImportModule("cPickle");
-    if (pickle == NULL) {
-        PyErr_Clear();
-        pickle = PyImport_ImportModule("pickle");
-    }
-
-    /* Find attribute and return it. */
-    if (pickle != NULL) {
-        pickle_attr = PyObject_GetAttrString(pickle, attname);
-        Py_DECREF(pickle);
-    }
-
-    return pickle_attr;
-}
-
-static PyObject *_PylibMC_Unpickle(const char *buff, size_t size) {
-    PyObject *pickle_load;
+static PyObject *_PylibMC_Unpickle(const char *buff, size_t size, PylibMC_Client *client) {
     PyObject *retval = NULL;
 
     retval = NULL;
-    pickle_load = _PylibMC_GetPickles("loads");
-    if (pickle_load != NULL) {
-        retval = PyObject_CallFunction(pickle_load, "s#", buff, size);
-        Py_DECREF(pickle_load);
+    if (client->unpickler != NULL) {
+        retval = PyObject_CallFunction(client->unpickler, "s#", buff, size);
     }
 
     return retval;
 }
 
-static PyObject *_PylibMC_Pickle(PyObject *val) {
-    PyObject *pickle_dump;
+static PyObject *_PylibMC_Pickle(PyObject *val, PylibMC_Client *client) {
     PyObject *retval = NULL;
 
-    pickle_dump = _PylibMC_GetPickles("dumps");
-    if (pickle_dump != NULL) {
-        retval = PyObject_CallFunction(pickle_dump, "Oi", val, -1);
-        Py_DECREF(pickle_dump);
+    if (client->pickler != NULL) {
+        retval = PyObject_CallFunction(client->pickler, "Oi", val, -1);
     }
 
     return retval;

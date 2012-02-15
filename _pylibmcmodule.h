@@ -236,6 +236,9 @@ typedef struct {
     PyObject_HEAD
     memcached_st *mc;
     uint8_t sasl_set;
+    PyObject *pickle_module;
+    PyObject *pickler;
+    PyObject *unpickler;
 } PylibMC_Client;
 
 /* {{{ Prototypes */
@@ -265,18 +268,22 @@ static PyObject *PylibMC_Client_get_stats(PylibMC_Client *, PyObject *);
 static PyObject *PylibMC_Client_flush_all(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_disconnect_all(PylibMC_Client *);
 static PyObject *PylibMC_Client_clone(PylibMC_Client *);
+static PyObject *PylibMC_Client_set_pickler(PylibMC_Client *, PyObject *);
 static PyObject *PylibMC_ErrFromMemcachedWithKey(PylibMC_Client *, const char *,
         memcached_return, const char *, Py_ssize_t);
 static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *, const char *,
         memcached_return);
-static PyObject *_PylibMC_Unpickle(const char *, size_t);
-static PyObject *_PylibMC_Pickle(PyObject *);
+static PyObject *_PylibMC_Unpickle(const char *, size_t, PylibMC_Client *);
+static PyObject *_PylibMC_Pickle(PyObject *, PylibMC_Client *);
+static int _PylibMC_SetPickler_FromModule(PylibMC_Client *, PyObject *);
+static int _PylibMC_SetPickler_FromString(PylibMC_Client *, const char *);
 static int _PylibMC_CheckKey(PyObject *);
 static int _PylibMC_CheckKeyStringAndSize(char *, Py_ssize_t);
 static int _PylibMC_SerializeValue(PyObject *key_obj,
                                    PyObject *key_prefix,
                                    PyObject *value_obj,
                                    time_t time,
+                                   PylibMC_Client *client,
                                    pylibmc_mset *serialized);
 static void _PylibMC_FreeMset(pylibmc_mset*);
 static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
@@ -340,6 +347,10 @@ static PyMethodDef PylibMC_ClientType_methods[] = {
     {"clone", (PyCFunction)PylibMC_Client_clone, METH_NOARGS,
         "Clone this client entirely such that it is safe to access from "
         "another thread. This creates a new connection."},
+    {"set_pickler", (PyCFunction)PylibMC_Client_set_pickler, METH_O,
+        "Sets the active pickler implementation.  A string is assumed to "
+        "be a module. You can also pass a module or class reference directly."
+        " [default: cPickle]"},
     {NULL, NULL, 0, NULL}
 };
 /* }}} */
