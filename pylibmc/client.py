@@ -151,21 +151,21 @@ class Client(_pylibmc.client):
 
         Translates old underscored behavior names to new ones for API leniency.
         """
+        behaviors = behaviors.copy()
+        if "_retry_timeout" in behaviors:
+            behaviors.setdefault("retry_timeout", behaviors.pop("_retry_timeout"))
+
         unknown = set(behaviors).difference(_all_behaviors_set)
         if unknown:
             names = ", ".join(map(str, sorted(unknown)))
             raise ValueError("unknown behavior names: %s" % (names,))
 
-        behaviors = behaviors.copy()
         if behaviors.get("hash") is not None:
             behaviors["hash"] = hashers[behaviors["hash"]]
         if behaviors.get("ketama_hash") in hashers:
             behaviors["ketama_hash"] = hashers[behaviors["ketama_hash"]]
         if behaviors.get("distribution") is not None:
             behaviors["distribution"] = distributions[behaviors["distribution"]]
-
-        if "_retry_timeout" in behaviors:
-            behaviors.setdefault("retry_timeout", behaviors.pop("retry_timeout"))
 
         return super(Client, self).set_behaviors(behaviors)
 

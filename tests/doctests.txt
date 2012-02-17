@@ -252,6 +252,7 @@ Note: `remove_failed` came about in libmemcached 0.49.
 'fnv1a_32'
 >>> super(pylibmc.Client, pc).get_behaviors()["hash"]
 6
+>>> pc.set_behaviors({"_retry_timeout": 123})
 
 Ormod's Zero-byte Adventure Story
 >>> bc = make_test_client(_pylibmc.client, binary=True)
