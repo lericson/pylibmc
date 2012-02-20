@@ -270,23 +270,23 @@ static PyObject *_PylibMC_Unpickle(const char *, size_t);
 static PyObject *_PylibMC_Pickle(PyObject *);
 static int _PylibMC_CheckKey(PyObject *);
 static int _PylibMC_CheckKeyStringAndSize(char *, Py_ssize_t);
-static int _PylibMC_SerializeValue(PyObject* key_obj,
-                                   PyObject* key_prefix,
-                                   PyObject* value_obj,
+static int _PylibMC_SerializeValue(PyObject *key_obj,
+                                   PyObject *key_prefix,
+                                   PyObject *value_obj,
                                    time_t time,
-                                   pylibmc_mset* serialized);
+                                   pylibmc_mset *serialized);
 static void _PylibMC_FreeMset(pylibmc_mset*);
 static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
         _PylibMC_SetCommand f, char *fname, PyObject *args, PyObject *kwds);
-static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client* self,
+static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
         _PylibMC_SetCommand f, char *fname, PyObject *args, PyObject *kwds);
-static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
+static bool _PylibMC_RunSetCommand(PylibMC_Client *self,
                                    _PylibMC_SetCommand f, char *fname,
-                                   pylibmc_mset* msets, size_t nkeys,
+                                   pylibmc_mset *msets, size_t nkeys,
                                    size_t min_compress);
-static int _PylibMC_Deflate(char* value, size_t value_len,
-                            char** result, size_t *result_len);
-static bool _PylibMC_IncrDecr(PylibMC_Client*, pylibmc_incr*, size_t);
+static int _PylibMC_Deflate(char *value, size_t value_len,
+                            char **result, size_t *result_len);
+static bool _PylibMC_IncrDecr(PylibMC_Client *, pylibmc_incr *, size_t);
 
 /* }}} */
 
