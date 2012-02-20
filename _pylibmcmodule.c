@@ -1023,11 +1023,16 @@ static PyObject *_PylibMC_IncrSingle(PylibMC_Client *self,
                                      PyObject *args) {
     char *key;
     Py_ssize_t key_len = 0;
-    unsigned int delta = 1;
+    int delta = 1;
 
-    if (!PyArg_ParseTuple(args, "s#|I", &key, &key_len, &delta)) {
+    if (!PyArg_ParseTuple(args, "s#|i", &key, &key_len, &delta)) {
         return NULL;
     } else if (!_PylibMC_CheckKeyStringAndSize(key, key_len)) {
+        return NULL;
+    }
+
+    if ((unsigned int)delta != delta) {
+        PyErr_Format(PyExc_OverflowError, "%d", delta);
         return NULL;
     }
 
