@@ -1034,6 +1034,8 @@ static PyObject *_PylibMC_IncrSingle(PylibMC_Client *self,
     if (delta < 0L) {
         PyErr_SetString(PyExc_ValueError, "delta must be positive");
         return NULL;
+    }
+
     if ((unsigned int)delta != delta) {
         PyErr_Format(PyExc_OverflowError, "%d", delta);
         return NULL;
