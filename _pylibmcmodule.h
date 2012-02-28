@@ -60,12 +60,15 @@ typedef ssize_t Py_ssize_t;
 #define PYLIBMC_FLAG_PICKLE  (1 << 0)
 #define PYLIBMC_FLAG_INTEGER (1 << 1)
 #define PYLIBMC_FLAG_LONG    (1 << 2)
+#define PYLIBMC_FLAG_BOOL_TRUE    (1 << 3)
+#define PYLIBMC_FLAG_BOOL_FALSE    (1 << 4)
+
 /* Note: this is an addition! python-memcached doesn't handle bools. */
-#define PYLIBMC_FLAG_BOOL    (1 << 4)
 #define PYLIBMC_FLAG_TYPES   (PYLIBMC_FLAG_PICKLE | PYLIBMC_FLAG_INTEGER | \
-                              PYLIBMC_FLAG_LONG | PYLIBMC_FLAG_BOOL)
+                              PYLIBMC_FLAG_LONG | PYLIBMC_FLAG_BOOL_TRUE | \
+                              PYLIBMC_FLAG_BOOL_FALSE)
 /* Modifier flags */
-#define PYLIBMC_FLAG_ZLIB    (1 << 3)
+#define PYLIBMC_FLAG_ZLIB    (1 << 7)
 /* }}} */
 
 typedef memcached_return (*_PylibMC_SetCommand)(memcached_st *, const char *,

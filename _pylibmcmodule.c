@@ -389,9 +389,14 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
         case PYLIBMC_FLAG_PICKLE:
             retval = _PylibMC_Unpickle(value, size);
             break;
+        case PYLIBMC_FLAG_BOOL_TRUE:
+            retval = PyBool_FromLong(1);
+            break;
+        case PYLIBMC_FLAG_BOOL_FALSE:
+            retval = PyBool_FromLong(0);
+            break;
         case PYLIBMC_FLAG_INTEGER:
         case PYLIBMC_FLAG_LONG:
-        case PYLIBMC_FLAG_BOOL:
             /* PyInt_FromString doesn't take a length param and we're
                not NULL-terminated, so we'll have to make an
                intermediate Python string out of it */
@@ -400,11 +405,6 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
               goto cleanup;
             }
             retval = PyInt_FromString(PyString_AS_STRING(tmp), NULL, 10);
-            if(retval != NULL && dtype == PYLIBMC_FLAG_BOOL) {
-              Py_DECREF(tmp);
-              tmp = retval;
-              retval = PyBool_FromLong(PyInt_AS_LONG(tmp));
-            }
             break;
         case PYLIBMC_FLAG_NONE:
             retval = PyString_FromStringAndSize(value, (Py_ssize_t)size);
@@ -815,8 +815,14 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
         store_val = value_obj;
         Py_INCREF(store_val); /* because we'll be decring it again in
                                  pylibmc_mset_free*/
-    } else if (PyBool_Check(value_obj)) {
-        serialized->flags |= PYLIBMC_FLAG_BOOL;
+    } else if (value_obj == Py_False) {
+        serialized->flags |= PYLIBMC_FLAG_BOOL_FALSE;
+        PyObject* tmp = PyNumber_Int(value_obj);
+        store_val = PyObject_Str(tmp);
+        Py_DECREF(tmp);
+    }
+    else if (value_obj == Py_True) {
+        serialized->flags |= PYLIBMC_FLAG_BOOL_TRUE;
         PyObject* tmp = PyNumber_Int(value_obj);
         store_val = PyObject_Str(tmp);
         Py_DECREF(tmp);
@@ -1944,7 +1950,8 @@ static PyObject *_PylibMC_Pickle(PyObject *val) {
 
     pickle_dump = _PylibMC_GetPickles("dumps");
     if (pickle_dump != NULL) {
-        retval = PyObject_CallFunction(pickle_dump, "Oi", val, -1);
+        retval = PyObject_CallFunctionObjArgs(pickle_dump, val,
+                                              PyInt_FromLong(-1), NULL);
         Py_DECREF(pickle_dump);
     }
 
