@@ -202,6 +202,9 @@ static PylibMC_Behavior PylibMC_behaviors[] = {
     { MEMCACHED_BEHAVIOR_POLL_TIMEOUT, "_poll_timeout" },
     { MEMCACHED_BEHAVIOR_SOCKET_SEND_SIZE, "_socket_send_size" },
     { MEMCACHED_BEHAVIOR_SOCKET_RECV_SIZE, "_socket_recv_size" },
+#if LIBMEMCACHED_VERSION_HEX >= 0x01000003
+    { MEMCACHED_BEHAVIOR_DEAD_TIMEOUT, "dead_timeout" },
+#endif
     { 0, NULL }
 };
 
