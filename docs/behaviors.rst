@@ -115,6 +115,12 @@ libmemcached behavior constants.
    replicas in, but instead it will store the replicas together with all of the
    other objects (on the 'n' next servers specified in your server list)."
 
+.. _dead_timeout:
+
+``"dead_timeout"``
+    Once a server has been marked dead, wait this amount of time (in seconds)
+    before checking to see if the server is alive again.
+
 .. _remove_failed:
 
 ``"remove_failed"``
