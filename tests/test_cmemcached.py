@@ -1,8 +1,10 @@
 """Ported cmemcached tests"""
 
 import pylibmc
-from nose.tools import eq_
+import _pylibmc
+from nose.tools import eq_, assert_equals
 from tests import PylibmcTestCase
+
 
 class TestCmemcached(PylibmcTestCase):
     def testSetAndGet(self):
@@ -54,3 +56,25 @@ class TestCmemcached(PylibmcTestCase):
         self.mc.set("a", "Do")
         assert self.mc.prepend("a", "I ")
         eq_(self.mc.get("a"), "I Do")
+
+    def testBehaviors(self):
+        expected_behaviors = [
+            'auto_eject', 'buffer_requests', 'cas', 'connect_timeout',
+            'distribution', 'failure_limit', 'hash', 'ketama', 'ketama_hash',
+            'ketama_weighted', 'no_block', 'num_replicas', 'receive_timeout',
+            'retry_timeout', 'send_timeout', 'tcp_nodelay', 'verify_keys']
+
+        # Since some parts of pyblibmc's functionality depend on the
+        # libmemcached version, programatically check for the expected values
+        # (see _pylibmcmodule.h for the complete list of #ifdef versions)
+        if _pylibmc.libmemcached_version_hex >= 0x00049000:
+            expected_behaviors.append("remove_failed")
+        if _pylibmc.libmemcached_version_hex >= 0x01000003:
+            expected_behaviors.append("dead_timeout")
+
+        # Filter out private keys
+        actual_behaviors = [
+                behavior for behavior in self.mc.behaviors
+                if not behavior.startswith('_')]
+
+        assert_equals(sorted(expected_behaviors), sorted(actual_behaviors))
