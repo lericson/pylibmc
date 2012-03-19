@@ -238,13 +238,6 @@ Python-wrapped behaviors dict
 Note: `remove_failed` came about in libmemcached 0.49.
 >>> pc = make_test_client()
 >>> b = pc.behaviors
->>> ks = (k for k in b.keys() if not k.startswith("_"))
->>> ks = (k for k in ks if k != "remove_failed")
->>> list(sorted(ks))  # doctest: +NORMALIZE_WHITESPACE
-['auto_eject', 'buffer_requests', 'cas', 'connect_timeout', 'dead_timeout',
- 'distribution', 'failure_limit', 'hash', 'ketama', 'ketama_hash',
- 'ketama_weighted', 'no_block', 'num_replicas', 'receive_timeout',
- 'retry_timeout', 'send_timeout', 'tcp_nodelay', 'verify_keys']
 >>> b["hash"]
 'default'
 >>> b["hash"] = 'fnv1a_32'
