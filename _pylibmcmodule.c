@@ -2136,6 +2136,8 @@ by using comma-separation. Good luck with that.\n");
 
     PyModule_AddStringConstant(module,
             "libmemcached_version", LIBMEMCACHED_VERSION_STRING);
+    PyModule_AddIntConstant(module,
+            "libmemcached_version_hex", LIBMEMCACHED_VERSION_HEX);
 
 #if LIBMEMCACHED_WITH_SASL_SUPPORT
     PyModule_ADD_REF(module, "support_sasl", Py_True);
