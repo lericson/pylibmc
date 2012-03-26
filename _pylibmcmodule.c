@@ -127,7 +127,13 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
 #endif
     }
 
-    memcached_behavior_set(self->mc, MEMCACHED_BEHAVIOR_BINARY_PROTOCOL, bin);
+    rc = memcached_behavior_set(self->mc, MEMCACHED_BEHAVIOR_BINARY_PROTOCOL, bin);
+    if (rc != MEMCACHED_SUCCESS) {
+        PyErr_Format(PylibMCExc_MemcachedError,
+            "memcached_behavior_set returned %d for behavior '%.32s' = %llu",
+            rc, MEMCACHED_BEHAVIOR_BINARY_PROTOCOL, bin);
+        goto error;
+    }
 
     while ((c_srv = PyIter_Next(srvs_it)) != NULL) {
         unsigned char stype;
@@ -159,8 +165,13 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
             } else {
                 set_stype = stype;
                 if (stype == PYLIBMC_SERVER_UDP) {
-                    memcached_behavior_set(self->mc,
-                        MEMCACHED_BEHAVIOR_USE_UDP, 1);
+                    rc = memcached_behavior_set(self->mc, MEMCACHED_BEHAVIOR_USE_UDP, 1);
+                    if (rc != MEMCACHED_SUCCESS) {
+                        PyErr_Format(PylibMCExc_MemcachedError,
+                            "memcached_behavior_set returned %d for behavior '%.32s' = %llu",
+                            rc, MEMCACHED_BEHAVIOR_USE_UDP, bin);
+                        goto error;
+                    }
                 }
             }
 
