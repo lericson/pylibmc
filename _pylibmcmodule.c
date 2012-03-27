@@ -1773,11 +1773,6 @@ static PyObject *PylibMC_Client_get_stats(PylibMC_Client *self, PyObject *args) 
     context.servers = NULL;  /* DEPRECATED */
     context.index = 0;
 
-    /* TODO Remove BC for 0.38 */
-#ifndef LIBMEMCACHED_VERSION_HEX
-#  define LIBMEMCACHED_VERSION_HEX 0x0
-#endif
-
 #if LIBMEMCACHED_VERSION_HEX >= 0x00038000
     memcached_server_function callbacks[] = {
         (memcached_server_function)_PylibMC_AddServerCallback

@@ -41,6 +41,10 @@
 #include <Python.h>
 #include <libmemcached/memcached.h>
 
+#ifndef LIBMEMCACHED_VERSION_HEX
+#  define LIBMEMCACHED_VERSION_HEX 0x0
+#endif
+
 #include "pylibmc-version.h"
 
 /* Py_ssize_t appeared in Python 2.5. */
