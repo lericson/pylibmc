@@ -127,7 +127,11 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
 #endif
     }
 
-    memcached_behavior_set(self->mc, MEMCACHED_BEHAVIOR_BINARY_PROTOCOL, bin);
+    rc = memcached_behavior_set(self->mc, MEMCACHED_BEHAVIOR_BINARY_PROTOCOL, bin);
+    if (rc != MEMCACHED_SUCCESS) {
+        PyErr_SetString(PyExc_RuntimeError, "binary protocol behavior set failed");
+        goto error;
+    }
 
     while ((c_srv = PyIter_Next(srvs_it)) != NULL) {
         unsigned char stype;
@@ -159,8 +163,11 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
             } else {
                 set_stype = stype;
                 if (stype == PYLIBMC_SERVER_UDP) {
-                    memcached_behavior_set(self->mc,
-                        MEMCACHED_BEHAVIOR_USE_UDP, 1);
+                    rc = memcached_behavior_set(self->mc, MEMCACHED_BEHAVIOR_USE_UDP, 1);
+                    if (rc != MEMCACHED_SUCCESS) {
+                        PyErr_SetString(PyExc_RuntimeError, "udp behavior set failed");
+                        goto it_error;
+                    }
                 }
             }
 
