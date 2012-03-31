@@ -6,3 +6,5 @@ The List of Honored Men
 * Ruda Moura <ruda.moura@corp.terra.com.br>
 * Noah Silas <noah@mahalo.com>
 * Johan Bergström <johan@bergstroem.nu>
+* Andrew McFague <amcfague@wgen.net>
+* James Brown <jbrown@yelp.com>
