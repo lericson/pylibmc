@@ -178,7 +178,7 @@ Per-error exceptions
 ok
 >>> try:
 ...   c.incr(chr(0))
-... except pylibmc.ProtocolError:
+... except (pylibmc.ProtocolError, pylibmc.SocketCreateError):
 ...   print "ok"
 ok
 
