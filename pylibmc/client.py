@@ -20,7 +20,7 @@ def _split_spec_type(spec):
         else:
             return ("tcp", spec)
 
-def _splitport(spec, port=None):
+def _unpack_addr(spec, port=None, weight=1):
     if spec.startswith("["):
         if "]" not in spec:
             raise ValueError(spec)
@@ -32,37 +32,46 @@ def _splitport(spec, port=None):
         (addr, port) = spec.split(":", 1)
     else:
         addr = spec
-    return (addr, port)
 
-def translate_server_spec(server, port=11211):
-    """Translate/normalize specification *server* into three-tuple (tp, addr, port).
+    if isinstance(port, str) and ":" in port:
+        (port, weight) = port.split(":", 1)
+    return (addr, port, weight)
+
+def translate_server_spec(server, port=11211, weight=1):
+    """Translate/normalize specification *server* into 4-tuple (scheme, addr, port, weight).
 
     This is format is used by the extension module.
 
     >>> translate_server_spec("127.0.0.1")
-    (1, '127.0.0.1', 11211)
+    (1, '127.0.0.1', 11211, 1)
     >>> translate_server_spec("udp:127.0.0.1")
-    (2, '127.0.0.1', 11211)
+    (2, '127.0.0.1', 11211, 1)
     >>> translate_server_spec("/var/run/memcached.sock")
-    (4, '/var/run/memcached.sock', 0)
+    (4, '/var/run/memcached.sock', 0, 1)
+    >>> translate_server_spec("/var/run/memcached.sock", weight=2)
+    (4, '/var/run/memcached.sock', 0, 2)
 
     >>> translate_server_spec("127.0.0.1:22122")
-    (1, '127.0.0.1', 22122)
-    >>> translate_server_spec("127.0.0.1", port=1234)
-    (1, '127.0.0.1', 1234)
+    (1, '127.0.0.1', 22122, 1)
+    >>> translate_server_spec("127.0.0.1:1234:2")
+    (1, '127.0.0.1', 1234, 2)
+    >>> translate_server_spec("127.0.0.1", port=1234, weight=2)
+    (1, '127.0.0.1', 1234, 2)
 
     >>> translate_server_spec("[::1]:22122")
-    (1, '::1', 22122)
+    (1, '::1', 22122, 1)
     >>> translate_server_spec("[::1]")
-    (1, '::1', 11211)
+    (1, '::1', 11211, 1)
+    >>> translate_server_spec("[::1]:22122:3")
+    (1, '::1', 22122, 3)
     """
     (scheme, spec) = _split_spec_type(server)
     stype = server_type_map[scheme]
     if scheme == "unix":
         (addr, port) = (spec, 0)
     elif scheme in ("tcp", "udp"):
-        (addr, port) = _splitport(spec, port=port)
-    return (stype, str(addr), int(port))
+        (addr, port, weight) = _unpack_addr(spec, port=port, weight=weight)
+    return (stype, str(addr), int(port), int(weight))
 
 def translate_server_specs(servers):
     addr_tups = []
