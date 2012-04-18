@@ -520,7 +520,7 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
             ret = NULL;
             PyErr_SetString(PyExc_RuntimeError, "fetch not done");
         }
-    } else if (rc == MEMCACHED_END) {
+    } else if (rc == MEMCACHED_END || rc == MEMCACHED_NOTFOUND) {
         /* Key not found => (None, None) */
         ret = Py_BuildValue("(OO)", Py_None, Py_None);
     } else {
