@@ -261,3 +261,7 @@ Test server/client max length
 Traceback (most recent call last):
   ...
 ValueError: key too long, max is 250
+
+Make sure ServerDown exception exists
+>>> hasattr(pylibmc, 'ServerDown')
+True
