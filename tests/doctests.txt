@@ -265,3 +265,9 @@ ValueError: key too long, max is 250
 Make sure ServerDown exception exists
 >>> hasattr(pylibmc, 'ServerDown')
 True
+
+Gets should return (None, None) for non-existing keys
+>>> c = make_test_client(_pylibmc.client, binary=True)
+>>> c.set_behaviors({'cas': True})
+>>> c.gets('non_existing_key')
+(None, None)
