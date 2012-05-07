@@ -23,7 +23,7 @@ development forward. Keep doing your thing.
 
 __ http://code.reddit.com/
 
-- `sevmer.org`__ versioning scheme
+- `semver.org`__ versioning scheme
 - Fixed GIL issues
 - Added CAS support (ketralnis)
 - Added SASL authentication (Remoun)
