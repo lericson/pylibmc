@@ -3,9 +3,10 @@
 import _pylibmc
 from .consts import (hashers, distributions, all_behaviors,
                      hashers_rvs, distributions_rvs,
-                     BehaviorDict)
+                     all_callbacks, BehaviorDict)
 
 _all_behaviors_set = set(all_behaviors)
+_all_behaviors_set.update(set(all_callbacks))
 
 server_type_map = {"tcp":   _pylibmc.server_type_tcp,
                    "udp":   _pylibmc.server_type_udp,
