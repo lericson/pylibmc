@@ -61,6 +61,57 @@ Batch operation::
     >>> mc.delete_multi(["cats", "dogs", "bacon"])
     True
 
+Custom picklers::
+
+    >>> mc.set("key", {"complex": True})
+    True
+    >>> mc.get("key")
+    {'complex': True}
+    >>> mc.set_pickler("json")
+    True
+    >>> mc.set("key", {"complex": True})
+    True
+    >>> mc.set_pickler()
+    Traceback (most recent call last):
+      ...
+    TypeError: set_pickler() takes exactly one argument (0 given)
+    >>> mc.set_pickler(None)
+    True
+    >>> mc.get("key")
+    Traceback (most recent call last):
+      ...
+    UnpicklingError: invalid load key, '{'.
+    >>> mc.set_pickler("phpserialize")
+    True
+    >>> mc.get("key")
+    Traceback (most recent call last):
+      ...
+    ValueError: unexpected opcode
+    >>> mc.set("key", {"complex": True})
+    True
+    >>> mc.get("key")
+    {'complex': True}
+    >>> mc.set_pickler("json")
+    True
+    >>> mc.get("key")
+    Traceback (most recent call last):
+      ...
+    ValueError: No JSON object could be decoded
+    >>> mc.set("key", {"complex": True})
+    True
+    >>> mc.get("key")
+    {u'complex': True}
+    >>> mc.set_pickler("time")
+    Traceback (most recent call last):
+      ...
+    ImportError: Invalid pickler: time. The module must exist and must support both .loads() and .dumps() functions.
+    >>> mc.get("key")
+    '{"complex": true}'
+    >>> mc.set("key", {"complex": True})
+    False
+    >>> mc.get("key")
+    '{"complex": true}'
+
 Further Reading
 ===============
 
