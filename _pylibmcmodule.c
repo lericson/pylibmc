@@ -575,7 +575,7 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
     unsigned int time = 0; /* this will be turned into a time_t */
     unsigned int min_compress = 0;
     int raw = 0;
-    unsigned int flags = 0;
+    uint32_t flags = 0;
     bool success = false;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "SO|IIII", kws,
@@ -628,7 +628,7 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client* self,
     unsigned int time = 0;
     unsigned int min_compress = 0;
     int raw = 0;
-    unsigned int flags = 0;
+    uint32_t flags = 0;
     PyObject * retval = NULL;
     size_t idx = 0;
 
@@ -737,7 +737,7 @@ static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *self,
     uint64_t cas = 0;
     unsigned int time = 0; /* this will be turned into a time_t */
     int raw = 0;
-    unsigned int flags = 0;
+    uint32_t flags = 0;
     bool success = false;
     memcached_return rc;
 
@@ -806,7 +806,7 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
                                    PyObject* value_obj,
                                    time_t time,
                                    int raw,
-                                   unsigned int flags,
+                                   uint32_t flags,
                                    pylibmc_mset* serialized) {
     /* first zero the whole structure out */
     memset((void *)serialized, 0x0, sizeof(pylibmc_mset));
