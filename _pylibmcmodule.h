@@ -253,6 +253,7 @@ static PylibMC_Client *PylibMC_ClientType_new(PyTypeObject *, PyObject *,
 static void PylibMC_ClientType_dealloc(PylibMC_Client *);
 static int PylibMC_Client_init(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_get(PylibMC_Client *, PyObject *arg);
+static PyObject *PylibMC_Client_get_raw(PylibMC_Client *, PyObject *arg);
 static PyObject *PylibMC_Client_gets(PylibMC_Client *, PyObject *arg);
 static PyObject *PylibMC_Client_set(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_replace(PylibMC_Client *, PyObject *, PyObject *);
@@ -286,6 +287,8 @@ static int _PylibMC_SerializeValue(PyObject *key_obj,
                                    PyObject *key_prefix,
                                    PyObject *value_obj,
                                    time_t time,
+                                   int raw,
+                                   unsigned int flags,
                                    pylibmc_mset *serialized);
 static void _PylibMC_FreeMset(pylibmc_mset*);
 static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
@@ -306,6 +309,8 @@ static bool _PylibMC_IncrDecr(PylibMC_Client *, pylibmc_incr *, size_t);
 static PyMethodDef PylibMC_ClientType_methods[] = {
     {"get", (PyCFunction)PylibMC_Client_get, METH_O,
         "Retrieve a key from a memcached."},
+    {"get_raw", (PyCFunction)PylibMC_Client_get_raw, METH_O,
+        "Retrieve a key raw data from a memcached."},
     {"gets", (PyCFunction)PylibMC_Client_gets, METH_O,
         "Retrieve a key and cas_id from a memcached."},
     {"set", (PyCFunction)PylibMC_Client_set, METH_VARARGS|METH_KEYWORDS,
