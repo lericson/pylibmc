@@ -86,6 +86,15 @@ def translate_server_specs(servers):
     return addr_tups
 
 class Client(_pylibmc.client):
+    class RawValue:
+        def __init__(self, raw):
+            self.value = raw['value']
+            self.flags = raw['flags']
+            self.size = raw['size']
+
+        def __str__(self):
+            return self.value
+
     def __init__(self, servers, behaviors=None, binary=False,
                  username=None, password=None):
         """Initialize a memcached client instance.
@@ -136,6 +145,12 @@ class Client(_pylibmc.client):
     def __contains__(self, key):
         return self.get(key) is not None
     # }}}
+
+    def get_raw(self, key):
+        raw = super(Client, self).get_raw(key)
+        if raw is not None:
+            raw = Client.RawValue(raw)
+        return raw
 
     # {{{ Behaviors
     def get_behaviors(self):
