@@ -1038,6 +1038,35 @@ static PyObject *PylibMC_Client_delete(PylibMC_Client *self, PyObject *args) {
     return NULL;
 }
 
+static PyObject *PylibMC_Client_touch(PylibMC_Client *self, PyObject *args) {
+    char *key;
+    long seconds;
+    int key_len;
+    memcached_return rc;
+
+    if(PyArg_ParseTuple(args, "s#k", &key, &key_len, &seconds) && _PylibMC_CheckKeyStringAndSize(key, key_len)) {
+        Py_BEGIN_ALLOW_THREADS;
+        rc = memcached_touch(self->mc, key, key_len, seconds);
+        Py_END_ALLOW_THREADS;
+        switch (rc){
+            case MEMCACHED_SUCCESS:
+            case MEMCACHED_STORED:
+                Py_RETURN_TRUE;
+            case MEMCACHED_FAILURE:
+            case MEMCACHED_NOTFOUND:
+            case MEMCACHED_NO_KEY_PROVIDED:
+            case MEMCACHED_BAD_KEY_PROVIDED:
+                Py_RETURN_FALSE;
+            default:
+                return PylibMC_ErrFromMemcachedWithKey(self, "memcached_touch",
+                                                       rc, key, key_len);
+        }
+    }
+
+    return NULL;
+}
+
+
 /* {{{ Increment & decrement */
 static PyObject *_PylibMC_IncrSingle(PylibMC_Client *self,
                                      _PylibMC_IncrCommand incr_func,
