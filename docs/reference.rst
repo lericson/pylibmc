@@ -125,6 +125,31 @@
       .. note:: There is currently no way to set a default for *key* when
                 decrementing.
 
+   .. Atomic operations
+
+   .. method:: gets(key) -> (value, cas_id)
+
+      Get *key* and its compare-and-swap ID if it exists, otherwise ``(None,
+      None)``.
+
+      The so-called CAS token or ID is used with :meth:`cas` to update a value
+      with the guarantee that no other value was written in between.
+
+      .. seealso:: :meth:`get`, :meth:`cas`
+
+   .. method:: cas(key, value, cas[, time=0]) -> swapped
+
+      Set *key* to *value* if *key* CAS token is *cas*.
+
+      :param key: Key to use
+      :param value: Value to set
+      :param cas: Compare-and-swap token from :meth:`gets`
+      :param time: Time until expiry
+
+      If *time* is given, it specifies the number of seconds until *key* will
+      expire. Default behavior is to never expire (equivalent of specifying
+      ``0``).
+
    .. Deleting
 
    .. method:: delete(key[, time=0]) -> deleted
