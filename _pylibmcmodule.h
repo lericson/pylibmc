@@ -268,6 +268,7 @@ static PyObject *PylibMC_Client_get_multi(PylibMC_Client *, PyObject *, PyObject
 static PyObject *PylibMC_Client_set_multi(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_add_multi(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *, PyObject *, PyObject *);
+static PyObject *PylibMC_Client_hash(PylibMC_Client *, PyObject *args, PyObject *kwds);
 static PyObject *PylibMC_Client_get_behaviors(PylibMC_Client *);
 static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *, PyObject *);
 static PyObject *PylibMC_Client_get_stats(PylibMC_Client *, PyObject *);
@@ -336,6 +337,8 @@ static PyMethodDef PylibMC_ClientType_methods[] = {
         METH_VARARGS|METH_KEYWORDS, "Add multiple keys at once."},
     {"delete_multi", (PyCFunction)PylibMC_Client_delete_multi,
         METH_VARARGS|METH_KEYWORDS, "Delete multiple keys at once."},
+    {"hash", (PyCFunction)PylibMC_Client_hash,
+        METH_VARARGS|METH_KEYWORDS, "Hash value of *key*."},
     {"get_behaviors", (PyCFunction)PylibMC_Client_get_behaviors, METH_NOARGS,
         "Get behaviors dict."},
     {"set_behaviors", (PyCFunction)PylibMC_Client_set_behaviors, METH_O,

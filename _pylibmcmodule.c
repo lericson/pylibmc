@@ -533,6 +533,19 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
     return ret;
 }
 
+static PyObject *PylibMC_Client_hash(PylibMC_Client *self, PyObject *args, PyObject *kwds) {
+    char *key;
+    Py_ssize_t key_len = 0;
+
+    if (!PyArg_ParseTuple(args, "s#:hash", &key, &key_len)) {
+        return NULL;
+    }
+
+    uint32_t h = memcached_generate_hash(self->mc, key, (size_t)key_len);
+
+    return PyInt_FromLong((long)h);
+}
+
 /* {{{ Set commands (set, replace, add, prepend, append) */
 static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
         _PylibMC_SetCommand f, char *fname, PyObject *args,
