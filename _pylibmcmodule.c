@@ -487,8 +487,7 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
     if (!_PylibMC_CheckKey(arg)) {
         return NULL;
     } else if (!PySequence_Length(arg)) {
-        /* Others do this, so... */
-        Py_RETURN_NONE;
+        return Py_BuildValue("(OO)", Py_None, Py_None);
     } else if (!memcached_behavior_get(self->mc, MEMCACHED_BEHAVIOR_SUPPORT_CAS)) {
         PyErr_SetString(PyExc_ValueError, "gets without cas behavior");
         return NULL;
