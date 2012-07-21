@@ -62,7 +62,8 @@ class TestCmemcached(PylibmcTestCase):
             'auto_eject', 'buffer_requests', 'cas', 'connect_timeout',
             'distribution', 'failure_limit', 'hash', 'ketama', 'ketama_hash',
             'ketama_weighted', 'no_block', 'num_replicas', 'receive_timeout',
-            'retry_timeout', 'send_timeout', 'tcp_nodelay', 'verify_keys']
+            'retry_timeout', 'send_timeout', 'tcp_keepalive', 'tcp_nodelay',
+            'verify_keys']
 
         # Since some parts of pyblibmc's functionality depend on the
         # libmemcached version, programatically check for the expected values
