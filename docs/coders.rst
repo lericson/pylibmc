@@ -8,3 +8,10 @@ The List of Honored Men
 * Johan Bergström <johan@bergstroem.nu>
 * Andrew McFague <amcfague@wgen.net>
 * James Brown <jbrown@yelp.com>
+
+Thanks to `Blogg Esse AB`__ and `Send a Patch Jonken AB`__ for their support in
+this open-source adventure, without these two companies this wouldn't have
+happened.
+
+__ http://blogg.se/
+__ http://sendapatch.se/
