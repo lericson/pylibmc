@@ -178,6 +178,16 @@
       Returns ``True`` if all keys were successfully deleted, ``False``
       otherwise (as is the case if it wasn't set in the first place.)
 
+   .. method:: touch(key, time) -> touched
+
+      Touch a given *key* and increase it's expiry time by *time* seconds.
+
+      :param key: Key to touch
+      :param time: Number of seconds until the key expires.
+
+      Returns ``True`` if the key was successfully touched. ``False``
+      if the key did not exist.
+
    .. Utilities
 
    .. method:: disconnect_all()
