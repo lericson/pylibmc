@@ -1,11 +1,11 @@
 """Ported cmemcached tests"""
 
-import pylibmc
-import _pylibmc
-import time
-from nose.tools import eq_, assert_equals
-from tests import PylibmcTestCase
+# NOTE Don't write new tests here.
+# These are ported from cmemcached to ensure compatibility.
 
+import pylibmc
+from nose.tools import eq_
+from tests import PylibmcTestCase
 
 class TestCmemcached(PylibmcTestCase):
     def testSetAndGet(self):
@@ -57,40 +57,3 @@ class TestCmemcached(PylibmcTestCase):
         self.mc.set("a", "Do")
         assert self.mc.prepend("a", "I ")
         eq_(self.mc.get("a"), "I Do")
-
-    def testBehaviors(self):
-        expected_behaviors = [
-            'auto_eject', 'buffer_requests', 'cas', 'connect_timeout',
-            'distribution', 'failure_limit', 'hash', 'ketama', 'ketama_hash',
-            'ketama_weighted', 'no_block', 'num_replicas', 'receive_timeout',
-            'retry_timeout', 'send_timeout', 'tcp_keepalive', 'tcp_nodelay',
-            'verify_keys']
-
-        # Since some parts of pyblibmc's functionality depend on the
-        # libmemcached version, programatically check for the expected values
-        # (see _pylibmcmodule.h for the complete list of #ifdef versions)
-        if _pylibmc.libmemcached_version_hex >= 0x00049000:
-            expected_behaviors.append("remove_failed")
-        if _pylibmc.libmemcached_version_hex >= 0x01000003:
-            expected_behaviors.append("dead_timeout")
-
-        # Filter out private keys
-        actual_behaviors = [
-                behavior for behavior in self.mc.behaviors
-                if not behavior.startswith('_')]
-
-        assert_equals(sorted(expected_behaviors), sorted(actual_behaviors))
-
-    def testTouch(self):
-        assert_equals(True, self.mc.set("touch-test", "touch-val", 1))
-        assert_equals("touch-val", self.mc.get("touch-test"))
-        time.sleep(2)
-        assert_equals(None, self.mc.get("touch-test"))
-
-        self.mc.set("touch-test", "touch-val", 1)
-        assert_equals("touch-val", self.mc.get("touch-test"))
-        assert_equals(True, self.mc.touch("touch-test", 5))
-        time.sleep(2)
-        assert_equals("touch-val", self.mc.get("touch-test"))
-        
-        assert_equals(False, self.mc.touch("touch-test-2", 100))
