@@ -1,38 +1,39 @@
 #!/usr/bin/env python
 """Run nosetests with build/lib.* in sys.path"""
 
-# Fix up sys.path so as to include the correct build/lib.*/ directory.
 import sys
-from distutils.dist import Distribution
-from distutils.command.build import build
 
-build_cmd = build(Distribution({"ext_modules": True}))
-build_cmd.finalize_options()
-lib_dirn = build_cmd.build_lib
-sys.path.insert(0, lib_dirn)
+def build_lib_dirname():
+    from distutils.dist import Distribution
+    from distutils.command.build import build
+    build_cmd = build(Distribution({"ext_modules": True}))
+    build_cmd.finalize_options()
+    return build_cmd.build_lib
 
-# Dump info plugin stuff
-import nose
+# Nose plugin
+
 import logging
+
+import nose
 from nose.plugins import Plugin
 
 logger = logging.getLogger("nose.plugins.pylibmc")
 
-def dump_infos():
-    logger.info("injected path: %s", lib_dirn)
+def hack_sys_path():
+    lib_dirn = build_lib_dirname()
+    logger.info("path to dev build: %s", lib_dirn)
+    sys.path.insert(0, lib_dirn)
+
     import pylibmc, _pylibmc
     if hasattr(_pylibmc, "__file__"):
         logger.info("loaded _pylibmc from %s", _pylibmc.__file__)
         if not _pylibmc.__file__.startswith(lib_dirn):
             logger.warn("double-check the source path")
+            logger.warn("tests are not running on the dev build!")
     else:
         logger.warn("static _pylibmc: %s", _pylibmc)
-    logger.info("libmemcached version: %s", _pylibmc.libmemcached_version)
-    logger.info("pylibmc version: %s", _pylibmc.__version__)
-    logger.info("support compression: %s", _pylibmc.support_compression)
-    logger.info("support sasl auth: %s", _pylibmc.support_sasl)
 
-class PylibmcVersionDumper(Plugin):
+class PylibmcPlugin(Plugin):
     name = "info"
     enableOpt = "info"
 
@@ -40,7 +41,9 @@ class PylibmcVersionDumper(Plugin):
         Plugin.__init__(self)
 
     def begin(self):
-        dump_infos()
+        hack_sys_path()
+        from pylibmc import build_info
+        logger.info("testing %s", build_info())
 
 if __name__ == "__main__":
-    nose.main(addplugins=[PylibmcVersionDumper()])
+    nose.main(addplugins=[PylibmcPlugin()])

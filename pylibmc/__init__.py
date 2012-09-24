@@ -72,9 +72,18 @@ from .consts import hashers, distributions
 from .client import Client
 from .pools import ClientPool, ThreadMappedPool
 
+libmemcached_version = _pylibmc.libmemcached_version
 support_compression = _pylibmc.support_compression
 support_sasl = _pylibmc.support_sasl
 
 __version__ = _pylibmc.__version__
+
+def build_info():
+    return ("pylibmc %s for libmemcached %s (compression=%s, sasl=%s)"
+            % (__version__,
+               libmemcached_version,
+               support_compression,
+               support_sasl))
+
 __all__ = ["hashers", "distributions", "Client",
            "ClientPool", "ThreadMappedPool"]
