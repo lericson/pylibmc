@@ -73,7 +73,7 @@ cflags = ["-fno-strict-aliasing", ]
 
 ## Extension definitions
 
-pylibmc_ext = Extension("_pylibmc", ["_pylibmcmodule.c"],
+pylibmc_ext = Extension("_pylibmc", ["src/_pylibmcmodule.c"],
                         libraries=libs, include_dirs=incdirs,
                         library_dirs=libdirs, define_macros=defs,
                         extra_compile_args=cflags)
@@ -90,7 +90,7 @@ if cmd == "gen-setup":
     sys.exit(0)
 
 readme_text = open("README.rst", "U").read()
-version = open("pylibmc-version.h", "U").read().strip().split("\"")[1]
+version = open("src/pylibmc-version.h", "U").read().strip().split("\"")[1]
 
 setup(name="pylibmc", version=version,
       url="http://sendapatch.se/projects/pylibmc/",
@@ -98,4 +98,6 @@ setup(name="pylibmc", version=version,
       license="3-clause BSD <http://www.opensource.org/licenses/bsd-license.php>",
       description="Quick and small memcached client for Python",
       long_description=readme_text,
-      ext_modules=[pylibmc_ext], packages=["pylibmc"])
+      ext_modules=[pylibmc_ext],
+      package_dir={'': 'src'},
+      packages=['pylibmc'])
