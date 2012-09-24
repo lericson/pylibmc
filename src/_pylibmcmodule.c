@@ -1257,9 +1257,7 @@ static bool _PylibMC_IncrDecr(PylibMC_Client *self,
 }
 /* }}} */
 
-memcached_return pylibmc_memcached_fetch_multi(
-        memcached_st *mc, char **keys, size_t nkeys, size_t *key_lens,
-        memcached_result_st **results, size_t *nresults, char **err_func) {
+memcached_return pylibmc_memcached_fetch_multi(memcached_st *mc, pylibmc_mget_req req) {
     /**
      * Completely GIL-free multi getter
      *
@@ -1275,27 +1273,27 @@ memcached_return pylibmc_memcached_fetch_multi(
      */
 
     memcached_return rc;
-    *err_func = NULL;
+    *req.err_func = NULL;
 
-    rc = memcached_mget(mc, (const char **)keys, key_lens, nkeys);
+    rc = memcached_mget(mc, (const char **)req.keys, req.key_lens, req.nkeys);
 
     if (rc != MEMCACHED_SUCCESS) {
-        *err_func = "memcached_mget";
+        *req.err_func = "memcached_mget";
         return rc;
     }
 
     /* Allocate as much as could possibly be needed, and an extra because of
      * how libmemcached signals EOF. */
-    *results = PyMem_New(memcached_result_st, nkeys + 1);
+    *req.results = PyMem_New(memcached_result_st, req.nkeys + 1);
 
     /* Note that nresults will not be off by one with this because the loops
      * runs a half pass after the last key has been fetched, thus bumping the
      * count once. */
-    for (*nresults = 0; ; (*nresults)++) {
-        memcached_result_st *res = memcached_result_create(mc, *results + *nresults);
+    for (*req.nresults = 0; ; (*req.nresults)++) {
+        memcached_result_st *res = memcached_result_create(mc, *req.results + *req.nresults);
 
         /* if loop spins out of control, this fails */
-        assert(nkeys >= (*nresults));
+        assert(nkeys >= (*req.nresults));
 
         res = memcached_fetch_result(mc, res, &rc);
 
@@ -1307,16 +1305,16 @@ memcached_return pylibmc_memcached_fetch_multi(
             continue;
         } else if (rc != MEMCACHED_SUCCESS) {
             memcached_quit(mc);  /* Reset fetch state */
-            *err_func = "memcached_fetch";
+            *req.err_func = "memcached_fetch";
 
             /* Clean-up procedure */
             do {
-                memcached_result_free(*results + *nresults);
-            } while ((*nresults)--);
+                memcached_result_free(*req.results + *req.nresults);
+            } while ((*req.nresults)--);
 
-            PyMem_Free(*results);
-            *results = NULL;
-            *nresults = 0;
+            PyMem_Free(*req.results);
+            *req.results = NULL;
+            *req.nresults = 0;
 
             return rc;
         }
@@ -1424,10 +1422,10 @@ static PyObject *PylibMC_Client_get_multi(
      * worth it.)
      */
     Py_BEGIN_ALLOW_THREADS;
-    rc = pylibmc_memcached_fetch_multi(self->mc,
-                                       keys, nkeys, key_lens,
-                                       &results, &nresults,
-                                       &err_func);
+
+    pylibmc_mget_req req = { keys, nkeys, key_lens, &results, &nresults, &err_func };
+    rc = pylibmc_memcached_fetch_multi(self->mc, req);
+
     Py_END_ALLOW_THREADS;
 
     if (rc != MEMCACHED_SUCCESS) {

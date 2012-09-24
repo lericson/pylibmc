@@ -98,6 +98,16 @@ typedef struct {
 } pylibmc_mset;
 
 typedef struct {
+  char **keys;
+  size_t nkeys;
+  size_t *key_lens;
+  memcached_result_st **results;
+  size_t *nresults;
+  char **err_func;
+  PyObject *transform;
+} pylibmc_mget_req;
+
+typedef struct {
   char* key;
   Py_ssize_t key_len;
   _PylibMC_IncrCommand incr_func;
@@ -106,11 +116,11 @@ typedef struct {
 } pylibmc_incr;
 
 typedef struct {
-    PyObject *self;
-    PyObject *retval;
-    memcached_server_st *servers;  /* DEPRECATED */
-    memcached_stat_st *stats;
-    int index;
+  PyObject *self;
+  PyObject *retval;
+  memcached_server_st *servers;  /* DEPRECATED */
+  memcached_stat_st *stats;
+  int index;
 } _PylibMC_StatsContext;
 
 /* {{{ Exceptions */
