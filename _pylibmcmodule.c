@@ -367,8 +367,8 @@ error:
 #endif
 /* }}} */
 
-static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
-        uint32_t flags) {
+static PyObject *_PylibMC_parse_memcached_value(PylibMC_Client *self,
+        char *value, size_t size, uint32_t flags) {
     PyObject *retval = NULL;
     PyObject *tmp = NULL;
     uint32_t dtype = flags & PYLIBMC_FLAG_TYPES;
@@ -394,7 +394,7 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
 
     switch (dtype) {
         case PYLIBMC_FLAG_PICKLE:
-            retval = _PylibMC_Unpickle(value, size);
+            retval = PyObject_CallMethod((PyObject *)self, "deserialize", "s#", value, size);
             break;
         case PYLIBMC_FLAG_INTEGER:
         case PYLIBMC_FLAG_LONG:
@@ -432,8 +432,9 @@ cleanup:
     return retval;
 }
 
-static PyObject *_PylibMC_parse_memcached_result(memcached_result_st *res) {
-        return _PylibMC_parse_memcached_value((char *)memcached_result_value(res),
+static PyObject *_PylibMC_parse_memcached_result(PylibMC_Client *self, memcached_result_st *res) {
+        return _PylibMC_parse_memcached_value(self,
+                                              (char *)memcached_result_value(res),
                                               memcached_result_length(res),
                                               memcached_result_flags(res));
 }
@@ -458,8 +459,13 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
     Py_END_ALLOW_THREADS;
 
     if (mc_val != NULL) {
-        PyObject *r = _PylibMC_parse_memcached_value(mc_val, val_size, flags);
+        PyObject *r = _PylibMC_parse_memcached_value(self, mc_val, val_size, flags);
         free(mc_val);
+        if (r == NULL && PyErr_Occurred() && PyErr_ExceptionMatches(PylibMCExc_CacheMiss)) {
+            /* Since python-memcache returns None when the key doesn't exist,
+             * so shall we. */
+            Py_RETURN_NONE;
+        };
         return r;
     } else if (error == MEMCACHED_SUCCESS) {
         /* This happens for empty values, and so we fake an empty string. */
@@ -508,7 +514,7 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
 
     if (rc == MEMCACHED_SUCCESS && res != NULL) {
         ret = Py_BuildValue("(NL)",
-                            _PylibMC_parse_memcached_result(res),
+                            _PylibMC_parse_memcached_result(self, res),
                             memcached_result_cas(res));
 
         /* we have to fetch the last result from the mget cursor */
@@ -1407,9 +1413,15 @@ static PyObject *PylibMC_Client_get_multi(
             goto unpack_error;
 
         /* Parse out value */
-        val = _PylibMC_parse_memcached_result(res);
-        if (val == NULL)
-            goto unpack_error;
+        val = _PylibMC_parse_memcached_result(self, res);
+        if (val == NULL) {
+            if (PyErr_Occurred() && PyErr_ExceptionMatches(PylibMCExc_CacheMiss)) {
+                Py_DECREF(key_obj);
+                continue;
+            } else {
+                goto unpack_error;
+            }
+        }
 
         rc = PyDict_SetItem(retval, key_obj, val);
         Py_DECREF(key_obj);
@@ -1926,14 +1938,14 @@ static PyObject *_PylibMC_GetPickles(const char *attname) {
     return pickle_attr;
 }
 
-static PyObject *_PylibMC_Unpickle(const char *buff, size_t size) {
+static PyObject *PylibMC_Client_deserialize(PylibMC_Client *self, PyObject *arg) {
     PyObject *pickle_load;
     PyObject *retval = NULL;
 
     retval = NULL;
     pickle_load = _PylibMC_GetPickles("loads");
     if (pickle_load != NULL) {
-        retval = PyObject_CallFunction(pickle_load, "s#", buff, size);
+        retval = PyObject_CallFunctionObjArgs(pickle_load, arg, NULL);
         Py_DECREF(pickle_load);
     }
 
@@ -2049,10 +2061,14 @@ static void _make_excs(PyObject *module) {
 
     PylibMCExc_MemcachedError = PyErr_NewException(
             "_pylibmc.MemcachedError", NULL, NULL);
+    PylibMCExc_CacheMiss = PyErr_NewException(
+            "_pylibmc.CacheMiss", NULL, NULL);
 
     exc_objs = PyList_New(0);
     PyList_Append(exc_objs,
         Py_BuildValue("sO", "Error", (PyObject *)PylibMCExc_MemcachedError));
+    PyList_Append(exc_objs,
+        Py_BuildValue("sO", "CacheMiss", (PyObject *)PylibMCExc_CacheMiss));
 
     for (err = PylibMCExc_mc_errs; err->name != NULL; err++) {
         char excnam[64];
@@ -2066,6 +2082,8 @@ static void _make_excs(PyObject *module) {
 
     PyModule_AddObject(module, "MemcachedError",
                        (PyObject *)PylibMCExc_MemcachedError);
+    PyModule_AddObject(module, "CacheMiss",
+                       (PyObject *)PylibMCExc_CacheMiss);
     PyModule_AddObject(module, "exceptions", exc_objs);
 }
 
@@ -2159,3 +2177,5 @@ by using comma-separation. Good luck with that.\n");
 
     _make_behavior_consts(module);
 }
+
+// vim:et:sts=4:sw=4:
