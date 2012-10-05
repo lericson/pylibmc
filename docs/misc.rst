@@ -31,6 +31,9 @@ When setting huge key values, i.e. around 1MB, will have :mod:`pylibmc`
 complain loudly whereas ``python-memcached`` simply ignores the error and
 returns.
 
+pylibmc.Client is *not* threadsafe like python-memcached's Client class (which
+is threadlocal).
+
 .. _exceptions:
 
 Exceptions
