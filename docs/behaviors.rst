@@ -57,11 +57,6 @@ libmemcached behavior constants.
    connection. Quiting the connection or closing down the connection will also
    cause the buffered data to be pushed to the remote connection.
 
-.. _cache_lookups:
-
-``"cache_lookups"``
-   Enables the named lookups cache, so that DNS lookups are made only once.
-
 .. _no_block:
 
 ``"no_block"``
