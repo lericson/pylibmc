@@ -1,5 +1,5 @@
-The List of Honored Men
-=======================
+The List of Honored People
+==========================
 
 * Ludvig Ericson <ludvig@lericson.se>
 * ketralnis <ketralnis@reddit.com>
