@@ -464,6 +464,7 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
         if (r == NULL && PyErr_Occurred() && PyErr_ExceptionMatches(PylibMCExc_CacheMiss)) {
             /* Since python-memcache returns None when the key doesn't exist,
              * so shall we. */
+            PyErr_Clear();
             Py_RETURN_NONE;
         };
         return r;
@@ -1417,6 +1418,7 @@ static PyObject *PylibMC_Client_get_multi(
         if (val == NULL) {
             if (PyErr_Occurred() && PyErr_ExceptionMatches(PylibMCExc_CacheMiss)) {
                 Py_DECREF(key_obj);
+                PyErr_Clear();
                 continue;
             } else {
                 goto unpack_error;
