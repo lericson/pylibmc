@@ -57,11 +57,6 @@ libmemcached behavior constants.
    connection. Quiting the connection or closing down the connection will also
    cause the buffered data to be pushed to the remote connection.
 
-.. _cache_lookups:
-
-``"cache_lookups"``
-   Enables the named lookups cache, so that DNS lookups are made only once.
-
 .. _no_block:
 
 ``"no_block"``
@@ -125,7 +120,7 @@ libmemcached behavior constants.
 
 ``"remove_failed"``
    Remove a server from the server list after operations on it have failed for
-   the specified number of times in a row. See the `section on failover <failover>`.
+   the specified number of times in a row. See the section on Failover_.
 
 .. _failure_limit:
 

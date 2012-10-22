@@ -98,6 +98,7 @@ Further Reading
    pooling
    behaviors
    misc
+   coders
 
 Links and resources
 ===================
