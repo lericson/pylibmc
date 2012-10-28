@@ -3,7 +3,7 @@ The List of Honored People
 
 * Ludvig Ericson <ludvig@lericson.se>
 * ketralnis <ketralnis@reddit.com>
-* Ruda Moura <ruda.moura@corp.terra.com.br>
+* Rudá Moura <ruda.moura@gmail.com>
 * Noah Silas <noah@mahalo.com>
 * Johan Bergström <johan@bergstroem.nu>
 * Andrew McFague <amcfague@wgen.net>
