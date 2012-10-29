@@ -1,5 +1,7 @@
 .. currentmodule:: pylibmc.pools
 
+.. _pooling:
+
 =========
  Pooling 
 =========

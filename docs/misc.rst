@@ -78,5 +78,5 @@ A single connection instance is *not* thread-safe. That is to say, you'll
 probably wind up dissynchronizing server and client if you use the same
 connection in many threads simultaneously.
 
-Instead, one is encouraged to use the existing provisions to that end, for now,
-see the inline code documentation (esp. ``pydoc pylibmc.ThreadMappedPool``)
+It is encouraged to use the existing provisions for pooling so as to avoid
+reusing the same client in many threads. See :ref:`the docs on pooling <pooling>`.
