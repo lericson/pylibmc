@@ -236,16 +236,21 @@ static PylibMC_Behavior PylibMC_hashers[] = {
     { MEMCACHED_HASH_FNV1_32, "fnv1_32" },
     { MEMCACHED_HASH_FNV1A_32, "fnv1a_32" },
     { MEMCACHED_HASH_MURMUR, "murmur" },
-#ifdef MEMCACHED_HASH_HSIEH
     { MEMCACHED_HASH_HSIEH, "hsieh" },
-#endif
+    { MEMCACHED_HASH_MURMUR, "murmur" },
+    { MEMCACHED_HASH_JENKINS, "jenkins" },
     { 0, NULL }
 };
 
 static PylibMC_Behavior PylibMC_distributions[] = {
     { MEMCACHED_DISTRIBUTION_MODULA, "modula" },
     { MEMCACHED_DISTRIBUTION_CONSISTENT, "consistent" },
+    { MEMCACHED_DISTRIBUTION_CONSISTENT_WEIGHTED, "consistent_weighted" },
     { MEMCACHED_DISTRIBUTION_CONSISTENT_KETAMA, "consistent_ketama" },
+    { MEMCACHED_DISTRIBUTION_CONSISTENT_KETAMA_SPY, "consistent_ketama_spy" },
+    { MEMCACHED_DISTRIBUTION_RANDOM, "random" },
+    { MEMCACHED_DISTRIBUTION_VIRTUAL_BUCKET, "virtual_bucket" },
+    { MEMCACHED_DISTRIBUTION_CONSISTENT_MAX, "consistent_max" },
     { 0, NULL }
 };
 /* }}} */
