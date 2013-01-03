@@ -594,15 +594,15 @@ cleanup:
     }
 }
 
-static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client* self,
-        _PylibMC_SetCommand f, char *fname, PyObject* args,
-        PyObject* kwds) {
+static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
+        _PylibMC_SetCommand f, char *fname, PyObject *args,
+        PyObject *kwds) {
     /* function called by the set/add/incr/etc commands */
-    PyObject* keys = NULL;
-    PyObject* key_prefix = NULL;
+    PyObject *keys = NULL;
+    PyObject *key_prefix = NULL;
     unsigned int time = 0;
     unsigned int min_compress = 0;
-    PyObject * retval = NULL;
+    PyObject *retval = NULL;
     size_t idx = 0;
 
     static char *kws[] = { "keys", "time", "key_prefix", "min_compress_len", NULL };

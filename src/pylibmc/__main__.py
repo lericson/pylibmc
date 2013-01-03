@@ -7,9 +7,7 @@ import pylibmc
 
 tips = [
     "Want to use 127.0.0.1? Just hit Enter immediately.",
-    "This was supposed to be a list of tips but I...",
-    "I don't really know what to write here.",
-    "Really, hit Enter immediately and you'll connect to 127.0.0.1.",
+    "Hit Enter immediately and you'll connect to 127.0.0.1.",
     "Did you know there's a --binary flag? Try it!",
     "Want to use binary mode? Pass --binary as a sole argument."
 ]
