@@ -68,24 +68,37 @@ benchmarks = [
 ]
 
 def bench(mc):
-    ctx = type('Context', (object,), {
-        'mc': mc,
-        'logger': logger,
-        'bench_time': 10.0
-    })
-    for (name, (f, a, k)) in benchmarks:
-        logger.info('benchmarking %s', name)
-        sw = Stopwatch()
-        while sw.total() < ctx.bench_time:
-            with sw.timing():
-                f(ctx, *a, **k)
-        logger.info('%.2f benches per second average', 1.0 / sw.avg())
+    behavior_sets = [
+        {'name':        'default'},
+
+        {'name':        'fast',
+         'tcp_nodelay': True,
+         'verify_keys': False,
+         'hash':        'crc',
+         'distribution': 'consistent',
+         'no_block':    True}
+    ]
+
+    for behaviors in behavior_sets:
+        logger.info('using behavior set %s', behaviors.pop('name'))
+        ctx = type('Context', (object,), {
+            'mc': mc(behaviors=behaviors),
+            'logger': logger,
+            'bench_time': 10.0
+        })
+        for (name, (f, a, k)) in benchmarks:
+            logger.info('benchmarking %s', name)
+            sw = Stopwatch()
+            while sw.total() < ctx.bench_time:
+                with sw.timing():
+                    f(ctx, *a, **k)
+            logger.info('%.2f benches per second average', 1.0 / sw.avg())
 
 def main(args=sys.argv[1:]):
     from pylibmc import build_info
     from pylibmc.test import make_test_client
     logger.info('benching %s', build_info())
-    bench(make_test_client())
+    bench(make_test_client)
 
 if __name__ == "__main__":
     sys.path.insert(0, build_lib_dirname())
