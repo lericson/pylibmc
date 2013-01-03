@@ -66,7 +66,7 @@
       bytes stored in memcached before compression is used. Default behavior is
       to never compress (which is what ``0`` means). See :ref:`compression`.
 
-   .. method:: set_multi(mapping, [, time=0, key_prefix=None]) -> failed_keys
+   .. method:: set_multi(mapping[, time=0, key_prefix=None, min_compress_len=0]) -> failed_keys
 
       Set multiple keys as given by *mapping*.
 
