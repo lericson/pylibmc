@@ -45,7 +45,7 @@ def benchmark_method(f):
 
 @benchmark_method
 def bench_get_set(ctx, key, data):
-    if not ctx.mc.set(key, data):
+    if not ctx.mc.set(key, data, min_compress_len=4001):
         ctx.logger.warn('set(%r, ...) fail', key)
     if ctx.mc.get(key) != data:
         ctx.logger.warn('get(%r) fail', key)
@@ -63,7 +63,8 @@ complex_data_type = ([], {}, __import__('fractions').Fraction(3, 4))
 benchmarks = [
     bench_get_set('small i/o', 'abc', 'all work no play jack is a dull boy'),
     bench_get_set_multi('small multi i/o', ('abc', 'def', 'ghi', 'kjl')),
-    bench_get_set('4k i/o', 'abc' * 8, 'defb' * 1000),
+    bench_get_set('4k uncompressed i/o', 'abc' * 8, 'defb' * 1000),
+    bench_get_set('4k compressed i/o', 'abc' * 8, 'a' + 'defb' * 1000),
     bench_get_set('complex i/o', 'abc', complex_data_type),
 ]
 
