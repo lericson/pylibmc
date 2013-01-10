@@ -1293,7 +1293,7 @@ memcached_return pylibmc_memcached_fetch_multi(memcached_st *mc, pylibmc_mget_re
         memcached_result_st *res = memcached_result_create(mc, *req.results + *req.nresults);
 
         /* if loop spins out of control, this fails */
-        assert(nkeys >= (*req.nresults));
+        assert(req.nkeys >= (*req.nresults));
 
         res = memcached_fetch_result(mc, res, &rc);
 
