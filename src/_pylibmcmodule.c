@@ -1787,7 +1787,11 @@ _PylibMC_AddServerCallback(memcached_st *mc,
     free(stat_keys);
 
     desc = PyString_FromFormat("%s:%d (%u)",
+#if LIBMEMCACHED_VERSION_HEX >= 0x00039000 
+            memcached_server_name(server), memcached_server_port(server),
+#else /* ver < libmemcached 0.39 */
             server->hostname, server->port,
+#endif
             (unsigned int)context->index);
 
     PyList_SET_ITEM(context->retval, context->index++,
