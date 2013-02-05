@@ -1743,7 +1743,11 @@ error:
 
 static memcached_return
 _PylibMC_AddServerCallback(memcached_st *mc,
+#if LIBMEMCACHED_VERSION_HEX >= 0x00039000
+                           memcached_server_instance_st instance,
+#else
                            memcached_server_st *server,
+#endif
                            void *user) {
     _PylibMC_StatsContext *context = (_PylibMC_StatsContext *)user;
     PylibMC_Client *self = (PylibMC_Client *)context->self;
@@ -1787,7 +1791,11 @@ _PylibMC_AddServerCallback(memcached_st *mc,
     free(stat_keys);
 
     desc = PyString_FromFormat("%s:%d (%u)",
+#if LIBMEMCACHED_VERSION_HEX >= 0x00039000 
+            memcached_server_name(instance), memcached_server_port(instance),
+#else /* ver < libmemcached 0.39 */
             server->hostname, server->port,
+#endif
             (unsigned int)context->index);
 
     PyList_SET_ITEM(context->retval, context->index++,
