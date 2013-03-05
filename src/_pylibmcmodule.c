@@ -649,6 +649,8 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
 
         if (!success || PyErr_Occurred() != NULL) {
             /* exception should already be on the stack */
+            /* free only the object we have allocated */
+            nkeys = idx + 1;
             goto cleanup;
         }
     }
