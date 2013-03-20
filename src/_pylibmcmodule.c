@@ -83,18 +83,22 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
     PyObject *srvs, *srvs_it, *c_srv;
     unsigned char set_stype = 0, bin = 0, got_server = 0;
     const char *user = NULL, *pass = NULL;
+    int max_value_size;
     memcached_return rc;
 
-    static char *kws[] = { "servers", "binary", "username", "password", NULL };
+    static char *kws[] = { "servers", "binary", "username", "password", "max_value_size", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|bzz", kws,
-                                     &srvs, &bin, &user, &pass)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|bzzi", kws,
+                                     &srvs, &bin, &user, &pass,
+                                     &max_value_size)) {
         return -1;
     }
 
     if ((srvs_it = PyObject_GetIter(srvs)) == NULL) {
         return -1;
     }
+
+    self->max_value_size = max_value_size;
 
     /* setup sasl */
     if (user != NULL || pass != NULL) {
@@ -929,6 +933,8 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
         if (mset->key_len == 0) {
             /* Most other implementations ignore zero-length keys, so
                we'll just do that */
+            rc = MEMCACHED_NOTSTORED;
+        } else if(self->max_value_size && self->max_value_size <= (int) value_len) {
             rc = MEMCACHED_NOTSTORED;
         } else {
             rc = f(mc, mset->key, mset->key_len,
