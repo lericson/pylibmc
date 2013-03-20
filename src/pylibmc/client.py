@@ -87,7 +87,7 @@ def translate_server_specs(servers):
 
 class Client(_pylibmc.client):
     def __init__(self, servers, behaviors=None, binary=False,
-                 username=None, password=None):
+                 username=None, password=None, max_value_size=None):
         """Initialize a memcached client instance.
 
         This connects to the servers in *servers*, which will default to being
@@ -104,7 +104,7 @@ class Client(_pylibmc.client):
         self.addresses = list(servers)
         super(Client, self).__init__(servers=translate_server_specs(servers),
                                      binary=binary, username=username,
-                                     password=password)
+                                     password=password, max_value_size=max_value_size)
         if behaviors is not None:
             self.set_behaviors(behaviors)
 

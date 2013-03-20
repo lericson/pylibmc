@@ -260,6 +260,7 @@ typedef struct {
     PyObject_HEAD
     memcached_st *mc;
     uint8_t sasl_set;
+    int max_value_size;
 } PylibMC_Client;
 
 /* {{{ Prototypes */
