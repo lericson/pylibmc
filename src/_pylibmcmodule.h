@@ -70,6 +70,12 @@ typedef ssize_t Py_ssize_t;
                               PYLIBMC_FLAG_LONG | PYLIBMC_FLAG_BOOL)
 /* Modifier flags */
 #define PYLIBMC_FLAG_ZLIB    (1 << 3)
+
+/* Python 3 stuff */
+#ifndef PyVarObject_HEAD_INIT
+#define PyVarObject_HEAD_INIT(type, size)       \
+    PyObject_HEAD_INIT(type) size,
+#endif
 /* }}} */
 
 typedef memcached_return (*_PylibMC_SetCommand)(memcached_st *, const char *,
@@ -389,48 +395,46 @@ static PyMethodDef PylibMC_ClientType_methods[] = {
 
 /* {{{ Type def */
 static PyTypeObject PylibMC_ClientType = {
-    PyObject_HEAD_INIT(NULL)
-    0,
-    "client",
-    sizeof(PylibMC_Client),
-    0,
-    (destructor)PylibMC_ClientType_dealloc,
-
-    0,
-    0,
-    0,
-    0,
-    0,
-
-    0,
-    0,
-    0,
-
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-    "memcached client type",
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    PylibMC_ClientType_methods,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    (initproc)PylibMC_Client_init,
-    0,
-    (newfunc)PylibMC_ClientType_new, //PyType_GenericNew,
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "client",                   /* tp_name */
+    sizeof(PylibMC_Client),     /* tp_basicsize */
+    0,                          /* tp_itemsize */
+    (destructor)PylibMC_ClientType_dealloc, /* tp_dealloc */
+    0,                          /* tp_print */
+    0,                          /* tp_getattr */
+    0,                          /* tp_setattr */
+    0,                          /* tp_reserved */
+    0,                          /* tp_repr */
+    0,                          /* tp_as_number */
+    0,                          /* tp_as_sequence */
+    0,                          /* tp_as_mapping */
+    0,                          /* tp_hash  */
+    0,                          /* tp_call */
+    0,                          /* tp_str */
+    0,                          /* tp_getattro */
+    0,                          /* tp_setattro */
+    0,                          /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT |
+    Py_TPFLAGS_BASETYPE,        /* tp_flags */
+    "memcached client type",    /* tp_doc */
+    0,		                    /* tp_traverse */
+    0,		                    /* tp_clear */
+    0,		                    /* tp_richcompare */
+    0,		                    /* tp_weaklistoffset */
+    0,		                    /* tp_iter */
+    0,		                    /* tp_iternext */
+    PylibMC_ClientType_methods, /* tp_methods */
+    0,                          /* tp_members */
+    0,                          /* tp_getset */
+    0,                          /* tp_base */
+    0,                          /* tp_dict */
+    0,                          /* tp_descr_get */
+    0,                          /* tp_descr_set */
+    0,                          /* tp_dictoffset */
+    (initproc)PylibMC_Client_init,      /* tp_init */
+    0,                          /* tp_alloc */
+    (newfunc)PylibMC_ClientType_new, //PyType_GenericNew,     /* tp_new */
+#if PY_MAJOR_VERSION < 3
     0,
     0,
     0,
@@ -439,6 +443,7 @@ static PyTypeObject PylibMC_ClientType = {
     0,
     0,
     0
+#endif
 };
 
 /* }}} */
