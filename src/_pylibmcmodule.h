@@ -224,7 +224,11 @@ static PylibMC_Behavior PylibMC_behaviors[] = {
 };
 
 static PylibMC_Behavior PylibMC_callbacks[] = {
+#ifdef MEMCACHED_CALLBACK_NAMESPACE
     { MEMCACHED_CALLBACK_NAMESPACE, "namespace" },
+#else
+    { MEMCACHED_CALLBACK_PREFIX_KEY, "namespace" },
+#endif
     { 0, NULL }
 };
 static PylibMC_Behavior PylibMC_hashers[] = {
