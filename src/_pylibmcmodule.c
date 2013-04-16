@@ -220,7 +220,8 @@ error:
 /* {{{ Compression helpers */
 #ifdef USE_ZLIB
 static int _PylibMC_Deflate(char *value, size_t value_len,
-                    char **result, size_t *result_len) {
+                    char **result, size_t *result_len,
+                    int compress_level) {
     /* FIXME Failures are entirely silent. */
     int rc;
 
@@ -248,8 +249,7 @@ static int _PylibMC_Deflate(char *value, size_t value_len,
     strm.zalloc = (alloc_func)NULL;
     strm.zfree = (free_func)Z_NULL;
 
-    /* TODO Expose compression level somehow. */
-    if (deflateInit((z_streamp)&strm, Z_BEST_SPEED) != Z_OK) {
+    if (deflateInit((z_streamp)&strm, compress_level) != Z_OK) {
         goto error;
     }
 
@@ -551,20 +551,31 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
         _PylibMC_SetCommand f, char *fname, PyObject *args,
         PyObject *kwds) {
     /* function called by the set/add/etc commands */
-    static char *kws[] = { "key", "val", "time", "min_compress_len", NULL };
+    static char *kws[] = { "key", "val", "time",
+                           "min_compress_len", "compress_level",
+                           NULL };
     PyObject *key;
     PyObject *value;
     unsigned int time = 0; /* this will be turned into a time_t */
     unsigned int min_compress = 0;
+    int compress_level = -1;
+
     bool success = false;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "SO|II", kws,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "SO|IIi", kws,
                                      &key, &value,
-                                     &time, &min_compress)) {
+                                     &time, &min_compress, &compress_level)) {
       return NULL;
     }
 
-#ifndef USE_ZLIB
+#ifdef USE_ZLIB
+    if (compress_level == -1) {
+        compress_level = Z_BEST_SPEED; /* maintain the old default */
+    } else if (compress_level < 0 || compress_level > 9) {
+        PyErr_SetString(PyExc_ValueError, "compress_level must be between 0 and 9 inclusive");
+        return NULL;
+    }
+#else
     if (min_compress) {
       PyErr_SetString(PyExc_TypeError, "min_compress_len without zlib");
       return NULL;
@@ -580,7 +591,7 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
 
     success = _PylibMC_RunSetCommand(self, f, fname,
                                      &serialized, 1,
-                                     min_compress);
+                                     min_compress, compress_level);
 
 cleanup:
     _PylibMC_FreeMset(&serialized);
@@ -602,22 +613,32 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
     PyObject *key_prefix = NULL;
     unsigned int time = 0;
     unsigned int min_compress = 0;
+    int compress_level = -1;
     PyObject *retval = NULL;
     size_t idx = 0;
 
-    static char *kws[] = { "keys", "time", "key_prefix", "min_compress_len", NULL };
+    static char *kws[] = { "keys", "time", "key_prefix",
+                           "min_compress_len", "compress_level",
+                           NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|ISI", kws,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|ISIi", kws,
                                      &PyDict_Type, &keys,
                                      &time, &key_prefix,
-                                     &min_compress)) {
+                                     &min_compress, &compress_level)) {
         return NULL;
     }
 
-#ifndef USE_ZLIB
-    if (min_compress) {
-        PyErr_SetString(PyExc_TypeError, "min_compress_len without zlib");
+#ifdef USE_ZLIB
+    if (compress_level == -1) {
+        compress_level = Z_BEST_SPEED; /* maintain the old default */
+    } else if (compress_level < 0 || compress_level > 9) {
+        PyErr_SetString(PyExc_ValueError, "compress_level must be between 0 and 9 inclusive");
         return NULL;
+    }
+#else
+    if (min_compress) {
+      PyErr_SetString(PyExc_TypeError, "min_compress_len without zlib");
+      return NULL;
     }
 #endif
 
@@ -662,7 +683,7 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
 
     bool allsuccess = _PylibMC_RunSetCommand(self, f, fname,
                                              serialized, nkeys,
-                                             min_compress);
+                                             min_compress, compress_level);
 
     if (PyErr_Occurred() != NULL) {
         goto cleanup;
@@ -889,7 +910,8 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
 static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
                                    _PylibMC_SetCommand f, char *fname,
                                    pylibmc_mset* msets, size_t nkeys,
-                                   size_t min_compress) {
+                                   size_t min_compress,
+                                   int compress_level) {
     memcached_st *mc = self->mc;
     memcached_return rc = MEMCACHED_SUCCESS;
     int pos;
@@ -912,7 +934,8 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
         if (min_compress && value_len >= min_compress) {
             Py_BLOCK_THREADS;
             _PylibMC_Deflate(value, value_len,
-                             &compressed_value, &compressed_len);
+                             &compressed_value, &compressed_len,
+                             compress_level);
             Py_UNBLOCK_THREADS;
         }
 

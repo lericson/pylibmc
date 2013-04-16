@@ -316,9 +316,11 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
 static bool _PylibMC_RunSetCommand(PylibMC_Client *self,
                                    _PylibMC_SetCommand f, char *fname,
                                    pylibmc_mset *msets, size_t nkeys,
-                                   size_t min_compress);
+                                   size_t min_compress,
+                                   int compress_level);
 static int _PylibMC_Deflate(char *value, size_t value_len,
-                            char **result, size_t *result_len);
+                            char **result, size_t *result_len,
+                            int compress_level);
 static bool _PylibMC_IncrDecr(PylibMC_Client *, pylibmc_incr *, size_t);
 
 /* }}} */
