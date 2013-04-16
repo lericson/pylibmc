@@ -1,1 +1,1 @@
-#define PYLIBMC_VERSION "1.3.99-dev"
+#define PYLIBMC_VERSION "1.3.100-dev"

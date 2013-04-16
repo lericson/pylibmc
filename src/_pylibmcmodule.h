@@ -3,21 +3,21 @@
  *
  * Copyright (c) 2008, Ludvig Ericson
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *  this list of conditions and the following disclaimer.
- * 
+ *
  *  - Redistributions in binary form must reproduce the above copyright notice,
  *  this list of conditions and the following disclaimer in the documentation
  *  and/or other materials provided with the distribution.
- * 
+ *
  *  - Neither the name of the author nor the names of the contributors may be
  *  used to endorse or promote products derived from this software without
  *  specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -224,7 +224,11 @@ static PylibMC_Behavior PylibMC_behaviors[] = {
 };
 
 static PylibMC_Behavior PylibMC_callbacks[] = {
+#ifdef MEMCACHED_CALLBACK_NAMESPACE
     { MEMCACHED_CALLBACK_NAMESPACE, "namespace" },
+#else
+    { MEMCACHED_CALLBACK_PREFIX_KEY, "namespace" },
+#endif
     { 0, NULL }
 };
 static PylibMC_Behavior PylibMC_hashers[] = {
@@ -312,9 +316,11 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
 static bool _PylibMC_RunSetCommand(PylibMC_Client *self,
                                    _PylibMC_SetCommand f, char *fname,
                                    pylibmc_mset *msets, size_t nkeys,
-                                   size_t min_compress);
+                                   size_t min_compress,
+                                   int compress_level);
 static int _PylibMC_Deflate(char *value, size_t value_len,
-                            char **result, size_t *result_len);
+                            char **result, size_t *result_len,
+                            int compress_level);
 static bool _PylibMC_IncrDecr(PylibMC_Client *, pylibmc_incr *, size_t);
 
 /* }}} */
