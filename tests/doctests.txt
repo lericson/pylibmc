@@ -273,3 +273,19 @@ Gets should return (None, None) for non-existing keys
 (None, None)
 >>> c.gets('non_existing_key')
 (None, None)
+
+Compression shouldn't break anything
+>>> c = make_test_client(_pylibmc.client, binary=True)
+Try to go over the 1mb object size limit, but compress so that we don't
+>>> c.set('foo', 'a'*(1024*1024+1), min_compress_len=1)
+>>> c.set('foo', 'a'*(1024*1024+1), min_compress_len=1, compress_level=1)
+>>> c.set('foo', 'a'*(1024*1024+1), min_compress_len=1, compress_level=9)
+>>> c.set('foo', 'abc', min_compress_len=1, compress_level=9)
+>>> c.get('foo')
+'abc'
+>>> c.set_multi({'a': 20, 'b': '*'*500}, min_compress_len=1)
+[]
+>>> c.set_multi({'a': 20, 'b': '*'*500}, min_compress_len=1, compress_level=1)
+[]
+>>> c.set_multi({'a': 20, 'b': '*'*500}, min_compress_len=1, compress_level=9)
+[]
