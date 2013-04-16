@@ -1040,8 +1040,8 @@ static PyObject *PylibMC_Client_delete(PylibMC_Client *self, PyObject *args) {
     return NULL;
 }
 
-#if LIBMEMCACHED_VERSION_HEX >= 0x01000002
 static PyObject *PylibMC_Client_touch(PylibMC_Client *self, PyObject *args) {
+#if LIBMEMCACHED_VERSION_HEX >= 0x01000002
     char *key;
     long seconds;
     int key_len;
@@ -1067,8 +1067,13 @@ static PyObject *PylibMC_Client_touch(PylibMC_Client *self, PyObject *args) {
     }
 
     return NULL;
-}
+#else
+    PyErr_Format(PylibMCExc_MemcachedError,
+                 "memcached_touch isn't available; upgrade libmemcached to >= 1.0.2");
+    return NULL;
 #endif
+}
+
 
 
 /* {{{ Increment & decrement */
