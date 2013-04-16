@@ -37,10 +37,7 @@
 #  define ZLIB_BUFSZ (1 << 14)
 /* only release the GIL during inflate if the size of the data
    is greater than this (deflate always releases at present) */
-#  define ZLIB_GIL_RELEASE 256*1024
-/* only callable while holding the GIL */
-#  define _ZLIB_ERR(s, rc) \
-  PyErr_Format(PylibMCExc_MemcachedError, "zlib error %d in " s, rc);
+#  define ZLIB_GIL_RELEASE ZLIB_BUFSZ
 #endif
 
 #define PyBool_TEST(t) ((t) ? Py_True : Py_False)
