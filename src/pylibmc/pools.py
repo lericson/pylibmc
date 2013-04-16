@@ -3,7 +3,10 @@
 from __future__ import with_statement
 
 from contextlib import contextmanager
-from Queue import Queue
+try:
+    from Queue import Queue
+except ImportError:
+    from queue import Queue
 
 class ClientPool(Queue):
     """Client pooling helper.
