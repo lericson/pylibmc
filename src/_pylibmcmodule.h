@@ -321,6 +321,9 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client *self,
 static int _PylibMC_Deflate(char *value, size_t value_len,
                             char **result, size_t *result_len,
                             int compress_level);
+static int _PylibMC_Inflate(char *value, size_t size,
+                            char** result, size_t* result_size,
+                            char** failure_reason);
 static bool _PylibMC_IncrDecr(PylibMC_Client *, pylibmc_incr *, size_t);
 
 /* }}} */
