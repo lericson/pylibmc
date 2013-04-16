@@ -1040,6 +1040,7 @@ static PyObject *PylibMC_Client_delete(PylibMC_Client *self, PyObject *args) {
     return NULL;
 }
 
+#if LIBMEMCACHED_VERSION_HEX >= 0x01000002
 static PyObject *PylibMC_Client_touch(PylibMC_Client *self, PyObject *args) {
     char *key;
     long seconds;
@@ -1067,6 +1068,7 @@ static PyObject *PylibMC_Client_touch(PylibMC_Client *self, PyObject *args) {
 
     return NULL;
 }
+#endif
 
 
 /* {{{ Increment & decrement */
