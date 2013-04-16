@@ -249,11 +249,15 @@ static PylibMC_Behavior PylibMC_hashers[] = {
 static PylibMC_Behavior PylibMC_distributions[] = {
     { MEMCACHED_DISTRIBUTION_MODULA, "modula" },
     { MEMCACHED_DISTRIBUTION_CONSISTENT, "consistent" },
+#if LIBMEMCACHED_VERSION_HEX >= 0x01000000
     { MEMCACHED_DISTRIBUTION_CONSISTENT_WEIGHTED, "consistent_weighted" },
+#endif
     { MEMCACHED_DISTRIBUTION_CONSISTENT_KETAMA, "consistent_ketama" },
     { MEMCACHED_DISTRIBUTION_CONSISTENT_KETAMA_SPY, "consistent_ketama_spy" },
     { MEMCACHED_DISTRIBUTION_RANDOM, "random" },
+#if LIBMEMCACHED_VERSION_HEX >= 0x01000000
     { MEMCACHED_DISTRIBUTION_VIRTUAL_BUCKET, "virtual_bucket" },
+#endif
     { MEMCACHED_DISTRIBUTION_CONSISTENT_MAX, "consistent_max" },
     { 0, NULL }
 };
