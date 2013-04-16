@@ -52,7 +52,7 @@
 #define Py_TYPE(ob) (((PyObject*)(ob))->ob_type)
 #endif
 #ifndef PyLong_Type
-#define PyLong_Type PyLong_Type
+#define PyLong_Type PyInt_Type
 #endif
 
 #if PY_MAJOR_VERSION >= 3
@@ -69,6 +69,20 @@
 #define MOD_INIT(name) void init##name(void)
 #define MOD_DEF(ob, name, doc, methods)         \
     ob = Py_InitModule3(name, methods, doc);
+#define PyBytes_AS_STRING PyString_AS_STRING
+#define PyBytes_AsStringAndSize PyString_AsStringAndSize
+#define PyBytes_Check PyString_Check
+#define PyBytes_Concat PyString_Concat
+#define PyBytes_FromFormat PyString_FromFormat
+#define PyBytes_FromString PyString_FromString
+#define PyBytes_FromStringAndSize PyString_FromStringAndSize
+#define PyBytes_GET_SIZE PyString_GET_SIZE
+#define PyBytes_Size PyString_Size
+#define PyLong_AS_LONG PyInt_AS_LONG
+#define PyLong_FromLong PyInt_FromLong
+#define PyLong_FromString PyInt_FromString
+#define PyNumber_Long PyNumber_Int
+#define _PyBytes_Resize _PyString_Resize
 #endif
 
 
@@ -2215,6 +2229,10 @@ MOD_INIT(_pylibmc) {
     if (!_init_sasl())
         return MOD_ERROR_VAL;
 
+    if (PyType_Ready(&PylibMC_ClientType) < 0) {
+        return MOD_ERROR_VAL;
+    }
+
     MOD_DEF(module, "_pylibmc", "Hand-made wrapper for libmemcached.\n\
 \n\
 You should really use the Python wrapper around this library.\n\
@@ -2229,10 +2247,6 @@ no port should be given. libmemcached can parse strings as well::\n\
 See libmemcached's memcached_servers_parse for more info on that. I'm told \n\
 you can use UNIX domain sockets by specifying paths, and multiple servers \n\
 by using comma-separation. Good luck with that.\n", PylibMC_functions);
-    
-    if (PyType_Ready(&PylibMC_ClientType) < 0) {
-        return MOD_ERROR_VAL;
-    }
     
     if (module == NULL) {
         return MOD_ERROR_VAL;
