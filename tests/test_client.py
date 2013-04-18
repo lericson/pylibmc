@@ -22,8 +22,12 @@ class ClientTests(PylibmcTestCase):
         eq_(k, rk)
 
     def test_cas(self):
+        c = "cas"
         k = "testkey"
-        mc = make_test_client(binary=False, behaviors={"cas": True})
+        if six.PY3:
+            c = b"cas"
+            k = b"testkey"
+        mc = make_test_client(binary=False, behaviors={c: True})
         ok_(mc.set(k, 0))
         while True:
             rv, cas = mc.gets(k)
