@@ -4,6 +4,7 @@ import os
 import socket
 import _pylibmc, pylibmc
 from textwrap import dedent
+import six
 
 class NotAliveError(Exception):
     template = dedent("""
@@ -26,11 +27,18 @@ def get_version(addr):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             s.connect((host, port))
-            s.send("version\r\n")
+            if six.PY3:
+                s.send(bytes("version\r\n", 'UTF-8'))
+            else:
+                s.send("version\r\n")
             version = s.recv(4096)
         finally:
             s.close()
-        if not version.startswith("VERSION ") or not version.endswith("\r\n"):
+        vstr = "VERSION "
+        if six.PY3: vstr = b"VERSION "
+        rnstr = "\r\n"
+        if six.PY3: rnstr = b"\r\n"
+        if not version.startswith(vstr) or not version.endswith(rnstr):
             raise ValueError("unexpected version return: %r" % (version,))
         else:
             version = version[8:-2]

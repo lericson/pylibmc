@@ -4,13 +4,21 @@ import _pylibmc
 from pylibmc.test import make_test_client
 from tests import PylibmcTestCase
 from nose.tools import eq_, ok_
+import six
 
 class ClientTests(PylibmcTestCase):
     def test_zerokey(self):
         bc = make_test_client(binary=True)
         k = "\x00\x01"
-        ok_(bc.set(k, "test"))
-        rk = bc.get_multi([k]).keys()[0]
+        test_str = "test"
+        if six.PY3:
+            k = b"\x00\x01"
+            test_str = b"test"
+        ok_(bc.set(k, test_str))
+        if six.PY3:
+            rk = list(bc.get_multi([k]).keys())[0]
+        else:
+            rk = bc.get_multi([k]).keys()[0]
         eq_(k, rk)
 
     def test_cas(self):
@@ -49,15 +57,22 @@ class ClientTests(PylibmcTestCase):
             sorted_list(actual_behaviors))
 
     def test_touch(self):
-        ok_(self.mc.set("touch-test", "touch-val", 1))
-        eq_("touch-val", self.mc.get("touch-test"))
+        touch_test  = "touch-test"
+        touch_test2 = "touch-test-2"
+        tval = "touch-val"
+        if six.PY3:
+            touch_test = b"touch-test"
+            touch_test2 = b"touch-test-2"
+            tval = b"touch-val"
+        ok_(self.mc.set(touch_test, tval, 1))
+        eq_(tval, self.mc.get(touch_test))
         time.sleep(2)
-        eq_(None, self.mc.get("touch-test"))
+        eq_(None, self.mc.get(touch_test))
 
-        self.mc.set("touch-test", "touch-val", 1)
-        eq_("touch-val", self.mc.get("touch-test"))
-        ok_(self.mc.touch("touch-test", 5))
+        self.mc.set(touch_test, tval, 1)
+        eq_(tval, self.mc.get(touch_test))
+        ok_(self.mc.touch(touch_test, 5))
         time.sleep(2)
-        eq_("touch-val", self.mc.get("touch-test"))
+        eq_(tval, self.mc.get(touch_test))
 
-        ok_(not self.mc.touch("touch-test-2", 100))
+        ok_(not self.mc.touch(touch_test2, 100))

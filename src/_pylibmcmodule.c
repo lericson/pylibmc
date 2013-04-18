@@ -51,8 +51,8 @@
 #ifndef Py_TYPE
 #define Py_TYPE(ob) (((PyObject*)(ob))->ob_type)
 #endif
-#ifndef PyLong_Type
-#define PyLong_Type PyInt_Type
+#ifndef PyInt_Check
+#define PyInt_Check PyLong_Check
 #endif
 
 #if PY_MAJOR_VERSION >= 3
@@ -79,10 +79,9 @@
 #define PyBytes_GET_SIZE PyString_GET_SIZE
 #define PyBytes_Size PyString_Size
 #define PyLong_AS_LONG PyInt_AS_LONG
-#define PyLong_FromLong PyInt_FromLong
-#define PyLong_FromString PyInt_FromString
 #define PyNumber_Long PyNumber_Int
 #define _PyBytes_Resize _PyString_Resize
+#define PyObject_Bytes PyObject_Str
 #endif
 
 
@@ -440,7 +439,7 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
         case PYLIBMC_FLAG_INTEGER:
         case PYLIBMC_FLAG_LONG:
         case PYLIBMC_FLAG_BOOL:
-            /* PyLong_FromString doesn't take a length param and we're
+            /* PyInt_FromString doesn't take a length param and we're
                not NULL-terminated, so we'll have to make an
                intermediate Python string out of it */
             tmp = PyBytes_FromStringAndSize(value, size);
@@ -880,18 +879,24 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
     } else if (PyBool_Check(value_obj)) {
         serialized->flags |= PYLIBMC_FLAG_BOOL;
         PyObject* tmp = PyNumber_Long(value_obj);
-        store_val = PyObject_Str(tmp);
+        store_val = PyObject_Bytes(tmp);
         Py_DECREF(tmp);
-    } else if (PyLong_Check(value_obj)) {
+#if PY_MAJOR_VERSION >= 3
+        // TODO: In python 3 PyObject_Bytes() on Integer causes an
+        // Error:
+        // http://docs.python.org/3.2/c-api/object.html?highlight=pyobject_bytes#PyObject_Bytes
+#else
+    } else if (PyInt_Check(value_obj)) {
         serialized->flags |= PYLIBMC_FLAG_INTEGER;
         PyObject* tmp = PyNumber_Long(value_obj);
-        store_val = PyObject_Str(tmp);
+        store_val = PyObject_Bytes(tmp);
         Py_DECREF(tmp);
     } else if (PyLong_Check(value_obj)) {
         serialized->flags |= PYLIBMC_FLAG_LONG;
         PyObject* tmp = PyNumber_Long(value_obj);
-        store_val = PyObject_Str(tmp);
+        store_val = PyObject_Bytes(tmp);
         Py_DECREF(tmp);
+#endif
     } else if(value_obj != NULL) {
         /* we have no idea what it is, so we'll store it pickled */
         Py_INCREF(value_obj);
@@ -1738,7 +1743,7 @@ static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *self,
             continue;
         } else if ((py_v = PyMapping_GetItemString(behaviors, b->name)) == NULL) {
             goto error;
-        } else if (!PyLong_Check(py_v)) {
+        } else if (!PyInt_Check(py_v)) {
             PyErr_Format(PyExc_TypeError, "behavior %.32s must be int", b->name);
             goto error;
         }
@@ -2045,7 +2050,11 @@ static PyObject *_PylibMC_Unpickle(const char *buff, size_t size) {
     retval = NULL;
     pickle_load = _PylibMC_GetPickles("loads");
     if (pickle_load != NULL) {
+#if PY_MAJOR_VERSION >= 3
+        retval = PyObject_CallFunction(pickle_load, "y#", buff, size);
+#else
         retval = PyObject_CallFunction(pickle_load, "s#", buff, size);
+#endif
         Py_DECREF(pickle_load);
     }
 
@@ -2164,7 +2173,7 @@ static void _make_excs(PyObject *module) {
 
     exc_objs = PyList_New(0);
     PyList_Append(exc_objs,
-        Py_BuildValue("sO", "Error", (PyObject *)PylibMCExc_MemcachedError));
+                  Py_BuildValue("sO", "Error", (PyObject *)PylibMCExc_MemcachedError));
 
     for (err = PylibMCExc_mc_errs; err->name != NULL; err++) {
         char excnam[64];
@@ -2173,7 +2182,7 @@ static void _make_excs(PyObject *module) {
         PyObject_SetAttrString(err->exc, "retcode", PyLong_FromLong(err->rc));
         PyModule_AddObject(module, err->name, (PyObject *)err->exc);
         PyList_Append(exc_objs,
-            Py_BuildValue("sO", err->name, (PyObject *)err->exc));
+                      Py_BuildValue("sO", err->name, (PyObject *)err->exc));
     }
 
     PyModule_AddObject(module, "MemcachedError",

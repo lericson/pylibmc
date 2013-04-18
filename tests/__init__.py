@@ -1,5 +1,6 @@
 """Tests. They want YOU!!"""
 
+from __future__ import print_function
 import unittest
 import pylibmc
 from pylibmc.test import make_test_client
@@ -22,9 +23,9 @@ class PylibmcTestCase(unittest.TestCase):
 
 def dump_infos():
     if hasattr(_pylibmc, "__file__"):
-        print "Starting tests with _pylibmc at", _pylibmc.__file__
+        print("Starting tests with _pylibmc at", _pylibmc.__file__)
     else:
-        print "Starting tests with static _pylibmc:", _pylibmc
-    print "Reported libmemcached version:", _pylibmc.libmemcached_version
-    print "Reported pylibmc version:", _pylibmc.__version__
-    print "Support compression:", _pylibmc.support_compression
+        print("Starting tests with static _pylibmc:", _pylibmc)
+    print("Reported libmemcached version:", _pylibmc.libmemcached_version)
+    print("Reported pylibmc version:", _pylibmc.__version__)
+    print("Support compression:", _pylibmc.support_compression)
