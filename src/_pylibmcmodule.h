@@ -434,7 +434,6 @@ static PyTypeObject PylibMC_ClientType = {
     (initproc)PylibMC_Client_init,      /* tp_init */
     0,                          /* tp_alloc */
     (newfunc)PylibMC_ClientType_new, //PyType_GenericNew,     /* tp_new */
-#if PY_MAJOR_VERSION < 3
     0,
     0,
     0,
@@ -443,7 +442,6 @@ static PyTypeObject PylibMC_ClientType = {
     0,
     0,
     0
-#endif
 };
 
 /* }}} */

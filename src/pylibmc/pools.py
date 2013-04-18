@@ -1,8 +1,8 @@
 """Pooling"""
 
 from __future__ import with_statement
-
 from contextlib import contextmanager
+import six
 try:
     from Queue import Queue
 except ImportError:
@@ -49,8 +49,10 @@ class ClientPool(Queue):
 
     def fill(self, mc, n_slots):
         """Fill *n_slots* of the pool with clones of *mc*."""
-        for i in xrange(n_slots):
-            self.put(mc.clone())
+        if six.PY3:
+            for i in range(n_slots): self.put(mc.clone())
+        else:
+            for i in xrange(n_slots): self.put(mc.clone())
 
 class ThreadMappedPool(dict):
     """Much like the *ClientPool*, helps you with pooling.
