@@ -976,7 +976,7 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
 #else
     } else if (PyInt_Check(value_obj)) {
         serialized->flags |= PYLIBMC_FLAG_INTEGER;
-        PyObject* tmp = PyNumber_Long(value_obj);
+        PyObject* tmp = PyNumber_Int(value_obj);
         store_val = PyObject_Bytes(tmp);
         Py_DECREF(tmp);
     } else if (PyLong_Check(value_obj)) {
