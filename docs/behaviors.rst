@@ -84,7 +84,8 @@ libmemcached behavior constants.
 .. _connect_timeout:
 
 ``"connect_timeout"``
-   In non-blocking, mode this specifies the timeout of socket connection.
+   In non-blocking mode, this specifies the timeout of socket connection
+   in milliseconds.
 
 .. _receive_timeout:
 
