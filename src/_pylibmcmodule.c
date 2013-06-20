@@ -1043,7 +1043,7 @@ static PyObject *PylibMC_Client_delete(PylibMC_Client *self, PyObject *args) {
 static PyObject *PylibMC_Client_touch(PylibMC_Client *self, PyObject *args) {
     char *key;
     long seconds;
-    int key_len;
+    Py_ssize_t key_len;
     memcached_return rc;
 
     if(PyArg_ParseTuple(args, "s#k", &key, &key_len, &seconds) && _PylibMC_CheckKeyStringAndSize(key, key_len)) {
