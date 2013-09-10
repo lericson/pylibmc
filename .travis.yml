@@ -4,7 +4,6 @@ python:
   - 2.5
   - 2.6
   - 2.7
-  - pypy
 
 install: python setup.py install
 
@@ -12,4 +11,3 @@ before_script:
   - pip install nose
 
 script: python bin/runtests.py
-
