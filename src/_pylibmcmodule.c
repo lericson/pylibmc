@@ -1838,6 +1838,10 @@ error:
     return NULL;
 }
 
+#if LIBMEMCACHED_VERSION_HEX >= 0x01000009
+typedef const struct memcached_instance_st *memcached_server_instance_st;
+#endif
+
 static memcached_return
 _PylibMC_AddServerCallback(memcached_st *mc,
 #if LIBMEMCACHED_VERSION_HEX >= 0x00039000
