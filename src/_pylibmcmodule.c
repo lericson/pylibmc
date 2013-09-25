@@ -1840,7 +1840,9 @@ error:
 
 static memcached_return
 _PylibMC_AddServerCallback(memcached_st *mc,
-#if LIBMEMCACHED_VERSION_HEX >= 0x00039000
+#if LIBMEMCACHED_VERSION_HEX >= 0x01000017
+                           memcached_instance_st* instance,
+#elif LIBMEMCACHED_VERSION_HEX >= 0x00039000
                            memcached_server_instance_st instance,
 #else
                            memcached_server_st *server,
