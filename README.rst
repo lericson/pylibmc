@@ -4,6 +4,8 @@ See `the documentation at sendapatch.se/projects/pylibmc/`__ for more informatio
 
 __ http://sendapatch.se/projects/pylibmc/
 
+[![Build Status](https://travis-ci.org/lericson/pylibmc.png?branch=master)](https://travis-ci.org/lericson/pylibmc)
+
 Contact
 =======
 
