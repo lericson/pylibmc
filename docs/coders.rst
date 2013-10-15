@@ -5,7 +5,7 @@ The List of Honored People
 * ketralnis <ketralnis@reddit.com>
 * Rudá Moura <ruda.moura@gmail.com>
 * Noah Silas <noah@mahalo.com>
-* Johan Bergström <johan@bergstroem.nu>
+* Johan Bergström <bugs@bergstroem.nu>
 * Andrew McFague <amcfague@wgen.net>
 * James Brown <jbrown@yelp.com>
 * Kelly Wong <kelly@bluejeans.com>
