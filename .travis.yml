@@ -1,5 +1,8 @@
 language: python
 
+services:
+  - memcached
+
 python:
   - 2.5
   - 2.6
