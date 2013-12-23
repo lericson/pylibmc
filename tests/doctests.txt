@@ -1,6 +1,7 @@
 Basic functionality.
 >>> import pylibmc, _pylibmc
 >>> from tests import make_test_client
+>>> from hashlib import md5
 >>> _pylibmc.__version__ == pylibmc.__version__
 True
 >>> c = make_test_client(_pylibmc.client)
@@ -263,7 +264,7 @@ Traceback (most recent call last):
 ValueError: key too long, max is 250
 
 Make sure ServerDown exception exists
->>> hasattr(pylibmc, 'ServerDown')
+>>> hasattr(pylibmc, 'ServerDown') or _pylibmc.libmemcached_version_hex < 0x01000002
 True
 
 Gets should return (None, None) for non-existing keys
@@ -273,3 +274,30 @@ Gets should return (None, None) for non-existing keys
 (None, None)
 >>> c.gets('non_existing_key')
 (None, None)
+
+Compression shouldn't break anything
+>>> c = make_test_client(_pylibmc.client, binary=True)
+
+Try to go over the 1mb object size limit, but compress so that we don't
+>>> c.set('foo', 'a'*(1024*1024+1), min_compress_len=1)
+True
+>>> md5(c.get('foo')).hexdigest() == md5('a'*(1024*1024+1)).hexdigest()
+True
+>>> c.set('foo', 'a'*(1024*1024+1), min_compress_len=1, compress_level=1)
+True
+>>> md5(c.get('foo')).hexdigest() == md5('a'*(1024*1024+1)).hexdigest()
+True
+>>> c.set('foo', 'a'*(1024*1024+1), min_compress_len=1, compress_level=9)
+True
+>>> md5(c.get('foo')).hexdigest() == md5('a'*(1024*1024+1)).hexdigest()
+True
+>>> c.set('foo', 'abc', min_compress_len=1, compress_level=9)
+True
+>>> c.get('foo')
+'abc'
+>>> c.set_multi({'a': 20, 'b': '*'*500}, min_compress_len=1)
+[]
+>>> c.set_multi({'a': 20, 'b': '*'*500}, min_compress_len=1, compress_level=1)
+[]
+>>> c.set_multi({'a': 20, 'b': '*'*500}, min_compress_len=1, compress_level=9)
+[]

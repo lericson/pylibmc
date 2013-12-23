@@ -3,21 +3,21 @@
  *
  * Copyright (c) 2008, Ludvig Ericson
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *  this list of conditions and the following disclaimer.
- * 
+ *
  *  - Redistributions in binary form must reproduce the above copyright notice,
  *  this list of conditions and the following disclaimer in the documentation
  *  and/or other materials provided with the distribution.
- * 
+ *
  *  - Neither the name of the author nor the names of the contributors may be
  *  used to endorse or promote products derived from this software without
  *  specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -35,9 +35,9 @@
 #ifdef USE_ZLIB
 #  include <zlib.h>
 #  define ZLIB_BUFSZ (1 << 14)
-/* only callable while holding the GIL */
-#  define _ZLIB_ERR(s, rc) \
-  PyErr_Format(PylibMCExc_MemcachedError, "zlib error %d in " s, rc);
+/* only release the GIL during inflate if the size of the data
+   is greater than this (deflate always releases at present) */
+#  define ZLIB_GIL_RELEASE ZLIB_BUFSZ
 #endif
 
 #define PyBool_TEST(t) ((t) ? Py_True : Py_False)
@@ -220,9 +220,13 @@ error:
 /* {{{ Compression helpers */
 #ifdef USE_ZLIB
 static int _PylibMC_Deflate(char *value, size_t value_len,
-                    char **result, size_t *result_len) {
+                    char **result, size_t *result_len,
+                    int compress_level) {
     /* FIXME Failures are entirely silent. */
     int rc;
+
+    /* n.b.: this is called wiile *not* holding the GIL, and must not
+       contain Python-API code */
 
     z_stream strm;
     *result = NULL;
@@ -248,17 +252,13 @@ static int _PylibMC_Deflate(char *value, size_t value_len,
     strm.zalloc = (alloc_func)NULL;
     strm.zfree = (free_func)Z_NULL;
 
-    /* TODO Expose compression level somehow. */
-    if (deflateInit((z_streamp)&strm, Z_BEST_SPEED) != Z_OK) {
+    if (deflateInit((z_streamp)&strm, compress_level) != Z_OK) {
         goto error;
     }
 
-    Py_BEGIN_ALLOW_THREADS;
     rc = deflate((z_streamp)&strm, Z_FINISH);
-    Py_END_ALLOW_THREADS;
 
     if (rc != Z_STREAM_END) {
-        _ZLIB_ERR("deflate", rc);
         goto error;
     }
 
@@ -287,20 +287,30 @@ error:
     return 0;
 }
 
-static PyObject *_PylibMC_Inflate(char *value, size_t size) {
+static int _PylibMC_Inflate(char *value, size_t size,
+                            char** result, size_t* result_size,
+                            char** failure_reason) {
+
+    /*
+       can be called while not holding the GIL. returns the zlib return value,
+       returns the size of the inflated data in *result_size and the data itself
+       in *result, and the failed call in failure_reason if appropriate
+
+       while deflate can silently ignore errors, we can't
+    */
+
     int rc;
-    char *out;
-    PyObject *out_obj;
-    Py_ssize_t rvalsz;
+    char* out = NULL;
+    char* tryrealloc = NULL;
     z_stream strm;
 
     /* Output buffer */
-    rvalsz = ZLIB_BUFSZ;
-    out_obj = PyString_FromStringAndSize(NULL, rvalsz);
-    if (out_obj == NULL) {
-        return NULL;
+    size_t rvalsz = ZLIB_BUFSZ;
+    out = malloc(ZLIB_BUFSZ);
+
+    if(out == NULL) {
+        return Z_MEM_ERROR;
     }
-    out = PyString_AS_STRING(out_obj);
 
     /* TODO 64-bit fix size/rvalsz */
     assert(size < 0xffffffffU);
@@ -309,22 +319,22 @@ static PyObject *_PylibMC_Inflate(char *value, size_t size) {
     /* Set up zlib stream. */
     strm.avail_in = (uInt)size;
     strm.avail_out = (uInt)rvalsz;
-    strm.next_in = (Byte *)value;
-    strm.next_out = (Byte *)out;
+    strm.next_in = (Byte*)value;
+    strm.next_out = (Byte*)out;
 
     strm.zalloc = (alloc_func)NULL;
     strm.zfree = (free_func)Z_NULL;
+    strm.opaque = (voidpf)NULL;
 
     /* TODO Add controlling of windowBits with inflateInit2? */
     if ((rc = inflateInit((z_streamp)&strm)) != Z_OK) {
-        _ZLIB_ERR("inflateInit", rc);
+        *failure_reason = "inflateInit";
         goto error;
     }
 
     do {
-        Py_BEGIN_ALLOW_THREADS;
+        *failure_reason = "inflate";
         rc = inflate((z_streamp)&strm, Z_FINISH);
-        Py_END_ALLOW_THREADS;
 
         switch (rc) {
         case Z_STREAM_END:
@@ -333,38 +343,60 @@ static PyObject *_PylibMC_Inflate(char *value, size_t size) {
          * This is also true for Z_OK, hence the fall-through. */
         case Z_BUF_ERROR:
             if (strm.avail_out) {
-                _ZLIB_ERR("inflate", rc);
-                inflateEnd(&strm);
-                goto error;
+                goto zerror;
             }
         /* Fall-through */
         case Z_OK:
-            if (_PyString_Resize(&out_obj, (Py_ssize_t)(rvalsz << 1)) < 0) {
-                inflateEnd(&strm);
-                goto error;
+            if((tryrealloc = realloc(out, rvalsz << 1)) == NULL || errno == ENOMEM) {
+                *failure_reason = "realloc";
+                rc = Z_MEM_ERROR;
+                goto zerror;
             }
+
+            out = tryrealloc;
+
             /* Wind forward */
-            out = PyString_AS_STRING(out_obj);
-            strm.next_out = (Byte *)(out + rvalsz);
-            strm.avail_out = (uInt)rvalsz;
+
+            strm.next_out = (unsigned char*)(out + rvalsz);
+            strm.avail_out = rvalsz;
             rvalsz = rvalsz << 1;
             break;
         default:
-            inflateEnd(&strm);
-            goto error;
+            goto zerror;
         }
+
     } while (rc != Z_STREAM_END);
 
     if ((rc = inflateEnd(&strm)) != Z_OK) {
-        _ZLIB_ERR("inflateEnd", rc);
+        *failure_reason = "inflateEnd";
         goto error;
     }
 
-    _PyString_Resize(&out_obj, strm.total_out);
-    return out_obj;
+    tryrealloc = realloc(out, strm.total_out);
+
+    if(tryrealloc == NULL || errno == ENOMEM) {
+        /* we failed to *shrink* the value? */
+        *failure_reason = "realloc";
+        rc = Z_MEM_ERROR;
+        goto error;
+    }
+
+    out = tryrealloc;
+
+    *result = out;
+    *result_size = strm.total_out;
+
+    return Z_OK;
+
+zerror:
+    inflateEnd(&strm);
+
 error:
-    Py_DECREF(out_obj);
-    return NULL;
+    if(out != NULL) {
+        free(out);
+    }
+    *result = NULL;
+    return rc;
 }
 #endif
 /* }}} */
@@ -380,12 +412,47 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
 
     /* Decompress value if necessary. */
     if (flags & PYLIBMC_FLAG_ZLIB) {
-        if ((inflated = _PylibMC_Inflate(value, size)) == NULL) {
+        int rc;
+        char* inflated_buf = NULL;
+        size_t inflated_size = 0;
+        char* failure_reason = NULL;
+
+        if(size >= ZLIB_GIL_RELEASE) {
+            Py_BEGIN_ALLOW_THREADS;
+            rc = _PylibMC_Inflate(value, size,
+                                  &inflated_buf, &inflated_size,
+                                  &failure_reason);
+            Py_END_ALLOW_THREADS;
+        } else {
+            rc = _PylibMC_Inflate(value, size,
+                                  &inflated_buf, &inflated_size,
+                                  &failure_reason);
+        }
+
+        if(rc != Z_OK) {
+            /* set up the exception */
+            if(failure_reason == NULL) {
+                PyErr_Format(PylibMCExc_MemcachedError,
+                             "Failed to decompress value: %d", rc);
+            } else {
+                PyErr_Format(PylibMCExc_MemcachedError,
+                             "Failed to decompress value: %s", failure_reason);
+            }
             return NULL;
         }
+
+        inflated = Py_BuildValue("s#", inflated_buf, inflated_size);
+
+        free(inflated_buf);
+
+        if(inflated == NULL) {
+            return NULL;
+        }
+
         value = PyString_AS_STRING(inflated);
         size = PyString_GET_SIZE(inflated);
     }
+
 #else
     if (flags & PYLIBMC_FLAG_ZLIB) {
         PyErr_SetString(PylibMCExc_MemcachedError,
@@ -551,20 +618,31 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
         _PylibMC_SetCommand f, char *fname, PyObject *args,
         PyObject *kwds) {
     /* function called by the set/add/etc commands */
-    static char *kws[] = { "key", "val", "time", "min_compress_len", NULL };
+    static char *kws[] = { "key", "val", "time",
+                           "min_compress_len", "compress_level",
+                           NULL };
     PyObject *key;
     PyObject *value;
     unsigned int time = 0; /* this will be turned into a time_t */
     unsigned int min_compress = 0;
+    int compress_level = -1;
+
     bool success = false;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "SO|II", kws,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "SO|IIi", kws,
                                      &key, &value,
-                                     &time, &min_compress)) {
+                                     &time, &min_compress, &compress_level)) {
       return NULL;
     }
 
-#ifndef USE_ZLIB
+#ifdef USE_ZLIB
+    if (compress_level == -1) {
+        compress_level = Z_DEFAULT_COMPRESSION;
+    } else if (compress_level < 0 || compress_level > 9) {
+        PyErr_SetString(PyExc_ValueError, "compress_level must be between 0 and 9 inclusive");
+        return NULL;
+    }
+#else
     if (min_compress) {
       PyErr_SetString(PyExc_TypeError, "min_compress_len without zlib");
       return NULL;
@@ -580,7 +658,7 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
 
     success = _PylibMC_RunSetCommand(self, f, fname,
                                      &serialized, 1,
-                                     min_compress);
+                                     min_compress, compress_level);
 
 cleanup:
     _PylibMC_FreeMset(&serialized);
@@ -602,22 +680,32 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
     PyObject *key_prefix = NULL;
     unsigned int time = 0;
     unsigned int min_compress = 0;
+    int compress_level = -1;
     PyObject *retval = NULL;
     size_t idx = 0;
 
-    static char *kws[] = { "keys", "time", "key_prefix", "min_compress_len", NULL };
+    static char *kws[] = { "keys", "time", "key_prefix",
+                           "min_compress_len", "compress_level",
+                           NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|ISI", kws,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|ISIi", kws,
                                      &PyDict_Type, &keys,
                                      &time, &key_prefix,
-                                     &min_compress)) {
+                                     &min_compress, &compress_level)) {
         return NULL;
     }
 
-#ifndef USE_ZLIB
-    if (min_compress) {
-        PyErr_SetString(PyExc_TypeError, "min_compress_len without zlib");
+#ifdef USE_ZLIB
+    if (compress_level == -1) {
+        compress_level = Z_DEFAULT_COMPRESSION;
+    } else if (compress_level < 0 || compress_level > 9) {
+        PyErr_SetString(PyExc_ValueError, "compress_level must be between 0 and 9 inclusive");
         return NULL;
+    }
+#else
+    if (min_compress) {
+      PyErr_SetString(PyExc_TypeError, "min_compress_len without zlib");
+      return NULL;
     }
 #endif
 
@@ -649,6 +737,8 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
 
         if (!success || PyErr_Occurred() != NULL) {
             /* exception should already be on the stack */
+            /* free only the object we have allocated */
+            nkeys = idx + 1;
             goto cleanup;
         }
     }
@@ -660,7 +750,7 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
 
     bool allsuccess = _PylibMC_RunSetCommand(self, f, fname,
                                              serialized, nkeys,
-                                             min_compress);
+                                             min_compress, compress_level);
 
     if (PyErr_Occurred() != NULL) {
         goto cleanup;
@@ -786,7 +876,7 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
 
     /* We need to incr our reference here so that it's guaranteed to
        exist while we release the GIL. Even if we fail after this it
-       should be decremeneted by pylib_mset_free */
+       should be decremented by pylibmc_mset_free */
     Py_INCREF(key_obj);
     serialized->key_obj = key_obj;
 
@@ -887,7 +977,8 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
 static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
                                    _PylibMC_SetCommand f, char *fname,
                                    pylibmc_mset* msets, size_t nkeys,
-                                   size_t min_compress) {
+                                   size_t min_compress,
+                                   int compress_level) {
     memcached_st *mc = self->mc;
     memcached_return rc = MEMCACHED_SUCCESS;
     int pos;
@@ -907,11 +998,10 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
         char *compressed_value = NULL;
         size_t compressed_len = 0;
 
-        if (min_compress && value_len >= min_compress) {
-            Py_BLOCK_THREADS;
+        if (compress_level && min_compress && value_len >= min_compress) {
             _PylibMC_Deflate(value, value_len,
-                             &compressed_value, &compressed_len);
-            Py_UNBLOCK_THREADS;
+                             &compressed_value, &compressed_len,
+                             compress_level);
         }
 
         if (compressed_value != NULL) {
@@ -1039,9 +1129,10 @@ static PyObject *PylibMC_Client_delete(PylibMC_Client *self, PyObject *args) {
 }
 
 static PyObject *PylibMC_Client_touch(PylibMC_Client *self, PyObject *args) {
+#if LIBMEMCACHED_VERSION_HEX >= 0x01000002
     char *key;
     long seconds;
-    int key_len;
+    Py_ssize_t key_len;
     memcached_return rc;
 
     if(PyArg_ParseTuple(args, "s#k", &key, &key_len, &seconds) && _PylibMC_CheckKeyStringAndSize(key, key_len)) {
@@ -1064,7 +1155,13 @@ static PyObject *PylibMC_Client_touch(PylibMC_Client *self, PyObject *args) {
     }
 
     return NULL;
+#else
+    PyErr_Format(PylibMCExc_MemcachedError,
+                 "memcached_touch isn't available; upgrade libmemcached to >= 1.0.2");
+    return NULL;
+#endif
 }
+
 
 
 /* {{{ Increment & decrement */
@@ -1743,7 +1840,9 @@ error:
 
 static memcached_return
 _PylibMC_AddServerCallback(memcached_st *mc,
-#if LIBMEMCACHED_VERSION_HEX >= 0x00039000
+#if LIBMEMCACHED_VERSION_HEX >= 0x01000017
+                           memcached_instance_st* instance,
+#elif LIBMEMCACHED_VERSION_HEX >= 0x00039000
                            memcached_server_instance_st instance,
 #else
                            memcached_server_st *server,
@@ -1791,7 +1890,7 @@ _PylibMC_AddServerCallback(memcached_st *mc,
     free(stat_keys);
 
     desc = PyString_FromFormat("%s:%d (%u)",
-#if LIBMEMCACHED_VERSION_HEX >= 0x00039000 
+#if LIBMEMCACHED_VERSION_HEX >= 0x00039000
             memcached_server_name(instance), memcached_server_port(instance),
 #else /* ver < libmemcached 0.39 */
             server->hostname, server->port,

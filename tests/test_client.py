@@ -1,9 +1,20 @@
+import functools
 import time
 import pylibmc
 import _pylibmc
 from pylibmc.test import make_test_client
 from tests import PylibmcTestCase
+from nose import SkipTest
 from nose.tools import eq_, ok_
+
+def requires_memcached_touch(test):
+    @functools.wraps(test)
+    def wrapper(*args, **kwargs):
+        if _pylibmc.libmemcached_version_hex >= 0x01000002:
+            return test(*args, **kwargs)
+        raise SkipTest
+
+    return wrapper
 
 class ClientTests(PylibmcTestCase):
     def test_zerokey(self):
@@ -48,6 +59,7 @@ class ClientTests(PylibmcTestCase):
         eq_(sorted_list(expected_behaviors),
             sorted_list(actual_behaviors))
 
+    @requires_memcached_touch
     def test_touch(self):
         ok_(self.mc.set("touch-test", "touch-val", 1))
         eq_("touch-val", self.mc.get("touch-test"))
