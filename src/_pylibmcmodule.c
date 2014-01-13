@@ -2308,7 +2308,7 @@ static void _make_behavior_consts(PyObject *mod) {
     for (b = PylibMC_callbacks; b->name != NULL; b++) {
         sprintf(name, "callback_%s", b->name);
         PyModule_AddIntConstant(mod, name, b->flag);
-        PyList_Append(names, PyBytes_FromString(b->name));
+        PyList_Append(names, PyUnicode_FromString(b->name));
     }
 
     PyModule_AddObject(mod, "all_callbacks", names);
@@ -2316,7 +2316,7 @@ static void _make_behavior_consts(PyObject *mod) {
     names = PyList_New(0);
 
     for (b = PylibMC_behaviors; b->name != NULL; b++) {
-        PyList_Append(names, PyBytes_FromString(b->name));
+        PyList_Append(names, PyUnicode_FromString(b->name));
     }
 
     PyModule_AddObject(mod, "all_behaviors", names);

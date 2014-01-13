@@ -29,9 +29,9 @@ class ClientPool(Queue):
     True
     """
 
-    def __init__(self, mc=None, n_slots=None):
+    def __init__(self, mc=None, n_slots=0):
         Queue.__init__(self, n_slots)
-        if mc is not None:
+        if mc and n_slots:
             self.fill(mc, n_slots)
 
     @contextmanager
