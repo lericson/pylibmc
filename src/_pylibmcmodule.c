@@ -551,7 +551,7 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
     uint32_t flags;
     memcached_return error;
 
-    if (!_PylibMC_CheckKey(arg)) {
+    if (!_key_normalized_obj(&arg)) {
         return NULL;
     } else if (!PySequence_Length(arg) ) {
         /* Others do this, so... */
@@ -589,7 +589,7 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
     memcached_return rc;
     PyObject* ret = NULL;
 
-    if (!_PylibMC_CheckKey(arg)) {
+    if (!_key_normalized_obj(&arg)) {
         return NULL;
     } else if (!PySequence_Length(arg)) {
         return Py_BuildValue("(OO)", Py_None, Py_None);
@@ -906,7 +906,7 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
     serialized->success = false;
     serialized->flags = PYLIBMC_FLAG_NONE;
 
-    if(!_PylibMC_CheckKey(key_obj)
+    if(!_key_normalized_obj(&key_obj)
        || PyBytes_AsStringAndSize(key_obj, &serialized->key,
                                    &serialized->key_len) == -1) {
         return false;
@@ -920,7 +920,7 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
 
     /* Check the key_prefix */
     if (key_prefix != NULL) {
-        if (!_PylibMC_CheckKey(key_prefix)) {
+        if (!_key_normalized_obj(&key_prefix)) {
             return false;
         }
 
@@ -943,7 +943,7 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
         }
 
         /* check the key and overwrite the C string */
-        if(!_PylibMC_CheckKey(prefixed_key_obj)
+        if(!_key_normalized_obj(&prefixed_key_obj)
            || PyBytes_AsStringAndSize(prefixed_key_obj,
                                        &serialized->key,
                                        &serialized->key_len) == -1) {
@@ -1151,7 +1151,7 @@ static PyObject *PylibMC_Client_delete(PylibMC_Client *self, PyObject *args) {
     memcached_return rc;
 
     if (PyArg_ParseTuple(args, "s#:delete", &key, &key_len)
-            && _PylibMC_CheckKeyStringAndSize(key, key_len)) {
+            && _key_normalized_str(&key, &key_len)) {
         Py_BEGIN_ALLOW_THREADS;
         rc = memcached_delete(self->mc, key, key_len, 0);
         Py_END_ALLOW_THREADS;
@@ -1179,7 +1179,8 @@ static PyObject *PylibMC_Client_touch(PylibMC_Client *self, PyObject *args) {
     Py_ssize_t key_len;
     memcached_return rc;
 
-    if(PyArg_ParseTuple(args, "s#k", &key, &key_len, &seconds) && _PylibMC_CheckKeyStringAndSize(key, key_len)) {
+    if(PyArg_ParseTuple(args, "s#k", &key, &key_len, &seconds)
+            && _key_normalized_str(&key, &key_len)) {
         Py_BEGIN_ALLOW_THREADS;
         rc = memcached_touch(self->mc, key, key_len, seconds);
         Py_END_ALLOW_THREADS;
@@ -1218,7 +1219,7 @@ static PyObject *_PylibMC_IncrSingle(PylibMC_Client *self,
 
     if (!PyArg_ParseTuple(args, "s#|i", &key, &key_len, &delta)) {
         return NULL;
-    } else if (!_PylibMC_CheckKeyStringAndSize(key, key_len)) {
+    } else if (!_key_normalized_str(&key, &key_len)) {
         return NULL;
     }
 
@@ -1270,7 +1271,7 @@ static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self,
         return NULL;
 
     if (key_prefix != NULL) {
-        if (!_PylibMC_CheckKey(key_prefix))
+        if (!_key_normalized_obj(&key_prefix))
             return NULL;
 
         if (PyBytes_Size(key_prefix) == 0)
@@ -1293,7 +1294,7 @@ static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self,
     for (i = 0; (key = PyIter_Next(iterator)) != NULL; i++) {
         pylibmc_incr *incr = incrs + i;
 
-        if (!_PylibMC_CheckKey(key))
+        if (!_key_normalized_obj(&key))
             goto loopcleanup;
 
         /* prefix `key` with `key_prefix` */
@@ -1512,7 +1513,7 @@ static PyObject *PylibMC_Client_get_multi(
 
         assert(i < nkeys);
 
-        if (PyErr_Occurred() || !_PylibMC_CheckKey(ckey)) {
+        if (PyErr_Occurred() || !_key_normalized_obj(&ckey)) {
             nkeys = i;
             goto earlybird;
         }
@@ -1663,7 +1664,7 @@ static PyObject *_PylibMC_DoMulti(PyObject *values, PyObject *func,
         } else {
             key = PySequence_Concat(prefix, item);
         }
-        if (key == NULL || !_PylibMC_CheckKey(key))
+        if (key == NULL || !_key_normalized_obj(&key))
             goto iter_error;
 
         /* Calculate args. */
@@ -2172,33 +2173,55 @@ static PyObject *_PylibMC_Pickle(PyObject *val) {
 }
 /* }}} */
 
-static int _PylibMC_CheckKey(PyObject *key) {
-    if (key == NULL) {
+static int _key_normalized_obj(PyObject **key) {
+    int rc;
+    char *key_str;
+    Py_ssize_t key_sz;
+
+    if (*key == NULL) {
         PyErr_SetString(PyExc_ValueError, "key must be given");
         return 0;
-    } else if (!PyBytes_Check(key)) {
-        PyErr_SetString(PyExc_TypeError, "key must be an instance of str");
+    }
+
+    if (PyUnicode_Check(*key)) {
+        *key = PyUnicode_AsUTF8String(*key);
+        if (*key == NULL)
+            return 0;
+    }
+
+    if (!PyBytes_Check(*key)) {
+        PyErr_SetString(PyExc_TypeError, "key must be str or bytes");
         return 0;
     }
 
-    return _PylibMC_CheckKeyStringAndSize(
-            PyBytes_AS_STRING(key), PyBytes_GET_SIZE(key));
+    key_str = PyBytes_AS_STRING(*key);
+    key_sz = PyBytes_GET_SIZE(*key);
+    rc = _key_normalized_str(&key_str, &key_sz);
+    if (rc == 2) {
+        *key = PyBytes_FromStringAndSize(key_str, key_sz);
+        rc = 1;
+    }
+    return rc;
 }
 
-static int _PylibMC_CheckKeyStringAndSize(char *key, Py_ssize_t size) {
+/**
+ * Normalize memcached key.
+ *
+ * Returns 0 if invalid, 1 if already normalized, and 2 if mutated.
+ */
+static int _key_normalized_str(char **str, Py_ssize_t *size) {
     /* libmemcached pads max_key_size with one byte for null termination */
-    if (size >= MEMCACHED_MAX_KEY) {
-        PyErr_Format(PyExc_ValueError, "key too long, max is %d",
-                MEMCACHED_MAX_KEY - 1);
+    if (*size >= MEMCACHED_MAX_KEY) {
+        PyErr_Format(PyExc_ValueError, "key length %d too long, max is %d",
+                                       *size, MEMCACHED_MAX_KEY - 1);
         return 0;
-#ifdef NO_EMPTY_KEYS  /* I wish... */
-    } else if (size == 0) {
-        PyErr_Format(PyExc_ValueError, "key cannot be empty");
-#endif
     }
-    /* TODO Check key contents here. */
 
-    return key != NULL;
+    if (*str == NULL) {
+        return 0;
+    }
+
+    return 1;
 }
 
 static int _init_sasl(void) {
