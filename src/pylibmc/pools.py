@@ -2,7 +2,7 @@
 
 from __future__ import with_statement
 from contextlib import contextmanager
-import six
+
 try:
     from Queue import Queue
 except ImportError:
@@ -24,14 +24,14 @@ class ClientPool(Queue):
     >>> with pool.reserve() as mc:
     ...     mc.set("hi", "ho")
     ...     mc.delete("hi")
-    ... 
+    ...
     True
     True
     """
 
-    def __init__(self, mc=None, n_slots=None):
+    def __init__(self, mc=None, n_slots=0):
         Queue.__init__(self, n_slots)
-        if mc is not None:
+        if mc and n_slots:
             self.fill(mc, n_slots)
 
     @contextmanager
@@ -49,10 +49,8 @@ class ClientPool(Queue):
 
     def fill(self, mc, n_slots):
         """Fill *n_slots* of the pool with clones of *mc*."""
-        if six.PY3:
-            for i in range(n_slots): self.put(mc.clone())
-        else:
-            for i in xrange(n_slots): self.put(mc.clone())
+        for i in range(n_slots):
+            self.put(mc.clone())
 
 class ThreadMappedPool(dict):
     """Much like the *ClientPool*, helps you with pooling.
@@ -74,7 +72,7 @@ class ThreadMappedPool(dict):
     >>> with pool.reserve() as mc:
     ...     mc.set("hi", "ho")
     ...     mc.delete("hi")
-    ... 
+    ...
     True
     True
     """
