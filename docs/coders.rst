@@ -10,6 +10,7 @@ The List of Honored People
 * James Brown <jbrown@yelp.com>
 * Kelly Wong <kelly@bluejeans.com>
 * Rick Branson <rick@diodeware.com>
+* Neil Williams <neil@spladug.net>
 
 Thanks to `Blogg Esse AB`__ and `Send a Patch Jonken AB`__ for their support in
 this open-source adventure, without these two companies this wouldn't have

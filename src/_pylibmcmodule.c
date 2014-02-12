@@ -174,11 +174,13 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
             }
 
             switch (stype) {
+                case PYLIBMC_SERVER_UDP:
+#if LIBMEMCACHED_VERSION_HEX <= 0x00053000
+                    rc = memcached_server_add_udp_with_weight(self->mc, hostname, port, weight);
+                    break;
+#endif
                 case PYLIBMC_SERVER_TCP:
                     rc = memcached_server_add_with_weight(self->mc, hostname, port, weight);
-                    break;
-                case PYLIBMC_SERVER_UDP:
-                    rc = memcached_server_add_udp_with_weight(self->mc, hostname, port, weight);
                     break;
                 case PYLIBMC_SERVER_UNIX:
                     if (port) {
