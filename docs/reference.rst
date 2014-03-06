@@ -49,7 +49,7 @@
 
    .. Writing
 
-   .. method:: set(key, value[, time=0, min_compress_len=0]) -> success
+   .. method:: set(key, value[, time=0, min_compress_len=0, compress_level=-1]) -> success
 
       Set *key* to *value*.
 
@@ -66,7 +66,12 @@
       bytes stored in memcached before compression is used. Default behavior is
       to never compress (which is what ``0`` means). See :ref:`compression`.
 
-   .. method:: set_multi(mapping[, time=0, key_prefix=None, min_compress_len=0]) -> failed_keys
+      If *compress_level* is given, it specifies the compression level for the
+      data. It accepts the same values as the :mod:`zlib` family, for which
+      `zlib.Z_BEST_SPEED` and `zlib.Z_BEST_COMPRESSION` are commonly used
+      constants. It accepts values between [0, 9] inclusively.
+
+   .. method:: set_multi(mapping[, time=0, key_prefix=None, min_compress_len, compress_level]) -> failed_keys
 
       Set multiple keys as given by *mapping*.
 
@@ -76,13 +81,13 @@
       Returns a list of keys which were not set for one reason or another,
       without their optional key prefix.
 
-   .. method:: add(key, value[, time, min_compress_len]) -> success
+   .. method:: add(key, value[, time, min_compress_len, compress_level]) -> success
 
       Sets *key* if it does not exist.
 
       .. seealso:: :meth:`set`, :meth:`replace`
 
-   .. method:: replace(key, value[, time, min_compress_len]) -> success
+   .. method:: replace(key, value[, time, min_compress_len, compress_level]) -> success
 
       Sets *key* only if it already exists.
 
