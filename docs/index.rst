@@ -93,6 +93,7 @@ Further Reading
 .. toctree::
    :maxdepth: 2
 
+   changelog
    install
    reference
    pooling

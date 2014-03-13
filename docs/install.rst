@@ -5,8 +5,8 @@
 Requirements
 ============
 
-* Python 2.5 or later
-* libmemcached 0.32 or later (last test with 0.51)
+* Python 2.5 or later (Python 3 not supported yet)
+* libmemcached 0.32 or later (last test with 1.0.18)
 * zlib (required for compression support)
 * libsasl2 (required for authentication support)
 
@@ -28,7 +28,7 @@ libmemcached would end up in ``/opt/local``, hence
 From PyPI
 ---------
 
-Since ``easy_install`` doesn't support passing arguments to the setup script,
+Since ``pip`` doesn't support passing arguments to the setup script,
 you can also define environment variables::
 
-    LIBMEMCACHED=/opt/local easy_install pylibmc
+    LIBMEMCACHED=/opt/local pip install pylibmc
