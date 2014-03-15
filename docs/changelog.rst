@@ -7,8 +7,7 @@ New in version 1.3.0
 Because there ain't nothing better than releasing software in the spring time.
 
 Lots of improvements have come about in just about every corner of the library,
-thanks to *eighteen different authors* over almost *20 pull requests*.
-Amazing.
+thanks to *eighteen different authors* over almost *20 pull requests*. Amazing.
 
 - Added touch support
 - Added compress_level
@@ -29,8 +28,8 @@ __ http://static.adzerk.net/Advertisers/5af77cf0094d4303bb308b955dd05992.jpg
 __ bitcoin:12dveKhqiJWCY8zXT4kaHdHELXPeGAUo9h
 
 Lastly, thanks in particular to the authors of this release: Abramowitz,
-Baklanov, Bergström, Borisov, Branson, Brown, Ericson., Hansche, Hlodversson,
-King, Kowalak, McFague, Moura, Noguchi, Schurter, Shurter, Williams and Wong.
+Baklanov, Bergström, Borisov, Branson, Brown, Ericson, Hansche, Hlodversson,
+King, Kowalak, McFague, Moura, Noguchi, Shurter, Williams and Wong.
 
 New in version 1.2.0
 --------------------
