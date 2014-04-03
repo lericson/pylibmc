@@ -1,13 +1,7 @@
-from __future__ import with_statement
-
-try:
-    import Queue
-except ImportError:
-    import queue as Queue
 import pylibmc
 from nose.tools import eq_, ok_
 from tests import PylibmcTestCase
-import six
+from six.moves import queue
 
 class PoolTestCase(PylibmcTestCase):
     pass
@@ -15,7 +9,6 @@ class PoolTestCase(PylibmcTestCase):
 class ClientPoolTests(PoolTestCase):
     def test_simple(self):
         a_str = "a"
-        if six.PY3: a_str = b"a"
         p = pylibmc.ClientPool(self.mc, 2)
         with p.reserve() as smc:
             ok_(smc)
@@ -26,6 +19,6 @@ class ClientPoolTests(PoolTestCase):
         p = pylibmc.ClientPool(self.mc, 2)
         with p.reserve() as smc1:
             with p.reserve() as smc2:
-                self.assertRaises(Queue.Empty, p.reserve().__enter__)
+                self.assertRaises(queue.Empty, p.reserve().__enter__)
 
 # TODO Thread-mapped pool tests

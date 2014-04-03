@@ -22,9 +22,6 @@ class ClientTests(PylibmcTestCase):
         bc = make_test_client(binary=True)
         k = "\x00\x01"
         test_str = "test"
-        if six.PY3:
-            k = b"\x00\x01"
-            test_str = b"test"
         ok_(bc.set(k, test_str))
         if six.PY3:
             rk = list(bc.get_multi([k]).keys())[0]
@@ -35,9 +32,6 @@ class ClientTests(PylibmcTestCase):
     def test_cas(self):
         c = "cas"
         k = "testkey"
-        if six.PY3:
-            c = b"cas"
-            k = b"testkey"
         mc = make_test_client(binary=False, behaviors={c: True})
         ok_(mc.set(k, 0))
         while True:
@@ -76,10 +70,6 @@ class ClientTests(PylibmcTestCase):
         touch_test  = "touch-test"
         touch_test2 = "touch-test-2"
         tval = "touch-val"
-        if six.PY3:
-            touch_test = b"touch-test"
-            touch_test2 = b"touch-test-2"
-            tval = b"touch-val"
         ok_(self.mc.set(touch_test, tval, 1))
         eq_(tval, self.mc.get(touch_test))
         time.sleep(2)
