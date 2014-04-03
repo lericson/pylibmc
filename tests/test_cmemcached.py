@@ -9,9 +9,9 @@ from tests import PylibmcTestCase
 from six.moves import range
 
 a           = "a"
-I_          = "I "
-Do          = "Do"
-I_Do        = "I Do"
+I_          = b"I "
+Do          = b"Do"
+I_Do        = b"I Do"
 n12345      = "12345"
 num12345    = "num12345"
 str12345    = "str12345"
@@ -43,11 +43,13 @@ class TestCmemcached(PylibmcTestCase):
         self.mc.set("b", "valueB")
         self.mc.set("c", "valueC")
         result = self.mc.get_multi(["a", "b", "c", "", "hello world"])
-        eq_(result, {'a':'valueA', 'b':'valueB', 'c':'valueC'})
+        eq_(result, {b'a': 'valueA', b'b': 'valueB', b'c': 'valueC'})
 
     def testBigGetMulti(self):
         count = 10 ** 4
-        keys = ['key%d' % i for i in range(count)]
+        # Python 2: .encode() is a no-op on these byte strings since they
+        # only contain bytes that can be implicitly decoded as ASCII.
+        keys = [('key%d' % i).encode() for i in range(count)]
         pairs = zip(keys, ['value%d' % i for i in range(count)])
 
         d = {}
