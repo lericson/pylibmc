@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 import sys
 from distutils.core import setup, Extension
@@ -64,7 +65,7 @@ if sys.platform == "darwin" and not os.environ.get("ARCHFLAGS"):
     if os.path.exists(compiler_dirn):
         dir_items = os.listdir(compiler_dirn)
         if "ppc" not in dir_items:
-            print >>sys.stderr, "enabling osx-specific ARCHFLAGS/ppc hack"
+            print("enabling osx-specific ARCHFLAGS/ppc hack", file=sys.stderr)
             os.environ["ARCHFLAGS"] = "-arch i386 -arch x86_64"
 
 # There's a bug in <py3 with Py_True/False that will propagate with GCC's
