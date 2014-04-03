@@ -479,7 +479,7 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
             return NULL;
         }
 
-        inflated = Py_BuildValue("s#", inflated_buf, inflated_size);
+        inflated = PyBytes_FromStringAndSize(inflated_buf, inflated_size);
 
         free(inflated_buf);
 
