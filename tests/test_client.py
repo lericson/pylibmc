@@ -82,3 +82,10 @@ class ClientTests(PylibmcTestCase):
         eq_(tval, self.mc.get(touch_test))
 
         ok_(not self.mc.touch(touch_test2, 100))
+
+    def test_utf8_encoding(self):
+        k = "a key with a replacement character \ufffd and something non-BMP \U0001f4a3"
+        k_enc = k.encode('utf-8')
+        mc = make_test_client(binary=True)
+        ok_(mc.set(k, 0))
+        ok_(mc.get(k_enc) == 0)
