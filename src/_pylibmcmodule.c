@@ -992,16 +992,29 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
         store_val = value_obj;
         Py_INCREF(store_val); /* because we'll be decring it again in
                                  pylibmc_mset_free*/
+#if PY_MAJOR_VERSION >= 3
+    } else if (PyBool_Check(value_obj)) {
+        /**
+         * Convert to an integer, then to a Unicode string containing
+         * only ASCII code points, then encode it to ASCII/UTF-8 bytes
+         * (equivalent here)
+         */
+        serialized->flags |= PYLIBMC_FLAG_BOOL;
+        PyObject* tmp_int = PyNumber_Long(value_obj);
+        PyObject* tmp = PyObject_ASCII(tmp_int);
+        store_val = PyUnicode_AsUTF8String(tmp);
+        Py_DECREF(tmp);
+    } else if (PyLong_Check(value_obj)) {
+        serialized->flags |= PYLIBMC_FLAG_LONG;
+        PyObject* tmp = PyObject_ASCII(value_obj);
+        store_val = PyUnicode_AsUTF8String(tmp);
+        Py_DECREF(tmp);
+#else
     } else if (PyBool_Check(value_obj)) {
         serialized->flags |= PYLIBMC_FLAG_BOOL;
         PyObject* tmp = PyNumber_Long(value_obj);
         store_val = PyObject_Bytes(tmp);
         Py_DECREF(tmp);
-#if PY_MAJOR_VERSION >= 3
-        // TODO: In python 3 PyObject_Bytes() on Integer causes an
-        // Error:
-        // http://docs.python.org/3.2/c-api/object.html?highlight=pyobject_bytes#PyObject_Bytes
-#else
     } else if (PyInt_Check(value_obj)) {
         serialized->flags |= PYLIBMC_FLAG_INTEGER;
         PyObject* tmp = PyNumber_Int(value_obj);
