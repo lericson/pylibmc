@@ -731,6 +731,8 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
         PyObject *kwds) {
     /* function called by the set/add/incr/etc commands */
     PyObject *keys = NULL;
+    const char *key_prefix_raw = NULL;
+    Py_ssize_t key_prefix_len = 0;
     PyObject *key_prefix = NULL;
     unsigned int time = 0;
     unsigned int min_compress = 0;
@@ -742,9 +744,9 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
                            "min_compress_len", "compress_level",
                            NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|ISIi", kws,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|Is#Ii", kws,
                                      &PyDict_Type, &keys,
-                                     &time, &key_prefix,
+                                     &time, &key_prefix_raw, &key_prefix_len,
                                      &min_compress, &compress_level)) {
         return NULL;
     }
@@ -783,6 +785,10 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
      */
 
     Py_ssize_t pos = 0; /* PyDict_Next's 'pos' isn't an incrementing index */
+
+    if (key_prefix_raw != NULL) {
+        key_prefix = PyBytes_FromStringAndSize(key_prefix_raw, key_prefix_len);
+    }
 
     for (idx = 0; PyDict_Next(keys, &pos, &curr_key, &curr_value); idx++) {
         int success = _PylibMC_SerializeValue(curr_key, key_prefix,
@@ -834,6 +840,7 @@ cleanup:
         }
         PyMem_Free(serialized);
     }
+    Py_XDECREF(key_prefix);
 
     return retval;
 }
@@ -1275,6 +1282,8 @@ static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self,
     PyObject *key = NULL;
     PyObject *keys = NULL;
     PyObject *keys_tmp = NULL;
+    const char *key_prefix_raw = NULL;
+    Py_ssize_t key_prefix_len = 0;
     PyObject *key_prefix = NULL;
     PyObject *retval = NULL;
     PyObject *iterator = NULL;
@@ -1283,19 +1292,19 @@ static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self,
 
     static char *kws[] = { "keys", "key_prefix", "delta", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|SI", kws,
-                                     &keys, &key_prefix, &delta))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|(s#)I", kws,
+                                     &keys, &key_prefix_raw,
+                                     &key_prefix_len, &delta))
         return NULL;
 
     nkeys = (size_t)PySequence_Size(keys);
     if (nkeys == -1)
         return NULL;
 
-    if (key_prefix != NULL) {
-        if (!_key_normalized_obj(&key_prefix))
-            return NULL;
+    if (key_prefix_raw != NULL) {
+        key_prefix = PyBytes_FromStringAndSize(key_prefix_raw, key_prefix_len);
 
-        if (PyBytes_Size(key_prefix) == 0)
+        if (key_prefix != NULL && PyBytes_Size(key_prefix) == 0)
             key_prefix = NULL;
     }
 
@@ -1360,6 +1369,7 @@ loopcleanup:
 cleanup:
     if (incrs != NULL)
         PyMem_Free(incrs);
+    Py_XDECREF(key_prefix);
     Py_DECREF(keys_tmp);
     Py_XDECREF(iterator);
 
@@ -1759,6 +1769,8 @@ static PyObject *PylibMC_Client_add_multi(PylibMC_Client *self, PyObject *args,
 
 static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
         PyObject *args, PyObject *kwds) {
+    const char *prefix_raw = NULL;
+    Py_ssize_t prefix_len;
     PyObject *prefix = NULL;
     PyObject *time = NULL;
     PyObject *delete;
@@ -1768,8 +1780,8 @@ static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
 
     static char *kws[] = { "keys", "key_prefix", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|S:delete_multi", kws,
-                                     &keys, &prefix))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|s#:delete_multi", kws,
+                                     &keys, &prefix_raw, &prefix_len))
         return NULL;
 
     /**
@@ -1789,6 +1801,10 @@ static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
         return NULL;
     }
 
+    if (prefix_raw != NULL) {
+        prefix = PyBytes_FromStringAndSize(prefix_raw, prefix_len);
+    }
+
     if ((delete = PyObject_GetAttrString((PyObject *)self, "delete")) == NULL)
         return NULL;
 
@@ -1801,6 +1817,7 @@ static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
         Py_DECREF(call_args);
     }
     Py_DECREF(delete);
+    Py_XDECREF(prefix);
 
     if (retval == NULL)
         return NULL;
