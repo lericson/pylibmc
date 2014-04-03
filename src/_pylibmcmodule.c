@@ -843,6 +843,8 @@ static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *self,
     /* function called by the set/add/etc commands */
     static char *kws[] = { "key", "val", "cas", "time", NULL };
     PyObject *ret = NULL;
+    const char *key_raw;
+    Py_ssize_t key_len;
     PyObject *key;
     PyObject *value;
     uint64_t cas = 0;
@@ -850,8 +852,8 @@ static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *self,
     bool success = false;
     memcached_return rc;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "SOL|I", kws,
-                                     &key, &value, &cas,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#OL|I", kws,
+                                     &key_raw, &key_len, &value, &cas,
                                      &time)) {
       return NULL;
     }
@@ -862,6 +864,8 @@ static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *self,
     }
 
     pylibmc_mset mset = { NULL };
+
+    key = PyBytes_FromStringAndSize(key_raw, key_len);
 
     /* TODO: because it's RunSetCommand that does the zlib
        compression, cas can't currently use compressed values. */
@@ -894,6 +898,7 @@ static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *self,
 
 cleanup:
     _PylibMC_FreeMset(&mset);
+    Py_DECREF(key);
 
     return ret;
 }
