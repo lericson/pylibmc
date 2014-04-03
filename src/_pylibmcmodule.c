@@ -659,7 +659,9 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
     static char *kws[] = { "key", "val", "time",
                            "min_compress_len", "compress_level",
                            NULL };
+    const char *key_raw;
     PyObject *key;
+    Py_ssize_t keylen;
     PyObject *value;
     unsigned int time = 0; /* this will be turned into a time_t */
     unsigned int min_compress = 0;
@@ -667,8 +669,13 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
 
     bool success = false;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "SO|IIi", kws,
-                                     &key, &value,
+    /*
+     * "s#" specifies that (Unicode) text objects will be encoded
+     * to UTF-8 byte strings for use as keys, and this seems to be
+     * the only sensible thing to do when the user attempts this
+     */
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#O|IIi", kws,
+                                     &key_raw, &keylen, &value,
                                      &time, &min_compress, &compress_level)) {
       return NULL;
     }
@@ -689,6 +696,14 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
 
     pylibmc_mset serialized = { NULL };
 
+    /*
+    Kind of clumsy to convert to a char* and then to a Python
+    bytes object, but using "s#" for argument parsing seems to
+    be the cleanest way to accept both byte strings and text
+    strings as keys.
+     */
+    key = PyBytes_FromStringAndSize(key_raw, keylen);
+
     success = _PylibMC_SerializeValue(key, NULL, value, time, &serialized);
 
     if (!success)
@@ -700,6 +715,7 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
 
 cleanup:
     _PylibMC_FreeMset(&serialized);
+    Py_DECREF(key);
 
     if(PyErr_Occurred() != NULL) {
         return NULL;
