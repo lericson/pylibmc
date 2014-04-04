@@ -1808,7 +1808,18 @@ static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
      *      delete("a", 1, 3)
      *      delete("b", 2, 3)
      */
+#if PY_MAJOR_VERSION >= 3
+    /*
+     * This isn't optimal, but PyMapping_Check returns 1 for
+     * tuples, lists and other sequences in Python 3. According to
+     * http://bugs.python.org/issue5945 PyMapping_Check has never
+     * been particularly reliable, so hopefully it's enough to
+     * check for dict objects (and subclasses) specifically.
+     */
+    if (PyDict_Check(keys)) {
+#else
     if (PyMapping_Check(keys)) {
+#endif
         PyErr_SetString(PyExc_TypeError,
             "keys must be a sequence, not a mapping");
         return NULL;
