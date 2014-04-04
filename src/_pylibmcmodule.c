@@ -1686,7 +1686,7 @@ static PyObject *_PylibMC_DoMulti(PyObject *values, PyObject *func,
     PyObject *retval = PyList_New(0);
     PyObject *iter = NULL;
     PyObject *item = NULL;
-    int is_mapping = PyMapping_Check(values);
+    int is_mapping = PyDict_Check(values);
 
     if (retval == NULL)
         goto error;
@@ -1700,7 +1700,14 @@ static PyObject *_PylibMC_DoMulti(PyObject *values, PyObject *func,
         PyObject *key = NULL;
         PyObject *ro = NULL;
 
-        /* Calculate key. */
+        /**
+         * Calculate key.
+         *
+         * prefix is already converted to a byte string, so ensure that
+         * the key is of the same type before trying to append.
+         */
+        if (!_key_normalized_obj(&item))
+            goto iter_error;
         if (prefix == NULL || prefix == Py_None) {
             /* We now have two owned references to item. */
             key = item;
@@ -1708,6 +1715,10 @@ static PyObject *_PylibMC_DoMulti(PyObject *values, PyObject *func,
         } else {
             key = PySequence_Concat(prefix, item);
         }
+        /**
+         * Another call to _key_normalized_obj is still a good idea since
+         * we might have created a key that's too long
+         */
         if (key == NULL || !_key_normalized_obj(&key))
             goto iter_error;
 
@@ -2252,7 +2263,7 @@ static int _key_normalized_obj(PyObject **key) {
     }
 
     if (!PyBytes_Check(*key)) {
-        PyErr_SetString(PyExc_TypeError, "key must be str or bytes");
+        PyErr_SetString(PyExc_TypeError, "key must be bytes");
         return 0;
     }
 
