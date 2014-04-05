@@ -6,7 +6,6 @@
 import pylibmc
 from nose.tools import eq_
 from tests import PylibmcTestCase
-from six.moves import range
 
 a           = "a"
 I_          = b"I "

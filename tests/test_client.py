@@ -1,4 +1,5 @@
 import functools
+import sys
 import time
 import pylibmc
 import _pylibmc
@@ -6,7 +7,8 @@ from pylibmc.test import make_test_client
 from tests import PylibmcTestCase
 from nose import SkipTest
 from nose.tools import eq_, ok_
-import six
+
+PY3 = sys.version_info[0] >= 3
 
 def requires_memcached_touch(test):
     @functools.wraps(test)
@@ -23,7 +25,7 @@ class ClientTests(PylibmcTestCase):
         k = "\x00\x01"
         test_str = "test"
         ok_(bc.set(k, test_str))
-        if six.PY3:
+        if PY3:
             rk = list(bc.get_multi([k]).keys())[0]
             # Keys are converted to UTF-8 strings before being
             # used, so the key that we get back will be a byte

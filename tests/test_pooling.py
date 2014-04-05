@@ -1,7 +1,11 @@
+try:
+    import queue
+except ImportError:
+    import Queue as queue
+
 import pylibmc
 from nose.tools import eq_, ok_
 from tests import PylibmcTestCase
-from six.moves import queue
 
 class PoolTestCase(PylibmcTestCase):
     pass
