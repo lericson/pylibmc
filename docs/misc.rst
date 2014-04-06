@@ -80,3 +80,44 @@ connection in many threads simultaneously.
 
 It is encouraged to use the existing provisions for pooling so as to avoid
 reusing the same client in many threads. See :ref:`the docs on pooling <pooling>`.
+
+Python 3 ``str`` vs. ``bytes`` keys
+===================================
+``memcached`` itself requires cache keys to be byte strings, but Python 3's
+main string type (``str``) is a sequence of Unicode code points. For convenience,
+:mod:`pylibmc` encodes text ``str`` keys to UTF-8 byte strings. This has a few
+consequences that may not be obvious:
+
+#. A ``str`` key and its UTF-8 encoding refer to the same cache value. This does
+   *not* match the behavior of Python 3 ``dict`` and ``set`` objects::
+
+    >>> d = {'key': 'value'}
+    >>> d[b'key']
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    KeyError: b'key'
+    >>> s = {'item1', 'item2'}
+    >>> b'item1' in s
+    False
+
+   however::
+
+    >>> import pylibmc
+    >>> c = pylibmc.Client(...)
+    >>> c['key'] = 'value'
+    >>> c[b'key']
+    'value'
+
+#. ``memcached`` returns keys as byte strings, and the :mod:`pylibmc` module does
+   not and cannot know whether these should be decoded to ``str`` objects. As such,
+   everything is returned as a Python ``bytes`` object. For example (from the
+   doctests)::
+
+    >>> c.add_multi({'a': 1, 'b': 0, 'c': 4})
+    []
+    >>> c.incr_multi(('a', 'b', 'c'), delta=1)
+    >>> list(sorted(c.get_multi(('a', 'b', 'c')).items()))
+    [(b'a', 2), (b'b', 1), (b'c', 5)]
+
+   You will need to call ``.decode()`` on any key returned by ``memcached`` if you'd
+   like to manipulate or treat it as text.
