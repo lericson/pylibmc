@@ -1935,7 +1935,7 @@ _PylibMC_AddServerCallback(memcached_st *mc,
     free(stat_keys);
 
     desc = PyBytes_FromFormat("%s:%d (%u)",
-#if LIBMEMCACHED_VERSION_HEX >= 0x00039000 
+#if LIBMEMCACHED_VERSION_HEX >= 0x00039000
             memcached_server_name(instance), memcached_server_port(instance),
 #else /* ver < libmemcached 0.39 */
             server->hostname, server->port,
@@ -2212,7 +2212,7 @@ static int _key_normalized_obj(PyObject **key) {
 static int _key_normalized_str(char **str, Py_ssize_t *size) {
     /* libmemcached pads max_key_size with one byte for null termination */
     if (*size >= MEMCACHED_MAX_KEY) {
-        PyErr_Format(PyExc_ValueError, "key length %d too long, max is %d",
+        PyErr_Format(PyExc_ValueError, "key length %zd too long, max is %d",
                                        *size, MEMCACHED_MAX_KEY - 1);
         return 0;
     }
@@ -2376,7 +2376,7 @@ no port should be given. libmemcached can parse strings as well::\n\
 See libmemcached's memcached_servers_parse for more info on that. I'm told \n\
 you can use UNIX domain sockets by specifying paths, and multiple servers \n\
 by using comma-separation. Good luck with that.\n", PylibMC_functions);
-    
+
     if (module == NULL) {
         return MOD_ERROR_VAL;
     }
