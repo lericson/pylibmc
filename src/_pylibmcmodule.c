@@ -479,7 +479,7 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
             return NULL;
         }
 
-        inflated = Py_BuildValue("s#", inflated_buf, inflated_size);
+        inflated = PyBytes_FromStringAndSize(inflated_buf, inflated_size);
 
         free(inflated_buf);
 
@@ -659,7 +659,9 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
     static char *kws[] = { "key", "val", "time",
                            "min_compress_len", "compress_level",
                            NULL };
+    const char *key_raw;
     PyObject *key;
+    Py_ssize_t keylen;
     PyObject *value;
     unsigned int time = 0; /* this will be turned into a time_t */
     unsigned int min_compress = 0;
@@ -667,8 +669,13 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
 
     bool success = false;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "SO|IIi", kws,
-                                     &key, &value,
+    /*
+     * "s#" specifies that (Unicode) text objects will be encoded
+     * to UTF-8 byte strings for use as keys, and this seems to be
+     * the only sensible thing to do when the user attempts this
+     */
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#O|IIi", kws,
+                                     &key_raw, &keylen, &value,
                                      &time, &min_compress, &compress_level)) {
       return NULL;
     }
@@ -689,6 +696,14 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
 
     pylibmc_mset serialized = { NULL };
 
+    /*
+    Kind of clumsy to convert to a char* and then to a Python
+    bytes object, but using "s#" for argument parsing seems to
+    be the cleanest way to accept both byte strings and text
+    strings as keys.
+     */
+    key = PyBytes_FromStringAndSize(key_raw, keylen);
+
     success = _PylibMC_SerializeValue(key, NULL, value, time, &serialized);
 
     if (!success)
@@ -700,6 +715,7 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
 
 cleanup:
     _PylibMC_FreeMset(&serialized);
+    Py_DECREF(key);
 
     if(PyErr_Occurred() != NULL) {
         return NULL;
@@ -715,6 +731,8 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
         PyObject *kwds) {
     /* function called by the set/add/incr/etc commands */
     PyObject *keys = NULL;
+    const char *key_prefix_raw = NULL;
+    Py_ssize_t key_prefix_len = 0;
     PyObject *key_prefix = NULL;
     unsigned int time = 0;
     unsigned int min_compress = 0;
@@ -726,9 +744,9 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
                            "min_compress_len", "compress_level",
                            NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|ISIi", kws,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|Is#Ii", kws,
                                      &PyDict_Type, &keys,
-                                     &time, &key_prefix,
+                                     &time, &key_prefix_raw, &key_prefix_len,
                                      &min_compress, &compress_level)) {
         return NULL;
     }
@@ -767,6 +785,10 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
      */
 
     Py_ssize_t pos = 0; /* PyDict_Next's 'pos' isn't an incrementing index */
+
+    if (key_prefix_raw != NULL) {
+        key_prefix = PyBytes_FromStringAndSize(key_prefix_raw, key_prefix_len);
+    }
 
     for (idx = 0; PyDict_Next(keys, &pos, &curr_key, &curr_value); idx++) {
         int success = _PylibMC_SerializeValue(curr_key, key_prefix,
@@ -818,6 +840,7 @@ cleanup:
         }
         PyMem_Free(serialized);
     }
+    Py_XDECREF(key_prefix);
 
     return retval;
 }
@@ -827,6 +850,8 @@ static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *self,
     /* function called by the set/add/etc commands */
     static char *kws[] = { "key", "val", "cas", "time", NULL };
     PyObject *ret = NULL;
+    const char *key_raw;
+    Py_ssize_t key_len;
     PyObject *key;
     PyObject *value;
     uint64_t cas = 0;
@@ -834,8 +859,8 @@ static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *self,
     bool success = false;
     memcached_return rc;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "SOL|I", kws,
-                                     &key, &value, &cas,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#OL|I", kws,
+                                     &key_raw, &key_len, &value, &cas,
                                      &time)) {
       return NULL;
     }
@@ -846,6 +871,8 @@ static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *self,
     }
 
     pylibmc_mset mset = { NULL };
+
+    key = PyBytes_FromStringAndSize(key_raw, key_len);
 
     /* TODO: because it's RunSetCommand that does the zlib
        compression, cas can't currently use compressed values. */
@@ -878,6 +905,7 @@ static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *self,
 
 cleanup:
     _PylibMC_FreeMset(&mset);
+    Py_DECREF(key);
 
     return ret;
 }
@@ -964,16 +992,29 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
         store_val = value_obj;
         Py_INCREF(store_val); /* because we'll be decring it again in
                                  pylibmc_mset_free*/
+#if PY_MAJOR_VERSION >= 3
+    } else if (PyBool_Check(value_obj)) {
+        /**
+         * Convert to an integer, then to a Unicode string containing
+         * only ASCII code points, then encode it to ASCII/UTF-8 bytes
+         * (equivalent here)
+         */
+        serialized->flags |= PYLIBMC_FLAG_BOOL;
+        PyObject* tmp_int = PyNumber_Long(value_obj);
+        PyObject* tmp = PyObject_ASCII(tmp_int);
+        store_val = PyUnicode_AsUTF8String(tmp);
+        Py_DECREF(tmp);
+    } else if (PyLong_Check(value_obj)) {
+        serialized->flags |= PYLIBMC_FLAG_LONG;
+        PyObject* tmp = PyObject_ASCII(value_obj);
+        store_val = PyUnicode_AsUTF8String(tmp);
+        Py_DECREF(tmp);
+#else
     } else if (PyBool_Check(value_obj)) {
         serialized->flags |= PYLIBMC_FLAG_BOOL;
         PyObject* tmp = PyNumber_Long(value_obj);
         store_val = PyObject_Bytes(tmp);
         Py_DECREF(tmp);
-#if PY_MAJOR_VERSION >= 3
-        // TODO: In python 3 PyObject_Bytes() on Integer causes an
-        // Error:
-        // http://docs.python.org/3.2/c-api/object.html?highlight=pyobject_bytes#PyObject_Bytes
-#else
     } else if (PyInt_Check(value_obj)) {
         serialized->flags |= PYLIBMC_FLAG_INTEGER;
         PyObject* tmp = PyNumber_Int(value_obj);
@@ -1254,6 +1295,8 @@ static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self,
     PyObject *key = NULL;
     PyObject *keys = NULL;
     PyObject *keys_tmp = NULL;
+    const char *key_prefix_raw = NULL;
+    Py_ssize_t key_prefix_len = 0;
     PyObject *key_prefix = NULL;
     PyObject *retval = NULL;
     PyObject *iterator = NULL;
@@ -1262,19 +1305,19 @@ static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self,
 
     static char *kws[] = { "keys", "key_prefix", "delta", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|SI", kws,
-                                     &keys, &key_prefix, &delta))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|(s#)I", kws,
+                                     &keys, &key_prefix_raw,
+                                     &key_prefix_len, &delta))
         return NULL;
 
     nkeys = (size_t)PySequence_Size(keys);
     if (nkeys == -1)
         return NULL;
 
-    if (key_prefix != NULL) {
-        if (!_key_normalized_obj(&key_prefix))
-            return NULL;
+    if (key_prefix_raw != NULL) {
+        key_prefix = PyBytes_FromStringAndSize(key_prefix_raw, key_prefix_len);
 
-        if (PyBytes_Size(key_prefix) == 0)
+        if (key_prefix != NULL && PyBytes_Size(key_prefix) == 0)
             key_prefix = NULL;
     }
 
@@ -1339,6 +1382,7 @@ loopcleanup:
 cleanup:
     if (incrs != NULL)
         PyMem_Free(incrs);
+    Py_XDECREF(key_prefix);
     Py_DECREF(keys_tmp);
     Py_XDECREF(iterator);
 
@@ -1642,7 +1686,7 @@ static PyObject *_PylibMC_DoMulti(PyObject *values, PyObject *func,
     PyObject *retval = PyList_New(0);
     PyObject *iter = NULL;
     PyObject *item = NULL;
-    int is_mapping = PyMapping_Check(values);
+    int is_mapping = PyDict_Check(values);
 
     if (retval == NULL)
         goto error;
@@ -1656,7 +1700,14 @@ static PyObject *_PylibMC_DoMulti(PyObject *values, PyObject *func,
         PyObject *key = NULL;
         PyObject *ro = NULL;
 
-        /* Calculate key. */
+        /**
+         * Calculate key.
+         *
+         * prefix is already converted to a byte string, so ensure that
+         * the key is of the same type before trying to append.
+         */
+        if (!_key_normalized_obj(&item))
+            goto iter_error;
         if (prefix == NULL || prefix == Py_None) {
             /* We now have two owned references to item. */
             key = item;
@@ -1664,6 +1715,10 @@ static PyObject *_PylibMC_DoMulti(PyObject *values, PyObject *func,
         } else {
             key = PySequence_Concat(prefix, item);
         }
+        /**
+         * Another call to _key_normalized_obj is still a good idea since
+         * we might have created a key that's too long
+         */
         if (key == NULL || !_key_normalized_obj(&key))
             goto iter_error;
 
@@ -1738,6 +1793,8 @@ static PyObject *PylibMC_Client_add_multi(PylibMC_Client *self, PyObject *args,
 
 static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
         PyObject *args, PyObject *kwds) {
+    const char *prefix_raw = NULL;
+    Py_ssize_t prefix_len;
     PyObject *prefix = NULL;
     PyObject *time = NULL;
     PyObject *delete;
@@ -1747,8 +1804,8 @@ static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
 
     static char *kws[] = { "keys", "key_prefix", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|S:delete_multi", kws,
-                                     &keys, &prefix))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|s#:delete_multi", kws,
+                                     &keys, &prefix_raw, &prefix_len))
         return NULL;
 
     /**
@@ -1762,10 +1819,25 @@ static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
      *      delete("a", 1, 3)
      *      delete("b", 2, 3)
      */
+#if PY_MAJOR_VERSION >= 3
+    /*
+     * This isn't optimal, but PyMapping_Check returns 1 for
+     * tuples, lists and other sequences in Python 3. According to
+     * http://bugs.python.org/issue5945 PyMapping_Check has never
+     * been particularly reliable, so hopefully it's enough to
+     * check for dict objects (and subclasses) specifically.
+     */
+    if (PyDict_Check(keys)) {
+#else
     if (PyMapping_Check(keys)) {
+#endif
         PyErr_SetString(PyExc_TypeError,
             "keys must be a sequence, not a mapping");
         return NULL;
+    }
+
+    if (prefix_raw != NULL) {
+        prefix = PyBytes_FromStringAndSize(prefix_raw, prefix_len);
     }
 
     if ((delete = PyObject_GetAttrString((PyObject *)self, "delete")) == NULL)
@@ -1780,6 +1852,7 @@ static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
         Py_DECREF(call_args);
     }
     Py_DECREF(delete);
+    Py_XDECREF(prefix);
 
     if (retval == NULL)
         return NULL;
@@ -2190,7 +2263,7 @@ static int _key_normalized_obj(PyObject **key) {
     }
 
     if (!PyBytes_Check(*key)) {
-        PyErr_SetString(PyExc_TypeError, "key must be str or bytes");
+        PyErr_SetString(PyExc_TypeError, "key must be bytes");
         return 0;
     }
 
