@@ -1,9 +1,12 @@
 """Pooling"""
 
 from __future__ import with_statement
-
 from contextlib import contextmanager
-from Queue import Queue
+
+try:
+    from Queue import Queue
+except ImportError:
+    from queue import Queue
 
 class ClientPool(Queue):
     """Client pooling helper.
@@ -21,14 +24,14 @@ class ClientPool(Queue):
     >>> with pool.reserve() as mc:
     ...     mc.set("hi", "ho")
     ...     mc.delete("hi")
-    ... 
+    ...
     True
     True
     """
 
-    def __init__(self, mc=None, n_slots=None):
+    def __init__(self, mc=None, n_slots=0):
         Queue.__init__(self, n_slots)
-        if mc is not None:
+        if mc and n_slots:
             self.fill(mc, n_slots)
 
     @contextmanager
@@ -46,7 +49,7 @@ class ClientPool(Queue):
 
     def fill(self, mc, n_slots):
         """Fill *n_slots* of the pool with clones of *mc*."""
-        for i in xrange(n_slots):
+        for i in range(n_slots):
             self.put(mc.clone())
 
 class ThreadMappedPool(dict):
@@ -69,7 +72,7 @@ class ThreadMappedPool(dict):
     >>> with pool.reserve() as mc:
     ...     mc.set("hi", "ho")
     ...     mc.delete("hi")
-    ... 
+    ...
     True
     True
     """
