@@ -38,12 +38,10 @@ class PylibmcPlugin(Plugin):
     enableOpt = "info"
 
     def __init__(self):
-        Plugin.__init__(self)
-
-    def begin(self):
         hack_sys_path()
         from pylibmc import build_info
         logger.info("testing %s", build_info())
+        Plugin.__init__(self)
 
 if __name__ == "__main__":
     nose.main(addplugins=[PylibmcPlugin()])
