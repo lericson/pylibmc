@@ -994,21 +994,11 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
                                  pylibmc_mset_free*/
 #if PY_MAJOR_VERSION >= 3
     } else if (PyBool_Check(value_obj)) {
-        /**
-         * Convert to an integer, then to a Unicode string containing
-         * only ASCII code points, then encode it to ASCII/UTF-8 bytes
-         * (equivalent here)
-         */
         serialized->flags |= PYLIBMC_FLAG_BOOL;
-        PyObject* tmp_int = PyNumber_Long(value_obj);
-        PyObject* tmp = PyObject_ASCII(tmp_int);
-        store_val = PyUnicode_AsUTF8String(tmp);
-        Py_DECREF(tmp);
+        store_val = PyBytes_FromFormat("%ld", PyLong_AsLong(value_obj));
     } else if (PyLong_Check(value_obj)) {
         serialized->flags |= PYLIBMC_FLAG_LONG;
-        PyObject* tmp = PyObject_ASCII(value_obj);
-        store_val = PyUnicode_AsUTF8String(tmp);
-        Py_DECREF(tmp);
+        store_val = PyBytes_FromFormat("%ld", PyLong_AsLong(value_obj));
 #else
     } else if (PyBool_Check(value_obj)) {
         serialized->flags |= PYLIBMC_FLAG_BOOL;
