@@ -1295,7 +1295,7 @@ static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self,
 
     static char *kws[] = { "keys", "key_prefix", "delta", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|(s#)I", kws,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|s#I", kws,
                                      &keys, &key_prefix_raw,
                                      &key_prefix_len, &delta))
         return NULL;
