@@ -8,8 +8,8 @@ True
 >>> c.get("hello")
 >>> c.set("test_key", 123)
 True
->>> c.get("test_key")
-123
+>>> c.get("test_key") == 123
+True
 >>> c.get("test_key_2")
 >>> c.delete("test_key")
 True
@@ -57,8 +57,8 @@ Zero-key-test-time!
 {}
 >>> c.delete_multi([""])
 False
->>> c.set_multi({"": "hi"})
-[b'']
+>>> c.set_multi({"": "hi"}) == [b'']
+True
 >>> c.delete_multi({"a": "b"})
 Traceback (most recent call last):
   ...
@@ -187,9 +187,10 @@ ok
 
 Behaviors.
 >>> c.set_behaviors({"tcp_nodelay": True, "hash": 6})
->>> list(sorted((k, v) for (k, v) in c.get_behaviors().items()
+>>> behaviors_items = [('hash', 6), ('tcp_nodelay', 1)]
+>>> behaviors_items == list(sorted((k, v) for (k, v) in c.get_behaviors().items()
 ...             if k in ("tcp_nodelay", "hash")))
-[('hash', 6), ('tcp_nodelay', 1)]
+True
 
 Binary protocol!
 >>> c = make_test_client(_pylibmc.client, binary=True)
@@ -204,15 +205,17 @@ incr_multi
 >>> c.add_multi({'a': 1, 'b': 0, 'c': 4})
 []
 >>> c.incr_multi(('a', 'b', 'c'), delta=1)
->>> list(sorted(c.get_multi(('a', 'b', 'c')).items()))
-[(b'a', 2), (b'b', 1), (b'c', 5)]
+>>> items_out = [(b'a', 2), (b'b', 1), (b'c', 5)]
+>>> items_out == list(sorted(c.get_multi(('a', 'b', 'c')).items()))
+True
 >>> c.delete_multi(('a', 'b', 'c'))
 True
 >>> c.add_multi({'a': 1, 'b': 0, 'c': 4}, key_prefix='x')
 []
 >>> c.incr_multi(('a', 'b', 'c'), key_prefix='x', delta=5)
->>> list(sorted(c.get_multi(('a', 'b', 'c'), key_prefix='x').items()))
-[(b'a', 6), (b'b', 5), (b'c', 9)]
+>>> items_out = [(b'a', 6), (b'b', 5), (b'c', 9)]
+>>> items_out == list(sorted(c.get_multi(('a', 'b', 'c'), key_prefix='x').items()))
+True
 >>> c.delete_multi(('a', 'b', 'c'), key_prefix='x')
 True
 >>> c.add('a', 1)
@@ -246,8 +249,8 @@ Note: `remove_failed` came about in libmemcached 0.49.
 >>> b["hash"] = 'fnv1a_32'
 >>> pc.behaviors["hash"]
 'fnv1a_32'
->>> super(pylibmc.Client, pc).get_behaviors()["hash"]
-6
+>>> super(pylibmc.Client, pc).get_behaviors()["hash"] == 6
+True
 >>> pc.set_behaviors({"_retry_timeout": 123})
 
 Ormod's Zero-byte Adventure Story
