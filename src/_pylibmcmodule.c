@@ -1902,8 +1902,9 @@ static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *self,
             continue;
         } else if ((py_v = PyMapping_GetItemString(behaviors, b->name)) == NULL) {
             goto error;
-        } else if (!PyInt_Check(py_v)) {
-            PyErr_Format(PyExc_TypeError, "behavior %.32s must be int", b->name);
+        } else if (!(PyInt_Check(py_v) || PyLong_Check(py_v) || PyBool_Check(py_v))) {
+            PyErr_Format(PyExc_TypeError, "behavior %.32s must be int, not %s",
+                b->name, Py_TYPE(py_v)->tp_name);
             goto error;
         }
 
