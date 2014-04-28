@@ -89,6 +89,12 @@ class ClientTests(PylibmcTestCase):
 
         ok_(not self.mc.touch(touch_test2, 100))
 
+    def test_exceptions(self):
+        self.assertRaises(TypeError, self.mc.set, 1, "hi")
+        self.assertRaises(_pylibmc.MemcachedError, _pylibmc.client, [])
+        self.assertRaises(_pylibmc.NotFound, self.mc.incr_multi,
+            ('a', 'b', 'c'), key_prefix='x', delta=1)
+
     def test_utf8_encoding(self):
         k = "a key with a replacement character \ufffd and something non-BMP \U0001f4a3"
         k_enc = k.encode('utf-8')

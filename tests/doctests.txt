@@ -99,10 +99,9 @@ Traceback (most recent call last):
 TypeError: 'time' is an invalid keyword argument for this function
 
 Now for keys with funny types.
->>> c.set(1, "hi") # doctest: +IGNORE_EXCEPTION_DETAIL
-Traceback (most recent call last):
-  ...
-TypeError: 'int' does not support the buffer interface
+# moved to unit test; restore with doctest IGNORE_EXCEPTION_DETAIL directive
+# after dropping 2.6 support:
+>>> # c.set(1, "hi")
 >>> c.get(1)
 Traceback (most recent call last):
   ...
@@ -221,18 +220,17 @@ True
 True
 >>> c.add('a', 1)
 True
->>> c.incr_multi(('a', 'b', 'c'), key_prefix='x', delta=1) # doctest: +IGNORE_EXCEPTION_DETAIL
-Traceback (most recent call last):
- ...
-_pylibmc.NotFound: 3 keys not found
+
+# moved to unit test; restore with doctest IGNORE_EXCEPTION_DETAIL directive
+# after dropping 2.6 support:
+>>> # c.incr_multi(('a', 'b', 'c'), key_prefix='x', delta=1)
 >>> c.delete('xa')
 False
 
 Empty server lists are bad for your health.
->>> c = _pylibmc.client([]) # doctest: +IGNORE_EXCEPTION_DETAIL
-Traceback (most recent call last):
-  ...
-_pylibmc.MemcachedError: empty server list
+# moved to unit test; restore with doctest IGNORE_EXCEPTION_DETAIL directive
+# after dropping 2.6 support:
+>>> # c = _pylibmc.client([])
 
 Python-wrapped behaviors dict
 >>> pc = make_test_client()
