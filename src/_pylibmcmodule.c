@@ -80,15 +80,17 @@ static void PylibMC_ClientType_dealloc(PylibMC_Client *self) {
 
 static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
         PyObject *kwds) {
-    PyObject *srvs, *srvs_it, *c_srv;
+    PyObject *srvs, *srvs_it, *c_srv, *behaviors;
     unsigned char set_stype = 0, bin = 0, got_server = 0;
     const char *user = NULL, *pass = NULL;
     memcached_return rc;
 
-    static char *kws[] = { "servers", "binary", "username", "password", NULL };
+    static char *kws[] = { "servers", "binary", "username", "password",
+                           "behaviors", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|bzz", kws,
-                                     &srvs, &bin, &user, &pass)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|bzzO", kws,
+                                     &srvs, &bin, &user, &pass,
+                                     &behaviors)) {
         return -1;
     }
 
@@ -130,6 +132,12 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
     rc = memcached_behavior_set(self->mc, MEMCACHED_BEHAVIOR_BINARY_PROTOCOL, bin);
     if (rc != MEMCACHED_SUCCESS) {
         PyErr_SetString(PyExc_RuntimeError, "binary protocol behavior set failed");
+        goto error;
+    }
+
+    /* Set behaviors before connecting, so that e.g. connect_timeout works
+       from the beginning. */
+    if(behaviors != Py_None && !PylibMC_Client_set_behaviors(self, behaviors)) {
         goto error;
     }
 

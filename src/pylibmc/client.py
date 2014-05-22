@@ -104,9 +104,7 @@ class Client(_pylibmc.client):
         self.addresses = list(servers)
         super(Client, self).__init__(servers=translate_server_specs(servers),
                                      binary=binary, username=username,
-                                     password=password)
-        if behaviors is not None:
-            self.set_behaviors(behaviors)
+                                     password=password, behaviors=behaviors)
 
     def __repr__(self):
         return "%s(%r, binary=%r)" % (self.__class__.__name__,
