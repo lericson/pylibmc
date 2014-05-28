@@ -35,10 +35,10 @@ Basic operation::
 
 Atomic increments and decrements::
 
-    >>> mc.incr("key")
-    2
-    >>> mc.decr("key")
-    1
+    >>> mc.incr("key") == 2
+    True
+    >>> mc.decr("key") == 1
+    True
 
 Batch operation::
 
