@@ -18,11 +18,17 @@ def print_header(outf=sys.stdout):
     outf.write(random.choice(tips) + "\n")
 
 def collect_servers():
-    in_addr = raw_input("Address [127.0.0.1]: ")
+    try:
+        in_addr = raw_input("Address [127.0.0.1]: ")
+    except:
+        in_addr = input("Address [127.0.0.1]: ")
     if in_addr:
         while in_addr:
             yield in_addr
-            in_addr = raw_input("Address [<stop>]: ")
+            try:
+                in_addr = raw_input("Address [<stop>]: ")
+            except:
+                in_addr = input("Address [<stop>]: ")
     else:
         yield "127.0.0.1"
 

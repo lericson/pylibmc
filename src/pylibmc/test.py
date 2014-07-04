@@ -2,6 +2,7 @@
 
 import os
 import socket
+
 import _pylibmc, pylibmc
 from textwrap import dedent
 
@@ -20,17 +21,19 @@ class NotAliveError(Exception):
 
 def get_version(addr):
     (type_, host, port) = addr
-    if (type_ != _pylibmc.server_type_tcp):
+    if type_ != _pylibmc.server_type_tcp:
         raise NotImplementedError("test server can only be on tcp for now")
     else:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             s.connect((host, port))
-            s.send("version\r\n")
+            s.send(b"version\r\n")
             version = s.recv(4096)
         finally:
             s.close()
-        if not version.startswith("VERSION ") or not version.endswith("\r\n"):
+        vstr = b"VERSION "
+        rnstr = b"\r\n"
+        if not version.startswith(vstr) or not version.endswith(rnstr):
             raise ValueError("unexpected version return: %r" % (version,))
         else:
             version = version[8:-2]
@@ -41,7 +44,7 @@ def is_alive(addr):
         version = get_version(addr)
     except (ValueError, socket.error):
         version = None
-    return (bool(version), version)
+    return bool(version), version
 
 def make_test_client(cls=pylibmc.Client, env=None, server_type="tcp",
                      host="127.0.0.1", port=11211, **kwds):

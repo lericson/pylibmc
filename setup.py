@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 import sys
 from distutils.core import setup, Extension
@@ -64,7 +65,7 @@ if sys.platform == "darwin" and not os.environ.get("ARCHFLAGS"):
     if os.path.exists(compiler_dirn):
         dir_items = os.listdir(compiler_dirn)
         if "ppc" not in dir_items:
-            print >>sys.stderr, "enabling osx-specific ARCHFLAGS/ppc hack"
+            print("enabling osx-specific ARCHFLAGS/ppc hack", file=sys.stderr)
             os.environ["ARCHFLAGS"] = "-arch i386 -arch x86_64"
 
 # There's a bug in <py3 with Py_True/False that will propagate with GCC's
@@ -86,11 +87,14 @@ if cmd == "gen-setup":
         " ".join("-I" + incdir for incdir in pylibmc_ext.include_dirs),
         " ".join("-L" + libdir for libdir in pylibmc_ext.library_dirs),
         " ".join("-D" + name + ("=" + str(value), "")[value is None] for (name, value) in pylibmc_ext.define_macros)))
-    open("Setup", "w").write(line + "\n")
+    with open("Setup", "w") as s:
+        s.write(line + "\n")
     sys.exit(0)
 
-readme_text = open("README.rst", "U").read()
-version = open("src/pylibmc-version.h", "U").read().strip().split("\"")[1]
+with open("README.rst", "U") as r:
+    readme_text = r.read()
+with open("src/pylibmc-version.h", "U") as r:
+    version = r.read().strip().split("\"")[1]
 
 setup(name="pylibmc", version=version,
       url="http://sendapatch.se/projects/pylibmc/",

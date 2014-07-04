@@ -8,8 +8,8 @@ True
 >>> c.get("hello")
 >>> c.set("test_key", 123)
 True
->>> c.get("test_key")
-123
+>>> c.get("test_key") == 123
+True
 >>> c.get("test_key_2")
 >>> c.delete("test_key")
 True
@@ -33,16 +33,19 @@ False
 Multi functionality.
 >>> c.set_multi({"a": 1, "b": 2, "c": 3})
 []
->>> c.get_multi("abc").keys() == ["a", "c", "b"]
+>>> test_keys = [b"a", b"b", b"c"]
+>>> real_keys = c.get_multi("abc").keys()
+>>> all(test_key in real_keys for test_key in test_keys)
 True
 >>> c.delete_multi("abc")
 True
->>> c.get_multi("abc").keys() == []
+>>> not(c.get_multi("abc").keys())
 True
 >>> c.set_multi(dict(zip("abc", "def")), key_prefix="test_")
 []
->>> list(sorted(c.get_multi("abc", key_prefix="test_").iteritems()))
-[('a', 'd'), ('b', 'e'), ('c', 'f')]
+>>> test_items = [(b'a', 'd'), (b'b', 'e'), (b'c', 'f')]
+>>> test_items == list(sorted(c.get_multi("abc", key_prefix="test_").items()))
+True
 >>> c.get("test_a")
 'd'
 >>> c.delete_multi("abc", key_prefix="test_")
@@ -55,8 +58,8 @@ Zero-key-test-time!
 {}
 >>> c.delete_multi([""])
 False
->>> c.set_multi({"": "hi"})
-['']
+>>> c.set_multi({"": "hi"}) == [b'']
+True
 >>> c.delete_multi({"a": "b"})
 Traceback (most recent call last):
   ...
@@ -96,22 +99,21 @@ Traceback (most recent call last):
 TypeError: 'time' is an invalid keyword argument for this function
 
 Now for keys with funny types.
->>> c.set(1, "hi")
-Traceback (most recent call last):
-  ...
-TypeError: argument 1 must be string, not int
+# moved to unit test; restore with doctest IGNORE_EXCEPTION_DETAIL directive
+# after dropping 2.6 support:
+>>> # c.set(1, "hi")
 >>> c.get(1)
 Traceback (most recent call last):
   ...
-TypeError: key must be an instance of str
+TypeError: key must be bytes
 >>> c.set_multi({1: True})
 Traceback (most recent call last):
   ...
-TypeError: key must be an instance of str
+TypeError: key must be bytes
 >>> c.get_multi([1, 2])
 Traceback (most recent call last):
   ...
-TypeError: key must be an instance of str
+TypeError: key must be bytes
 
 This didn't use to work, but now it does.
 >>> c.get_multi([])
@@ -119,14 +121,14 @@ This didn't use to work, but now it does.
 
 Getting stats is fun!
 >>> for (svr, stats) in c.get_stats():
-...     ks = stats.keys()
+...     ks = sorted(stats.keys())
 ...     while ks:
 ...         cks, ks = ks[:6], ks[6:]
-...         print ", ".join(cks)
-pid, total_items, uptime, version, limit_maxbytes, rusage_user
-bytes_read, rusage_system, cmd_get, curr_connections, threads, total_connections
-cmd_set, curr_items, get_misses, evictions, bytes, connection_structures
-bytes_written, time, pointer_size, get_hits
+...         print(", ".join(cks))
+bytes, bytes_read, bytes_written, cmd_get, cmd_set, connection_structures
+curr_connections, curr_items, evictions, get_hits, get_misses, limit_maxbytes
+pid, pointer_size, rusage_system, rusage_user, threads, time
+total_connections, total_items, uptime, version
 
 Also test some flush all.
 >>> c.set("hi", "guys")
@@ -175,19 +177,20 @@ Per-error exceptions
 >>> try:
 ...   c.incr("test")
 ... except pylibmc.NotFound:
-...   print "ok"
+...   print("ok")
 ok
 >>> try:
 ...   c.incr(chr(0))
 ... except (pylibmc.ProtocolError, pylibmc.SocketCreateError):
-...   print "ok"
+...   print("ok")
 ok
 
 Behaviors.
 >>> c.set_behaviors({"tcp_nodelay": True, "hash": 6})
->>> list(sorted((k, v) for (k, v) in c.get_behaviors().items()
+>>> behaviors_items = [('hash', 6), ('tcp_nodelay', 1)]
+>>> behaviors_items == list(sorted((k, v) for (k, v) in c.get_behaviors().items()
 ...             if k in ("tcp_nodelay", "hash")))
-[('hash', 6), ('tcp_nodelay', 1)]
+True
 
 Binary protocol!
 >>> c = make_test_client(_pylibmc.client, binary=True)
@@ -202,31 +205,32 @@ incr_multi
 >>> c.add_multi({'a': 1, 'b': 0, 'c': 4})
 []
 >>> c.incr_multi(('a', 'b', 'c'), delta=1)
->>> list(sorted(c.get_multi(('a', 'b', 'c')).items()))
-[('a', 2), ('b', 1), ('c', 5)]
+>>> items_out = [(b'a', 2), (b'b', 1), (b'c', 5)]
+>>> items_out == list(sorted(c.get_multi(('a', 'b', 'c')).items()))
+True
 >>> c.delete_multi(('a', 'b', 'c'))
 True
 >>> c.add_multi({'a': 1, 'b': 0, 'c': 4}, key_prefix='x')
 []
 >>> c.incr_multi(('a', 'b', 'c'), key_prefix='x', delta=5)
->>> list(sorted(c.get_multi(('a', 'b', 'c'), key_prefix='x').items()))
-[('a', 6), ('b', 5), ('c', 9)]
+>>> items_out = [(b'a', 6), (b'b', 5), (b'c', 9)]
+>>> items_out == list(sorted(c.get_multi(('a', 'b', 'c'), key_prefix='x').items()))
+True
 >>> c.delete_multi(('a', 'b', 'c'), key_prefix='x')
 True
 >>> c.add('a', 1)
 True
->>> c.incr_multi(('a', 'b', 'c'), key_prefix='x', delta=1)
-Traceback (most recent call last):
- ...
-NotFound: 3 keys not found
+
+# moved to unit test; restore with doctest IGNORE_EXCEPTION_DETAIL directive
+# after dropping 2.6 support:
+>>> # c.incr_multi(('a', 'b', 'c'), key_prefix='x', delta=1)
 >>> c.delete('xa')
 False
 
 Empty server lists are bad for your health.
->>> c = _pylibmc.client([])
-Traceback (most recent call last):
-  ...
-MemcachedError: empty server list
+# moved to unit test; restore with doctest IGNORE_EXCEPTION_DETAIL directive
+# after dropping 2.6 support:
+>>> # c = _pylibmc.client([])
 
 Python-wrapped behaviors dict
 >>> pc = make_test_client()
@@ -244,16 +248,17 @@ Note: `remove_failed` came about in libmemcached 0.49.
 >>> b["hash"] = 'fnv1a_32'
 >>> pc.behaviors["hash"]
 'fnv1a_32'
->>> super(pylibmc.Client, pc).get_behaviors()["hash"]
-6
+>>> super(pylibmc.Client, pc).get_behaviors()["hash"] == 6
+True
 >>> pc.set_behaviors({"_retry_timeout": 123})
 
 Ormod's Zero-byte Adventure Story
 >>> bc = make_test_client(_pylibmc.client, binary=True)
 >>> bc.set("\x00\x00\x01", "ORMOD")
 True
->>> bc.get_multi(["\x00\x00\x01"])
-{'\x00\x00\x01': 'ORMOD'}
+>>> result = bc.get_multi(["\x00\x00\x01"])
+>>> result == {b'\x00\x00\x01': 'ORMOD'}
+True
 
 Test server/client max length
 >>> mc = make_test_client()
@@ -261,7 +266,7 @@ Test server/client max length
 >>> mc.get('x'*251)
 Traceback (most recent call last):
   ...
-ValueError: key too long, max is 250
+ValueError: key length 251 too long, max is 250
 
 Make sure ServerDown exception exists
 >>> hasattr(pylibmc, 'ServerDown') or _pylibmc.libmemcached_version_hex < 0x01000002
@@ -279,17 +284,21 @@ Compression shouldn't break anything
 >>> c = make_test_client(_pylibmc.client, binary=True)
 
 Try to go over the 1mb object size limit, but compress so that we don't
+>>> c.set('foo', b'a'*(1024*1024+1), min_compress_len=1)
+True
+>>> md5(c.get('foo')).hexdigest() == md5(b'a'*(1024*1024+1)).hexdigest()
+True
 >>> c.set('foo', 'a'*(1024*1024+1), min_compress_len=1)
 True
->>> md5(c.get('foo')).hexdigest() == md5('a'*(1024*1024+1)).hexdigest()
+>>> c.get('foo') == 'a'*(1024*1024+1)
 True
 >>> c.set('foo', 'a'*(1024*1024+1), min_compress_len=1, compress_level=1)
 True
->>> md5(c.get('foo')).hexdigest() == md5('a'*(1024*1024+1)).hexdigest()
+>>> c.get('foo') == 'a'*(1024*1024+1)
 True
 >>> c.set('foo', 'a'*(1024*1024+1), min_compress_len=1, compress_level=9)
 True
->>> md5(c.get('foo')).hexdigest() == md5('a'*(1024*1024+1)).hexdigest()
+>>> c.get('foo') == 'a'*(1024*1024+1)
 True
 >>> c.set('foo', 'abc', min_compress_len=1, compress_level=9)
 True
