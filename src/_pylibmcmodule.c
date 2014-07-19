@@ -451,6 +451,34 @@ error:
 #endif
 /* }}} */
 
+/* {{{ Python 3 str key functionality */
+#if PY_MAJOR_VERSION >= 3
+static PyObject *_PylibMC_map_str_keys(PyObject *keys) {
+    PyObject *key_str_mapping = NULL;
+    PyObject *iter = NULL;
+    PyObject *key = NULL;
+    PyObject *key_bytes = NULL
+
+    key_str_mapping = PyDict_New();
+
+    if ((iter = PyObject_GetIter(keys)) == NULL)
+        goto error;
+
+    while ((key = PyIter_Next(iter)) != NULL) {
+        if (PyUnicode_Check(key)) {
+            key_bytes = PyUnicode_AsUTF8String(item);
+            PyDict_SetItem(key_str_mapping, key_bytes, key);
+        }
+    }
+    return key_str_mapping;
+
+error:
+    Py_DECREF(key_str_mapping);
+    return NULL;
+}
+#endif
+/* }}} */
+
 static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
         uint32_t flags) {
     PyObject *retval = NULL;
