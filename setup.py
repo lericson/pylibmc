@@ -3,6 +3,10 @@ import os
 import sys
 from distutils.core import setup, Extension
 
+# Need an 'open' function that supports the 'encoding' argument:
+if sys.version_info[0] < 3:
+    from codecs import open
+
 ## Command-line argument parsing
 
 # --with-zlib: use zlib for compressing and decompressing
@@ -91,9 +95,9 @@ if cmd == "gen-setup":
         s.write(line + "\n")
     sys.exit(0)
 
-with open("README.rst", "U") as r:
+with open("README.rst", "U", encoding="utf-8") as r:
     readme_text = r.read()
-with open("src/pylibmc-version.h", "U") as r:
+with open("src/pylibmc-version.h", "U", encoding="utf-8") as r:
     version = r.read().strip().split("\"")[1]
 
 setup(name="pylibmc", version=version,
