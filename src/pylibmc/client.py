@@ -85,6 +85,41 @@ def translate_server_specs(servers):
         addr_tups.append(addr_tup)
     return addr_tups
 
+def _behaviors_symbolic(behaviors):
+    """Turn numeric constants into symbolic strings"""
+
+    behaviors = behaviors.copy()
+
+    behaviors["hash"] = hashers_rvs[behaviors["hash"]]
+    behaviors["distribution"] = distributions_rvs[behaviors["distribution"]]
+
+    return behaviors
+
+def _behaviors_numeric(behaviors):
+    """Inverse function of behaviors_symbolic"""
+
+    if not behaviors:
+        return behaviors
+
+    behaviors = behaviors.copy()
+
+    if "_retry_timeout" in behaviors:
+        behaviors.setdefault("retry_timeout", behaviors.pop("_retry_timeout"))
+
+    unknown = set(behaviors).difference(_all_behaviors_set)
+    if unknown:
+        names = ", ".join(map(str, sorted(unknown)))
+        raise ValueError("unknown behavior names: %s" % (names,))
+
+    if behaviors.get("hash") is not None:
+        behaviors["hash"] = hashers[behaviors["hash"]]
+    if behaviors.get("ketama_hash") in hashers:
+        behaviors["ketama_hash"] = hashers[behaviors["ketama_hash"]]
+    if behaviors.get("distribution") is not None:
+        behaviors["distribution"] = distributions[behaviors["distribution"]]
+
+    return behaviors
+
 class Client(_pylibmc.client):
     def __init__(self, servers, behaviors=None, binary=False,
                  username=None, password=None):
@@ -103,10 +138,9 @@ class Client(_pylibmc.client):
         self.binary = binary
         self.addresses = list(servers)
         super(Client, self).__init__(servers=translate_server_specs(servers),
-                                     binary=binary, username=username,
-                                     password=password)
-        if behaviors is not None:
-            self.set_behaviors(behaviors)
+                                     binary=binary,
+                                     username=username, password=password,
+                                     behaviors=_behaviors_numeric(behaviors))
 
     def __repr__(self):
         return "%s(%r, binary=%r)" % (self.__class__.__name__,
@@ -144,10 +178,7 @@ class Client(_pylibmc.client):
         Reverses the integer constants for `hash` and `distribution` into more
         understandable string values. See *set_behaviors* for info.
         """
-        bvrs = super(Client, self).get_behaviors()
-        bvrs["hash"] = hashers_rvs[bvrs["hash"]]
-        bvrs["distribution"] = distributions_rvs[bvrs["distribution"]]
-        return BehaviorDict(self, bvrs)
+        return BehaviorDict(self, _behaviors_symbolic(super(Client, self).get_behaviors()))
 
     def set_behaviors(self, behaviors):
         """Sets the behaviors on the underlying C client instance.
@@ -161,23 +192,7 @@ class Client(_pylibmc.client):
 
         Translates old underscored behavior names to new ones for API leniency.
         """
-        behaviors = behaviors.copy()
-        if "_retry_timeout" in behaviors:
-            behaviors.setdefault("retry_timeout", behaviors.pop("_retry_timeout"))
-
-        unknown = set(behaviors).difference(_all_behaviors_set)
-        if unknown:
-            names = ", ".join(map(str, sorted(unknown)))
-            raise ValueError("unknown behavior names: %s" % (names,))
-
-        if behaviors.get("hash") is not None:
-            behaviors["hash"] = hashers[behaviors["hash"]]
-        if behaviors.get("ketama_hash") in hashers:
-            behaviors["ketama_hash"] = hashers[behaviors["ketama_hash"]]
-        if behaviors.get("distribution") is not None:
-            behaviors["distribution"] = distributions[behaviors["distribution"]]
-
-        return super(Client, self).set_behaviors(behaviors)
+        return super(Client, self).set_behaviors(_behaviors_numeric(behaviors))
 
     behaviors = property(get_behaviors, set_behaviors)
     @property

@@ -121,12 +121,15 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
     PyObject *srvs, *srvs_it, *c_srv;
     unsigned char set_stype = 0, bin = 0, got_server = 0;
     const char *user = NULL, *pass = NULL;
+    PyObject *behaviors = NULL;
     memcached_return rc;
 
-    static char *kws[] = { "servers", "binary", "username", "password", NULL };
+    static char *kws[] = { "servers", "binary", "username", "password",
+                           "behaviors", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|bzz", kws,
-                                     &srvs, &bin, &user, &pass)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|bzzO", kws,
+                                     &srvs, &bin, &user, &pass,
+                                     &behaviors)) {
         return -1;
     }
 
@@ -169,6 +172,12 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
     if (rc != MEMCACHED_SUCCESS) {
         PyErr_SetString(PyExc_RuntimeError, "binary protocol behavior set failed");
         goto error;
+    }
+
+    if (behaviors != NULL) {
+        if (PylibMC_Client_set_behaviors(self, behaviors) == NULL) {
+            goto error;
+        }
     }
 
     while ((c_srv = PyIter_Next(srvs_it)) != NULL) {
