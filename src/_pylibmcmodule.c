@@ -80,9 +80,10 @@ static void PylibMC_ClientType_dealloc(PylibMC_Client *self) {
 
 static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
         PyObject *kwds) {
-    PyObject *srvs, *srvs_it, *c_srv, *behaviors;
+    PyObject *srvs, *srvs_it, *c_srv;
     unsigned char set_stype = 0, bin = 0, got_server = 0;
     const char *user = NULL, *pass = NULL;
+    PyObject *behaviors = NULL;
     memcached_return rc;
 
     static char *kws[] = { "servers", "binary", "username", "password",
@@ -135,10 +136,10 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
         goto error;
     }
 
-    /* Set behaviors before connecting, so that e.g. connect_timeout works
-       from the beginning. */
-    if(behaviors != Py_None && !PylibMC_Client_set_behaviors(self, behaviors)) {
-        goto error;
+    if (behaviors != NULL) {
+        if (PylibMC_Client_set_behaviors(self, behaviors) == NULL) {
+            goto error;
+        }
     }
 
     while ((c_srv = PyIter_Next(srvs_it)) != NULL) {
