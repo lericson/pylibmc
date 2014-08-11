@@ -37,13 +37,15 @@ Lastly, thanks in particular to the authors of this release: Abramowitz,
 Baklanov, Bergström, Borisov, Branson, Brown, Ericson, Hansche, Hlodversson,
 King, Kowalak, McFague, Moura, Noguchi, Schurter, Williams and Wong.
 
-Contact
-=======
+Maintainer
+==========
 
 - Website: `sendapatch.se/ <http://sendapatch.se/>`_
 - Github: `github.com/lericson <http://github.com/lericson>`_
 - IRC: ``lericson`` in ``#sendapatch`` on ``chat.freenode.net``
 - E-mail: ``ludvig`` at ``sendapatch.se``
+
+------
 
 .. image:: http://www.smbc-comics.com/comics/20110908.gif
    :target: http://www.smbc-comics.com/index.php?db=comics&id=2362
