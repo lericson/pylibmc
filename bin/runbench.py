@@ -4,6 +4,7 @@
 """Run benchmarks with build/lib.* in sys.path"""
 
 import sys
+import math
 import time
 import logging
 from functools import wraps
@@ -25,29 +26,45 @@ def build_lib_dirname():
     return build_cmd.build_lib
 
 
+def ratio(a, b):
+    if a > b:
+        return (a / b, 1)
+    elif a < b:
+        return (1, b / a)
+    else:
+        return (1, 1)
+
+
 class Stopwatch(object):
     "A stopwatch that never stops"
 
     def __init__(self):
-        self.t0 = time.time()
+        self.t0 = time.clock()
         self.laps = []
 
-    def avg(self):
+    def __unicode__(self):
+        m = self.mean()
+        d = self.stddev()
+        fmt = u"%.3gs, σ=%.3g, n=%d, snr=%.3g:%.3g".__mod__
+        return fmt((m, d, len(self.laps)) + ratio(m, d))
+
+    def mean(self):
         return sum(self.laps) / len(self.laps)
 
-    def error(self):
-        return (max(self.laps) - min(self.laps)) / 2.0
+    def stddev(self):
+        mean = self.mean()
+        return math.sqrt(sum((lap - mean)**2 for lap in self.laps) / len(self.laps))
 
     def total(self):
-        return time.time() - self.t0
+        return time.clock() - self.t0
 
     @contextmanager
     def timing(self):
-        t0 = time.time()
+        t0 = time.clock()
         try:
             yield
         finally:
-            te = time.time()
+            te = time.clock()
             self.laps.append(te - t0)
 
 
@@ -68,22 +85,29 @@ def bench_get_set(mc, key, data):
 
 
 @benchmark_method
-def bench_get_set_multi(mc, keys, datagen='data%s'.__mod__):
-    fails = mc.set_multi(dict((k, datagen(k)) for k in keys))
+def bench_get_set_multi(mc, keys, pairs):
+    fails = mc.set_multi(pairs)
     if fails:
         logger.warn('set_multi(%r) fail', fails)
-    if len(mc.get_multi(keys).keys()) != len(keys):
+    if len(mc.get_multi(keys)) != len(pairs):
         logger.warn('get_multi() incomplete')
+
+
+def multi_pairs(n, *keys):
+    d = dict(('%s%d' % (k, i), 'data%s%d' % (k, i))
+             for i in xrange(n)
+             for k in keys)
+    return (d.keys(), d)
 
 
 complex_data_type = ([], {}, __import__('fractions').Fraction(3, 4))
 
 benchmarks = [
-    bench_get_set('small i/o', 'abc', 'all work no play jack is a dull boy'),
-    bench_get_set_multi('small multi i/o', ('abc', 'def', 'ghi', 'kjl')),
-    bench_get_set('4k uncompressed i/o', 'abc' * 8, 'defb' * 1000),
-    bench_get_set('4k compressed i/o', 'abc' * 8, 'a' + 'defb' * 1000),
-    bench_get_set('complex i/o', 'abc', complex_data_type),
+    bench_get_set('Small I/O', 'abc', 'all work no play jack is a dull boy'),
+    bench_get_set_multi('Multi I/O', *multi_pairs(10, 'abc', 'def', 'ghi', 'kjl')),
+    bench_get_set('4k uncompressed I/O', 'abc' * 8, 'defb' * 1000),
+    bench_get_set('4k compressed I/O', 'abc' * 8, 'a' + 'defb' * 1000),
+    bench_get_set('Complex data I/O', 'abc', complex_data_type),
 ]
 
 participants = [
@@ -113,34 +137,27 @@ participants = [
 def bench(participants=participants, benchmarks=benchmarks, bench_time=10.0):
     """Do you even lift?"""
 
-    mcs = [p.factory() for p in participants]
-
-    data = []
+    mcs     = [p.factory() for p in participants]
+    means   = [[]          for p in participants]
+    stddevs = [[]          for p in participants]
 
     # Have each lifter do one benchmark each
     for benchmark_name, f, args, kwargs in benchmarks:
-        logger.info('Benchmark %s', benchmark_name)
+        logger.info('%s', benchmark_name)
 
-        results = []
-        errors = []
-        data.append((results, errors))
-
-        for participant, mc in zip(participants, mcs):
+        for i, (participant, mc) in enumerate(zip(participants, mcs)):
             sw = Stopwatch()
 
             while sw.total() < bench_time:
                 with sw.timing():
                     f(mc, *args, **kwargs)
 
-            results.append(1.0 / sw.avg())
-            errors.append(1.0 / sw.error())
+            means[i].append(sw.mean())
+            stddevs[i].append(sw.stddev())
 
-            logger.info(u'%s: %.3g±%.3g benches/sec', participant.name,
-                        1.0 / sw.avg(), 1.0 / sw.error())
+            logger.info(u'%s: %s', participant.name, sw)
 
-    print 'labels =', [p.name for p in participants]
-    print 'benchmarks =', [b.name for b in benchmarks]
-    print 'data =', data
+    return means, stddevs
 
 
 def main(args=sys.argv[1:]):
@@ -148,12 +165,19 @@ def main(args=sys.argv[1:]):
     from pylibmc import build_info
     logger.info('Loaded %s', build_info())
 
-    ps = [p for p in participants if p.name in args] if args else participants
+    ps = [p for p in participants if p.name in args]
+    ps = ps if ps else participants
 
-    logger.info('Benchmarking %d participants in %d benchmarks',
-                len(ps), len(benchmarks))
+    bs = benchmarks[:]
 
-    bench(participants=ps)
+    logger.info('%d participants in %d benchmarks', len(ps), len(bs))
+
+    means, stddevs = bench(participants=ps, benchmarks=bs)
+
+    print 'labels =',     [p.name for p in ps]
+    print 'benchmarks =', [b.name for b in bs]
+    print 'means =',      means
+    print 'stddevs =',    stddevs
 
 
 if __name__ == "__main__":
