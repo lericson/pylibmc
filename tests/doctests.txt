@@ -14,7 +14,17 @@ True
 >>> c.delete("test_key")
 True
 >>> c.get("test_key")
->>>
+
+The invariant mc.get_multi([k])[k] == mc.get(k) should hold for string and byte
+types.
+>>> c.set(u'hello', 'world')
+True
+>>> c.get_multi([u'hello'])[u'hello']
+'world'
+>>> c.set(b'hello', 'world')
+True
+>>> c.get_multi([b'hello'])[b'hello']
+'world'
 
 We should handle empty values just nicely.
 >>> c.set("foo", "")
