@@ -91,7 +91,7 @@ class ClientTests(PylibmcTestCase):
 
     def test_exceptions(self):
         self.assertRaises(TypeError, self.mc.set, 1, "hi")
-        self.assertRaises(_pylibmc.MemcachedError, _pylibmc.client, [])
+        self.assertRaises(_pylibmc.Error, _pylibmc.client, [])
         self.assertRaises(_pylibmc.NotFound, self.mc.incr_multi,
             ('a', 'b', 'c'), key_prefix='x', delta=1)
 

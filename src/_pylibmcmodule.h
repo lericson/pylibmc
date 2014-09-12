@@ -130,7 +130,7 @@ typedef struct {
 } _PylibMC_StatsContext;
 
 /* {{{ Exceptions */
-static PyObject *PylibMCExc_MemcachedError;
+static PyObject *PylibMCExc_Error;
 
 /* Mapping of memcached_return value -> Python exception object. */
 typedef struct {

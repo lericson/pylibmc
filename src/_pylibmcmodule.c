@@ -194,7 +194,7 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
 
             list = memcached_servers_parse(PyBytes_AS_STRING(c_srv));
             if (list == NULL) {
-                PyErr_SetString(PylibMCExc_MemcachedError,
+                PyErr_SetString(PylibMCExc_Error,
                         "memcached_servers_parse returned NULL");
                 goto it_error;
             }
@@ -255,7 +255,7 @@ it_error:
     }
 
     if (!got_server) {
-        PyErr_SetString(PylibMCExc_MemcachedError, "empty server list");
+        PyErr_SetString(PylibMCExc_Error, "empty server list");
         goto error;
     }
 
@@ -482,10 +482,10 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
         if(rc != Z_OK) {
             /* set up the exception */
             if(failure_reason == NULL) {
-                PyErr_Format(PylibMCExc_MemcachedError,
+                PyErr_Format(PylibMCExc_Error,
                              "Failed to decompress value: %d", rc);
             } else {
-                PyErr_Format(PylibMCExc_MemcachedError,
+                PyErr_Format(PylibMCExc_Error,
                              "Failed to decompress value: %s", failure_reason);
             }
             return NULL;
@@ -505,7 +505,7 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
 
 #else
     if (flags & PYLIBMC_FLAG_ZLIB) {
-        PyErr_SetString(PylibMCExc_MemcachedError,
+        PyErr_SetString(PylibMCExc_Error,
             "value for key compressed, unable to inflate");
         return NULL;
     }
@@ -536,7 +536,7 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
             retval = PyBytes_FromStringAndSize(value, (Py_ssize_t)size);
             break;
         default:
-            PyErr_Format(PylibMCExc_MemcachedError,
+            PyErr_Format(PylibMCExc_Error,
                     "unknown memcached key flags %u", flags);
     }
 
@@ -1251,7 +1251,7 @@ static PyObject *PylibMC_Client_touch(PylibMC_Client *self, PyObject *args) {
 
     return NULL;
 #else
-    PyErr_Format(PylibMCExc_MemcachedError,
+    PyErr_Format(PylibMCExc_Error,
                  "memcached_touch isn't available; upgrade libmemcached to >= 1.0.2");
     return NULL;
 #endif
@@ -1440,7 +1440,7 @@ static bool _PylibMC_IncrDecr(PylibMC_Client *self,
     Py_END_ALLOW_THREADS;
 
     if (errors + notfound) {
-        PyObject *exc = PylibMCExc_MemcachedError;
+        PyObject *exc = PylibMCExc_Error;
 
         if (errors == 0)
             exc = _exc_by_rc(MEMCACHED_NOTFOUND);
@@ -1942,7 +1942,7 @@ static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *self,
 
         r = memcached_behavior_set(self->mc, b->flag, v);
         if (r != MEMCACHED_SUCCESS) {
-            PyErr_Format(PylibMCExc_MemcachedError,
+            PyErr_Format(PylibMCExc_Error,
                          "memcached_behavior_set returned %d for "
                          "behavior '%.32s' = %u", r, b->name, (unsigned int)v);
             goto error;
@@ -1964,7 +1964,7 @@ static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *self,
             PyErr_Format(PyExc_ValueError, "bad key provided: %s", key);
             goto error;
         } else if (r != MEMCACHED_SUCCESS) {
-            PyErr_Format(PylibMCExc_MemcachedError,
+            PyErr_Format(PylibMCExc_Error,
                          "memcached_callback_set returned %d for "
                          "callback '%.32s' = %.32s", r, b->name, key);
             goto error;
@@ -2164,7 +2164,7 @@ static PyObject *_exc_by_rc(memcached_return rc) {
     for (err = PylibMCExc_mc_errs; err->name != NULL; err++)
         if (err->rc == rc)
             return err->exc;
-    return (PyObject *)PylibMCExc_MemcachedError;
+    return (PyObject *)PylibMCExc_Error;
 }
 
 static char *_get_lead(memcached_st *mc, char *buf, int n, const char *what,
@@ -2180,7 +2180,7 @@ static char *_get_lead(memcached_st *mc, char *buf, int n, const char *what,
 
 static void _set_error(memcached_st *mc, memcached_return error, char *lead) {
     if (error == MEMCACHED_ERRNO) {
-        PyErr_Format(PylibMCExc_MemcachedError, "%s: %s",
+        PyErr_Format(PylibMCExc_Error, "%s: %s",
                      lead, strerror(errno));
     } else if (error == MEMCACHED_SUCCESS) {
         PyErr_Format(PyExc_RuntimeError, "error == MEMCACHED_SUCCESS");
@@ -2382,25 +2382,25 @@ static void _make_excs(PyObject *module) {
     PyObject *exc_objs;
     PylibMC_McErr *err;
 
-    PylibMCExc_MemcachedError = PyErr_NewException(
-            "_pylibmc.MemcachedError", NULL, NULL);
+    PylibMCExc_Error = PyErr_NewException(
+            "pylibmc.Error", NULL, NULL);
 
     exc_objs = PyList_New(0);
     PyList_Append(exc_objs,
-                  Py_BuildValue("sO", "Error", (PyObject *)PylibMCExc_MemcachedError));
+                  Py_BuildValue("sO", "Error", (PyObject *)PylibMCExc_Error));
 
     for (err = PylibMCExc_mc_errs; err->name != NULL; err++) {
         char excnam[64];
         snprintf(excnam, 64, "_pylibmc.%s", err->name);
-        err->exc = PyErr_NewException(excnam, PylibMCExc_MemcachedError, NULL);
+        err->exc = PyErr_NewException(excnam, PylibMCExc_Error, NULL);
         PyObject_SetAttrString(err->exc, "retcode", PyLong_FromLong(err->rc));
         PyModule_AddObject(module, err->name, (PyObject *)err->exc);
         PyList_Append(exc_objs,
                       Py_BuildValue("sO", err->name, (PyObject *)err->exc));
     }
 
-    PyModule_AddObject(module, "MemcachedError",
-                       (PyObject *)PylibMCExc_MemcachedError);
+    PyModule_AddObject(module, "Error",
+                       (PyObject *)PylibMCExc_Error);
     PyModule_AddObject(module, "exceptions", exc_objs);
 }
 
