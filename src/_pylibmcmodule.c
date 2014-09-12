@@ -2401,6 +2401,11 @@ static void _make_excs(PyObject *module) {
 
     PyModule_AddObject(module, "Error",
                        (PyObject *)PylibMCExc_Error);
+
+    /* Backwards compatible name for <= pylibmc 1.2.3 */
+    PyModule_AddObject(module, "MemcachedError",
+                       (PyObject *)PylibMCExc_Error);
+
     PyModule_AddObject(module, "exceptions", exc_objs);
 }
 

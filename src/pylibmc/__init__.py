@@ -78,9 +78,6 @@ support_compression = _pylibmc.support_compression
 support_sasl = _pylibmc.support_sasl
 Error = _pylibmc.Error
 
-# Backwards compatible alias for <= pylibmc 1.2.3.
-MemcachedError = Error
-
 __version__ = _pylibmc.__version__
 
 def build_info():
