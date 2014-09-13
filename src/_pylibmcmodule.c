@@ -1560,6 +1560,8 @@ static PyObject *PylibMC_Client_get_multi(
     Py_ssize_t prefix_len = 0;
     Py_ssize_t i;
     PyObject *key_it, *ckey;
+    PyObject *key_str_mapping = NULL;
+    PyObject *temp_key_obj;
     size_t *key_lens;
     size_t nkeys, nresults = 0;
     memcached_return rc;
@@ -1589,6 +1591,7 @@ static PyObject *PylibMC_Client_get_multi(
      * exceptions as a loop predicate. */
     PyErr_Clear();
 
+    key_str_mapping = _PylibMC_map_str_keys(key_seq);
     /* Iterate through all keys and set lengths etc. */
     key_it = PyObject_GetIter(key_seq);
     i = 0;
@@ -1677,6 +1680,11 @@ static PyObject *PylibMC_Client_get_multi(
         /* Long-winded, but this way we can handle NUL-bytes in keys. */
         key_obj = PyBytes_FromStringAndSize(memcached_result_key_value(res) + prefix_len,
                                              memcached_result_key_length(res) - prefix_len);
+        if (PyDict_Contains(key_str_mapping, key_obj)) {
+            temp_key_obj = key_obj;
+            key_obj = PyDict_GetItem(key_str_mapping, temp_key_obj);
+            Py_DECREF(temp_key_obj);
+        }
         if (key_obj == NULL)
             goto unpack_error;
 
@@ -1707,6 +1715,7 @@ earlybird:
     for (i = 0; i < nkeys; i++)
         Py_DECREF(key_objs[i]);
     PyMem_Free(key_objs);
+    Py_XDECREF(key_str_mapping);
 
     if (results != NULL) {
         for (i = 0; i < nresults && results != NULL; i++) {
