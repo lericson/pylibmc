@@ -42,8 +42,8 @@ Atomic increments and decrements::
 
 Batch operation::
 
-    >>> mc.get_multi(["key", "another_key"])
-    {'key': '1'}
+    >>> mc.get_multi(["key", "another_key"]) == {'key': b'1'}
+    True
     >>> mc.set_multi({"cats": ["on acid", "furry"], "dogs": True})
     []
     >>> mc.get_multi(["cats", "dogs"]) == {'cats': ['on acid', 'furry'], 'dogs': True}

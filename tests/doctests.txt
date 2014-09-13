@@ -16,14 +16,16 @@ True
 >>> c.get("test_key")
 
 The invariant mc.get_multi([k])[k] == mc.get(k) should hold for string and byte
-types.
->>> c.set_multi({u'hello': 'world', b'foo': 'bar'})
-[]
+types. Mixed key types should work too.
 
-Mixed key types should work too:
->>> c.get_multi([u'hello', b'foo'])[u'hello']
+Work around the lack of the 'u' string prefix in Python 3.2: get a text
+string containing "hello" by decoding a byte string
+>>> hello_key = b'hello'.decode()
+>>> c.set_multi({hello_key: 'world', b'foo': 'bar'})
+[]
+>>> c.get_multi([hello_key, b'foo'])[hello_key]
 'world'
->>> c.get_multi([u'hello', b'foo'])[b'foo']
+>>> c.get_multi([hello_key, b'foo'])[b'foo']
 'bar'
 
 We should handle empty values just nicely.
