@@ -30,34 +30,34 @@ Basic operation::
     True
     >>> mc.delete("another_key")
     True
-    >>> mc.set("key", b"1")  # bytes or int is fine, str is not
+    >>> mc.set("key", b"1")  # bytes or int is fine for incrementing, str is not
     True
 
 Atomic increments and decrements::
 
-    >>> mc.incr("key") == 2
-    True
-    >>> mc.decr("key") == 1
-    True
+    >>> print(mc.incr("key"))
+    2
+    >>> print(mc.decr("key"))
+    1
 
 Batch operation::
 
-    >>> mc.get_multi(["key", "another_key"]) == {b'key': b'1'}
-    True
+    >>> mc.get_multi(["key", "another_key"])
+    {'key': '1'}
     >>> mc.set_multi({"cats": ["on acid", "furry"], "dogs": True})
     []
-    >>> mc.get_multi(["cats", "dogs"]) == {b'cats': ['on acid', 'furry'], b'dogs': True}
+    >>> mc.get_multi(["cats", "dogs"]) == {'cats': ['on acid', 'furry'], 'dogs': True}
     True
     >>> mc.delete_multi(["cats", "dogs", "nonextant"])
     False
     >>> mc.add_multi({"cats": ["on acid", "furry"], "dogs": True})
     []
-    >>> mc.get_multi(["cats", "dogs"]) == {b'cats': ['on acid', 'furry'], b'dogs': True}
+    >>> mc.get_multi(["cats", "dogs"]) == {'cats': ['on acid', 'furry'], 'dogs': True}
     True
     >>> keys_set = mc.add_multi({"cats": "not set", "dogs": "definitely not set", "bacon": "yummy"})
-    >>> set(keys_set) == set([b'cats', b'dogs'])
+    >>> set(keys_set) == set(['cats', 'dogs'])
     True
-    >>> mc.get_multi(["cats", "dogs", "bacon"]) == {b'cats': ['on acid', 'furry'], b'bacon': 'yummy', b'dogs': True}
+    >>> mc.get_multi(["cats", "dogs", "bacon"]) == {'cats': ['on acid', 'furry'], 'bacon': 'yummy', 'dogs': True}
     True
     >>> mc.delete_multi(["cats", "dogs", "bacon"])
     True

@@ -19,6 +19,7 @@ The invariant mc.get_multi([k])[k] == mc.get(k) should hold for string and byte
 types.
 >>> c.set_multi({u'hello': 'world', b'foo': 'bar'})
 []
+
 Mixed key types should work too:
 >>> c.get_multi([u'hello', b'foo'])[u'hello']
 'world'
@@ -211,15 +212,16 @@ incr_multi
 >>> c.add_multi({'a': 1, 'b': 0, 'c': 4})
 []
 >>> c.incr_multi(('a', 'b', 'c'), delta=1)
->>> list(sorted(c.get_multi(('a', 'b', 'c')).items()))
-[('a', 2), ('b', 1), ('c', 5)]
+>>> list(sorted(c.get_multi(('a', 'b', 'c')).items())) == [('a', 2), ('b', 1), ('c', 5)]
+True
 >>> c.delete_multi(('a', 'b', 'c'))
 True
 >>> c.add_multi({'a': 1, 'b': 0, 'c': 4}, key_prefix='x')
 []
 >>> c.incr_multi(('a', 'b', 'c'), key_prefix='x', delta=5)
->>> list(sorted(c.get_multi(('a', 'b', 'c'), key_prefix='x').items()))
-[('a', 6), ('b', 5), ('c', 9)]
+>>> test_items = [('a', 6), ('b', 5), ('c', 9)]
+>>> list(sorted(c.get_multi(('a', 'b', 'c'), key_prefix='x').items())) == test_items
+True
 >>> c.delete_multi(('a', 'b', 'c'), key_prefix='x')
 True
 >>> c.add('a', 1)
@@ -260,8 +262,8 @@ Ormod's Zero-byte Adventure Story
 >>> bc = make_test_client(_pylibmc.client, binary=True)
 >>> bc.set(b"\x00\x00\x01", "ORMOD")
 True
->>> bc.get_multi([b"\x00\x00\x01"])
-{b'\x00\x00\x01': 'ORMOD'}
+>>> bc.get_multi([b"\x00\x00\x01"]) == {b'\x00\x00\x01': 'ORMOD'}
+True
 
 Test server/client max length
 >>> mc = make_test_client()
