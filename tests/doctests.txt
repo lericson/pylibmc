@@ -53,7 +53,7 @@ True
 True
 >>> c.set_multi(dict(zip("abc", "def")), key_prefix="test_")
 []
->>> list(sorted(c.get_multi("abc", key_prefix="test_").items()))
+>>> sorted(c.get_multi("abc", key_prefix="test_").items())
 [('a', 'd'), ('b', 'e'), ('c', 'f')]
 >>> c.get("test_a")
 'd'
@@ -197,8 +197,8 @@ ok
 Behaviors.
 >>> c.set_behaviors({"tcp_nodelay": True, "hash": 6})
 >>> behaviors_items = [('hash', 6), ('tcp_nodelay', 1)]
->>> behaviors_items == list(sorted((k, v) for (k, v) in c.get_behaviors().items()
-...             if k in ("tcp_nodelay", "hash")))
+>>> behaviors_items == sorted((k, v) for (k, v) in c.get_behaviors().items()
+...             if k in ("tcp_nodelay", "hash"))
 True
 
 Binary protocol!
@@ -214,7 +214,7 @@ incr_multi
 >>> c.add_multi({'a': 1, 'b': 0, 'c': 4})
 []
 >>> c.incr_multi(('a', 'b', 'c'), delta=1)
->>> list(sorted(c.get_multi(('a', 'b', 'c')).items())) == [('a', 2), ('b', 1), ('c', 5)]
+>>> sorted(c.get_multi(('a', 'b', 'c')).items()) == [('a', 2), ('b', 1), ('c', 5)]
 True
 >>> c.delete_multi(('a', 'b', 'c'))
 True
@@ -222,7 +222,7 @@ True
 []
 >>> c.incr_multi(('a', 'b', 'c'), key_prefix='x', delta=5)
 >>> test_items = [('a', 6), ('b', 5), ('c', 9)]
->>> list(sorted(c.get_multi(('a', 'b', 'c'), key_prefix='x').items())) == test_items
+>>> sorted(c.get_multi(('a', 'b', 'c'), key_prefix='x').items()) == test_items
 True
 >>> c.delete_multi(('a', 'b', 'c'), key_prefix='x')
 True
