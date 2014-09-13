@@ -451,8 +451,7 @@ error:
 #endif
 /* }}} */
 
-/* {{{ Python 3 str key functionality */
-#if PY_MAJOR_VERSION >= 3
+/* {{{ str/bytes key functionality (unicode/bytes on Python 2) */
 static PyObject *_PylibMC_map_str_keys(PyObject *keys) {
     PyObject *key_str_mapping = NULL;
     PyObject *iter = NULL;
@@ -476,7 +475,6 @@ error:
     Py_DECREF(key_str_mapping);
     return NULL;
 }
-#endif
 /* }}} */
 
 static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
