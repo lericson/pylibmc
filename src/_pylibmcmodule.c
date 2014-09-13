@@ -782,6 +782,8 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
     PyObject *retval = NULL;
     size_t idx = 0;
     PyObject *curr_key, *curr_value;
+    PyObject *key_str_mapping = NULL;
+    PyObject *temp_key_obj = NULL;
     Py_ssize_t pos;
     size_t nkeys;
     pylibmc_mset* serialized;
@@ -813,6 +815,8 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
 #endif
 
     nkeys = (size_t)PyDict_Size(keys);
+
+    key_str_mapping = _PylibMC_map_str_keys(keys);
 
     serialized = PyMem_New(pylibmc_mset, nkeys);
     if (serialized == NULL) {
@@ -871,7 +875,11 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
         if (serialized[idx].success)
             continue;
 
-        if (PyList_Append(retval, serialized[idx].key_obj) != 0) {
+        temp_key_obj = serialized[idx].key_obj;
+        if (PyDict_Contains(key_str_mapping, temp_key_obj)) {
+            temp_key_obj = PyDict_GetItem(key_str_mapping, temp_key_obj);
+        }
+        if (PyList_Append(retval, temp_key_obj) != 0) {
             /* Ugh */
             Py_DECREF(retval);
             retval = PyErr_NoMemory();
@@ -887,6 +895,7 @@ cleanup:
         PyMem_Free(serialized);
     }
     Py_XDECREF(key_prefix);
+    Py_XDECREF(key_str_mapping);
 
     return retval;
 }
