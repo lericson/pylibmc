@@ -457,7 +457,7 @@ static PyObject *_PylibMC_map_str_keys(PyObject *keys) {
     PyObject *key_str_mapping = NULL;
     PyObject *iter = NULL;
     PyObject *key = NULL;
-    PyObject *key_bytes = NULL
+    PyObject *key_bytes = NULL;
 
     key_str_mapping = PyDict_New();
 
@@ -466,7 +466,7 @@ static PyObject *_PylibMC_map_str_keys(PyObject *keys) {
 
     while ((key = PyIter_Next(iter)) != NULL) {
         if (PyUnicode_Check(key)) {
-            key_bytes = PyUnicode_AsUTF8String(item);
+            key_bytes = PyUnicode_AsUTF8String(key);
             PyDict_SetItem(key_str_mapping, key_bytes, key);
         }
     }
