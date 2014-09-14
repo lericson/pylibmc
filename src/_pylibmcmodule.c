@@ -469,11 +469,8 @@ static PyObject *_PylibMC_map_str_keys(PyObject *keys) {
             PyDict_SetItem(key_str_mapping, key_bytes, key);
         }
     }
-    return key_str_mapping;
-
 error:
-    Py_DECREF(key_str_mapping);
-    return NULL;
+    return key_str_mapping;
 }
 /* }}} */
 
@@ -893,7 +890,7 @@ cleanup:
         PyMem_Free(serialized);
     }
     Py_XDECREF(key_prefix);
-    Py_XDECREF(key_str_mapping);
+    Py_DECREF(key_str_mapping);
 
     return retval;
 }
@@ -1722,7 +1719,7 @@ earlybird:
     for (i = 0; i < nkeys; i++)
         Py_DECREF(key_objs[i]);
     PyMem_Free(key_objs);
-    Py_XDECREF(key_str_mapping);
+    Py_DECREF(key_str_mapping);
 
     if (results != NULL) {
         for (i = 0; i < nresults && results != NULL; i++) {
