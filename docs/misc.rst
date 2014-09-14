@@ -112,8 +112,7 @@ consequences that may not be obvious:
    values. :mod:`pylibmc` will match the types of the keys that were provided,
    returning each key as ``bytes`` or ``str`` as appropriate::
 
-    >>> c.add_multi({'a': 1, 'b': 0, 'c': 4})
+    >>> c.add_multi({'key1': 1, 'key2': 2})
     []
-    >>> c.incr_multi(('a', 'b', 'c'), delta=1)
-    >>> sorted(c.get_multi(('a', b'b', 'c')).items())
-    [('a', 2), (b'b', 1), ('c', 5)]
+    >>> c.get_multi((b'key1', 'key2'))
+    {b'key1': 1, 'key2': 2}
