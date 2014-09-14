@@ -108,16 +108,12 @@ consequences that may not be obvious:
     >>> c[b'key']
     'value'
 
-#. ``memcached`` returns keys as byte strings, and the :mod:`pylibmc` module does
-   not and cannot know whether these should be decoded to ``str`` objects. As such,
-   everything is returned as a Python ``bytes`` object. For example (from the
-   doctests)::
+#. Many of the ``_multi`` calls to :mod:`pylibmc` return keys as well as
+   values. :mod:`pylibmc` will match the types of the keys that were provided,
+   returning each key as ``bytes`` or ``str`` as appropriate::
 
     >>> c.add_multi({'a': 1, 'b': 0, 'c': 4})
     []
     >>> c.incr_multi(('a', 'b', 'c'), delta=1)
-    >>> list(sorted(c.get_multi(('a', 'b', 'c')).items()))
-    [(b'a', 2), (b'b', 1), (b'c', 5)]
-
-   You will need to call ``.decode()`` on any key returned by ``memcached`` if you'd
-   like to manipulate or treat it as text.
+    >>> sorted(c.get_multi(('a', b'b', 'c')).items())
+    [('a', 2), (b'b', 1), ('c', 5)]
