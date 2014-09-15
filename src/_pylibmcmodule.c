@@ -2402,7 +2402,14 @@ static void _make_excs(PyObject *module) {
     PyModule_AddObject(module, "Error",
                        (PyObject *)PylibMCExc_Error);
 
-    /* Backwards compatible name for <= pylibmc 1.2.3 */
+    /* Backwards compatible name for <= pylibmc 1.2.3
+     *
+     * Need to increase the refcount since we're adding another
+     * reference to the exception class. Otherwise, debug builds
+     * of Python dump core with
+     * Modules/gcmodule.c:379: visit_decref: Assertion `((gc)->gc.gc_refs >> (1)) != 0' failed.
+     */
+    Py_INCREF(PylibMCExc_Error);
     PyModule_AddObject(module, "MemcachedError",
                        (PyObject *)PylibMCExc_Error);
 
