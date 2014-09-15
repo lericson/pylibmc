@@ -472,6 +472,19 @@ static PyObject *_PylibMC_map_str_keys(PyObject *keys) {
 error:
     return key_str_mapping;
 }
+
+static void _PylibMC_cleanup_str_key_mapping(PyObject* mapping) {
+    PyObject *iter = NULL;
+    PyObject *key = NULL;
+
+    if ((iter = PyObject_GetIter(mapping)) == NULL)
+        return;
+
+    while ((key = PyIter_Next(iter)) != NULL) {
+        Py_DECREF(key);
+    }
+    Py_DECREF(mapping);
+}
 /* }}} */
 
 static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
@@ -890,7 +903,7 @@ cleanup:
         PyMem_Free(serialized);
     }
     Py_XDECREF(key_prefix);
-    Py_DECREF(key_str_mapping);
+    _PylibMC_cleanup_str_key_mapping(key_str_mapping);
 
     return retval;
 }
@@ -1719,7 +1732,7 @@ earlybird:
     for (i = 0; i < nkeys; i++)
         Py_DECREF(key_objs[i]);
     PyMem_Free(key_objs);
-    Py_DECREF(key_str_mapping);
+    _PylibMC_cleanup_str_key_mapping(key_str_mapping);
 
     if (results != NULL) {
         for (i = 0; i < nresults && results != NULL; i++) {
