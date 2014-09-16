@@ -1,13 +1,16 @@
 from __future__ import print_function
 import os
 import sys
-from distutils.core import setup, Extension
+try:
+    from setuptools import setup, Extension
+except ImportError:
+    from distutils.core import setup, Extension
 
 # Need an 'open' function that supports the 'encoding' argument:
 if sys.version_info[0] < 3:
     from codecs import open
 
-## Command-line argument parsing
+# Command-line argument parsing
 
 # --with-zlib: use zlib for compressing and decompressing
 # --without-zlib: ^ negated
@@ -22,10 +25,12 @@ defs = []
 incdirs = []
 libdirs = []
 
+
 def append_env(L, e):
     v = os.environ.get(e)
     if v and os.path.exists(v):
         L.append(v)
+
 
 append_env(pkgdirs, "LIBMEMCACHED")
 append_env(pkgdirs, "ZLIB")
@@ -46,7 +51,7 @@ for arg in sys.argv[1:]:
         cmd = arg[2:]
     elif "=" in arg:
         if arg.startswith("--with-libmemcached=") or \
-           arg.startswith("--with-zlib="):
+                arg.startswith("--with-zlib="):
             pkgdirs.append(arg.split("=", 1)[1])
             continue
     unprocessed.append(arg)
@@ -77,11 +82,20 @@ if sys.platform == "darwin" and not os.environ.get("ARCHFLAGS"):
 cflags = ["-fno-strict-aliasing", ]
 
 ## Extension definitions
+import platform
 
-pylibmc_ext = Extension("_pylibmc", ["src/_pylibmcmodule.c"],
-                        libraries=libs, include_dirs=incdirs,
-                        library_dirs=libdirs, define_macros=defs,
-                        extra_compile_args=cflags)
+if platform.python_implementation() == "PyPy":
+    # Append the path of src so that pypylibmc will be importable
+    src_path = os.path.dirname(os.path.abspath(__file__)) + '/src'
+    sys.path.append(src_path)
+
+    import pypylibmc
+    pylibmc_ext = pypylibmc.ffi.verifier.get_extension()
+else:
+    pylibmc_ext = Extension("_pylibmc", ["src/_pylibmcmodule.c"],
+                            libraries=libs, include_dirs=incdirs,
+                            library_dirs=libdirs, define_macros=defs,
+                            extra_compile_args=cflags)
 
 # Hidden secret: if environment variable GEN_SETUP is set, generate Setup file.
 if cmd == "gen-setup":
@@ -108,4 +122,4 @@ setup(name="pylibmc", version=version,
       long_description=readme_text,
       ext_modules=[pylibmc_ext],
       package_dir={'': 'src'},
-      packages=['pylibmc'])
+      packages=['pylibmc', 'pypylibmc'])

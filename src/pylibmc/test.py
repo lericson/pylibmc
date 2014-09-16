@@ -3,7 +3,8 @@
 import os
 import socket
 
-import _pylibmc, pylibmc
+from .compat import _pylibmc
+import  pylibmc
 from textwrap import dedent
 
 class NotAliveError(Exception):

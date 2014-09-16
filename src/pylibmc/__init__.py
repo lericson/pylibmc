@@ -68,7 +68,7 @@ Further Reading
 See http://sendapatch.se/projects/pylibmc/
 """
 
-import _pylibmc
+from compat import _pylibmc
 from .consts import hashers, distributions
 from .client import Client
 from .pools import ClientPool, ThreadMappedPool

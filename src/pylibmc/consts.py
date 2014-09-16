@@ -1,6 +1,6 @@
 """Constants and functionality related to them"""
 
-import _pylibmc
+from .compat import _pylibmc
 
 #: Mapping of exception name => class
 errors = tuple(e for (n, e) in _pylibmc.exceptions)

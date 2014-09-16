@@ -1,6 +1,6 @@
 """Python-level wrapper client"""
 
-import _pylibmc
+from .compat import _pylibmc
 from .consts import (hashers, distributions, all_behaviors,
                      hashers_rvs, distributions_rvs,
                      all_callbacks, BehaviorDict)
