@@ -451,6 +451,42 @@ error:
 #endif
 /* }}} */
 
+/* {{{ str/bytes key functionality (unicode/bytes on Python 2) */
+static PyObject *_PylibMC_map_str_keys(PyObject *keys) {
+    PyObject *key_str_mapping = NULL;
+    PyObject *iter = NULL;
+    PyObject *key = NULL;
+    PyObject *key_bytes = NULL;
+
+    key_str_mapping = PyDict_New();
+
+    if ((iter = PyObject_GetIter(keys)) == NULL)
+        goto error;
+
+    while ((key = PyIter_Next(iter)) != NULL) {
+        if (PyUnicode_Check(key)) {
+            key_bytes = PyUnicode_AsUTF8String(key);
+            PyDict_SetItem(key_str_mapping, key_bytes, key);
+        }
+    }
+error:
+    return key_str_mapping;
+}
+
+static void _PylibMC_cleanup_str_key_mapping(PyObject* mapping) {
+    PyObject *iter = NULL;
+    PyObject *key = NULL;
+
+    if ((iter = PyObject_GetIter(mapping)) == NULL)
+        return;
+
+    while ((key = PyIter_Next(iter)) != NULL) {
+        Py_DECREF(key);
+    }
+    Py_DECREF(mapping);
+}
+/* }}} */
+
 static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
         uint32_t flags) {
     PyObject *retval = NULL;
@@ -754,6 +790,8 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
     PyObject *retval = NULL;
     size_t idx = 0;
     PyObject *curr_key, *curr_value;
+    PyObject *key_str_mapping = NULL;
+    PyObject *temp_key_obj = NULL;
     Py_ssize_t pos;
     size_t nkeys;
     pylibmc_mset* serialized;
@@ -785,6 +823,8 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
 #endif
 
     nkeys = (size_t)PyDict_Size(keys);
+
+    key_str_mapping = _PylibMC_map_str_keys(keys);
 
     serialized = PyMem_New(pylibmc_mset, nkeys);
     if (serialized == NULL) {
@@ -843,7 +883,11 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
         if (serialized[idx].success)
             continue;
 
-        if (PyList_Append(retval, serialized[idx].key_obj) != 0) {
+        temp_key_obj = serialized[idx].key_obj;
+        if (PyDict_Contains(key_str_mapping, temp_key_obj)) {
+            temp_key_obj = PyDict_GetItem(key_str_mapping, temp_key_obj);
+        }
+        if (PyList_Append(retval, temp_key_obj) != 0) {
             /* Ugh */
             Py_DECREF(retval);
             retval = PyErr_NoMemory();
@@ -859,6 +903,7 @@ cleanup:
         PyMem_Free(serialized);
     }
     Py_XDECREF(key_prefix);
+    _PylibMC_cleanup_str_key_mapping(key_str_mapping);
 
     return retval;
 }
@@ -1532,6 +1577,8 @@ static PyObject *PylibMC_Client_get_multi(
     Py_ssize_t prefix_len = 0;
     Py_ssize_t i;
     PyObject *key_it, *ckey;
+    PyObject *key_str_mapping = NULL;
+    PyObject *temp_key_obj;
     size_t *key_lens;
     size_t nkeys, nresults = 0;
     memcached_return rc;
@@ -1561,6 +1608,7 @@ static PyObject *PylibMC_Client_get_multi(
      * exceptions as a loop predicate. */
     PyErr_Clear();
 
+    key_str_mapping = _PylibMC_map_str_keys(key_seq);
     /* Iterate through all keys and set lengths etc. */
     key_it = PyObject_GetIter(key_seq);
     i = 0;
@@ -1649,6 +1697,11 @@ static PyObject *PylibMC_Client_get_multi(
         /* Long-winded, but this way we can handle NUL-bytes in keys. */
         key_obj = PyBytes_FromStringAndSize(memcached_result_key_value(res) + prefix_len,
                                              memcached_result_key_length(res) - prefix_len);
+        if (PyDict_Contains(key_str_mapping, key_obj)) {
+            temp_key_obj = key_obj;
+            key_obj = PyDict_GetItem(key_str_mapping, temp_key_obj);
+            Py_DECREF(temp_key_obj);
+        }
         if (key_obj == NULL)
             goto unpack_error;
 
@@ -1679,6 +1732,7 @@ earlybird:
     for (i = 0; i < nkeys; i++)
         Py_DECREF(key_objs[i]);
     PyMem_Free(key_objs);
+    _PylibMC_cleanup_str_key_mapping(key_str_mapping);
 
     if (results != NULL) {
         for (i = 0; i < nresults && results != NULL; i++) {

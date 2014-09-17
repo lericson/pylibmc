@@ -16,15 +16,17 @@ True
 >>> c.get("test_key")
 
 The invariant mc.get_multi([k])[k] == mc.get(k) should hold for string and byte
-types.
->>> c.set(u'hello', 'world')
-True
->>> c.get_multi([u'hello'])[u'hello']
+types. Mixed key types should work too.
+
+Work around the lack of the 'u' string prefix in Python 3.2: get a text
+string containing "hello" by decoding a byte string
+>>> hello_key = b'hello'.decode()
+>>> c.set_multi({hello_key: 'world', b'foo': 'bar'})
+[]
+>>> c.get_multi([hello_key, b'foo'])[hello_key]
 'world'
->>> c.set(b'hello', 'world')
-True
->>> c.get_multi([b'hello'])[b'hello']
-'world'
+>>> c.get_multi([hello_key, b'foo'])[b'foo']
+'bar'
 
 We should handle empty values just nicely.
 >>> c.set("foo", "")
@@ -43,19 +45,16 @@ False
 Multi functionality.
 >>> c.set_multi({"a": 1, "b": 2, "c": 3})
 []
->>> test_keys = [b"a", b"b", b"c"]
->>> real_keys = c.get_multi("abc").keys()
->>> all(test_key in real_keys for test_key in test_keys)
-True
+>>> sorted(c.get_multi("abc"))
+['a', 'b', 'c']
 >>> c.delete_multi("abc")
 True
 >>> not(c.get_multi("abc").keys())
 True
 >>> c.set_multi(dict(zip("abc", "def")), key_prefix="test_")
 []
->>> test_items = [(b'a', 'd'), (b'b', 'e'), (b'c', 'f')]
->>> test_items == list(sorted(c.get_multi("abc", key_prefix="test_").items()))
-True
+>>> sorted(c.get_multi("abc", key_prefix="test_").items())
+[('a', 'd'), ('b', 'e'), ('c', 'f')]
 >>> c.get("test_a")
 'd'
 >>> c.delete_multi("abc", key_prefix="test_")
@@ -68,8 +67,8 @@ Zero-key-test-time!
 {}
 >>> c.delete_multi([""])
 False
->>> c.set_multi({"": "hi"}) == [b'']
-True
+>>> c.set_multi({"": "hi"})
+['']
 >>> c.delete_multi({"a": "b"})
 Traceback (most recent call last):
   ...
@@ -198,8 +197,8 @@ ok
 Behaviors.
 >>> c.set_behaviors({"tcp_nodelay": True, "hash": 6})
 >>> behaviors_items = [('hash', 6), ('tcp_nodelay', 1)]
->>> behaviors_items == list(sorted((k, v) for (k, v) in c.get_behaviors().items()
-...             if k in ("tcp_nodelay", "hash")))
+>>> behaviors_items == sorted((k, v) for (k, v) in c.get_behaviors().items()
+...             if k in ("tcp_nodelay", "hash"))
 True
 
 Binary protocol!
@@ -215,16 +214,15 @@ incr_multi
 >>> c.add_multi({'a': 1, 'b': 0, 'c': 4})
 []
 >>> c.incr_multi(('a', 'b', 'c'), delta=1)
->>> items_out = [(b'a', 2), (b'b', 1), (b'c', 5)]
->>> items_out == list(sorted(c.get_multi(('a', 'b', 'c')).items()))
+>>> sorted(c.get_multi(('a', 'b', 'c')).items()) == [('a', 2), ('b', 1), ('c', 5)]
 True
 >>> c.delete_multi(('a', 'b', 'c'))
 True
 >>> c.add_multi({'a': 1, 'b': 0, 'c': 4}, key_prefix='x')
 []
 >>> c.incr_multi(('a', 'b', 'c'), key_prefix='x', delta=5)
->>> items_out = [(b'a', 6), (b'b', 5), (b'c', 9)]
->>> items_out == list(sorted(c.get_multi(('a', 'b', 'c'), key_prefix='x').items()))
+>>> test_items = [('a', 6), ('b', 5), ('c', 9)]
+>>> sorted(c.get_multi(('a', 'b', 'c'), key_prefix='x').items()) == test_items
 True
 >>> c.delete_multi(('a', 'b', 'c'), key_prefix='x')
 True
@@ -264,10 +262,9 @@ True
 
 Ormod's Zero-byte Adventure Story
 >>> bc = make_test_client(_pylibmc.client, binary=True)
->>> bc.set("\x00\x00\x01", "ORMOD")
+>>> bc.set(b"\x00\x00\x01", "ORMOD")
 True
->>> result = bc.get_multi(["\x00\x00\x01"])
->>> result == {b'\x00\x00\x01': 'ORMOD'}
+>>> bc.get_multi([b"\x00\x00\x01"]) == {b'\x00\x00\x01': 'ORMOD'}
 True
 
 Test server/client max length

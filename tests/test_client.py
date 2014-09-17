@@ -25,14 +25,7 @@ class ClientTests(PylibmcTestCase):
         k = "\x00\x01"
         test_str = "test"
         ok_(bc.set(k, test_str))
-        if PY3:
-            rk = list(bc.get_multi([k]).keys())[0]
-            # Keys are converted to UTF-8 strings before being
-            # used, so the key that we get back will be a byte
-            # string. Encode the test key to match this.
-            k = k.encode('utf-8')
-        else:
-            rk = bc.get_multi([k]).keys()[0]
+        rk = next(iter(bc.get_multi([k])))
         eq_(k, rk)
 
     def test_cas(self):
