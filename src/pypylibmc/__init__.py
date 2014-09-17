@@ -27,6 +27,11 @@ ffi.cdef("""
 #define PYLIBMC_SASL_SUPPORT ...
 #define PYLIBMC_COMPRESSION_SUPPORT ...
 
+typedef struct {...;} memcached_st;
+
+memcached_st* memcached_create(memcached_st *ptr);
+void memcached_quit(memcached_st *ptr);
+void memcached_free(memcached_st *ptr);
 
 typedef enum {
   MEMCACHED_FAILURE,
@@ -93,7 +98,7 @@ libmemcached = ffi.verify("""
 #else
     #define PYLIBMC_COMPRESSION_SUPPORT 0
 #endif
-""", ext_package='pypylibmc')
+""", ext_package='pypylibmc', libraries=["memcached"])
 
 
 class Error(Exception):
@@ -275,5 +280,22 @@ libmemcached_version_hex = libmemcached.LIBMEMCACHED_VERSION_HEX
 support_sasl = bool(libmemcached.PYLIBMC_SASL_SUPPORT)
 support_compression = bool(libmemcached.PYLIBMC_COMPRESSION_SUPPORT)
 __version__ = "1.3.100-dev"
+
+
 class client(object):
-    pass
+    libmemcached = libmemcached
+
+    def __init__(self, servers=None, binary=None, username=None, password=None, behaviors=None):
+        self.mc = libmemcached.memcached_create(ffi.NULL)
+
+        if username is not None or password is not None:
+            if support_sasl:
+                pass
+            else:
+                raise TypeError("libmemcached does not support SASL")
+
+    def __del__(self):
+        self.libmemcached.memcached_free(self.mc)
+
+    def disconnect_all(self):
+        self.libmemcached.memcached_quit(self.mc)
