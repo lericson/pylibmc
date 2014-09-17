@@ -283,14 +283,18 @@ __version__ = "1.3.100-dev"
 
 
 class client(object):
-    libmemcached = libmemcached
+    libmemcached = None
 
     def __init__(self, servers=None, binary=None, username=None, password=None, behaviors=None):
-        self.mc = libmemcached.memcached_create(ffi.NULL)
+        if not self.libmemcached:
+            self.libmemcached = libmemcached
+
+        self.mc = self.libmemcached.memcached_create(ffi.NULL)
 
         if username is not None or password is not None:
-            if support_sasl:
-                pass
+            if self._support_sasl:
+                if not username or not password:
+                    raise TypeError("SASL requires both username and password")
             else:
                 raise TypeError("libmemcached does not support SASL")
 
@@ -299,3 +303,11 @@ class client(object):
 
     def disconnect_all(self):
         self.libmemcached.memcached_quit(self.mc)
+
+    @property
+    def _support_sasl(self):
+        return bool(self.libmemcached.PYLIBMC_SASL_SUPPORT)
+
+    @property
+    def _support_compression(self):
+        return bool(self.libmemcached.PYLIBMC_COMPRESSION_SUPPORT)
