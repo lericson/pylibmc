@@ -29,10 +29,6 @@ ffi.cdef("""
 
 typedef struct {...;} memcached_st;
 
-memcached_st* memcached_create(memcached_st *ptr);
-void memcached_quit(memcached_st *ptr);
-void memcached_free(memcached_st *ptr);
-
 typedef enum {
   MEMCACHED_FAILURE,
   MEMCACHED_HOST_LOOKUP_FAILURE,
@@ -59,6 +55,7 @@ typedef enum {
   MEMCACHED_SERVER_MARKED_DEAD,
   MEMCACHED_SERVER_TEMPORARILY_DISABLED,
   MEMCACHED_UNKNOWN_STAT_KEY,
+  MEMCACHED_SUCCESS,
   ...
 } memcached_return_t;
 
@@ -82,6 +79,14 @@ typedef enum {
 typedef enum {
   ...
 } memcached_connection_t;
+
+memcached_st* memcached_create(memcached_st *ptr);
+void memcached_quit(memcached_st *ptr);
+void memcached_free(memcached_st *ptr);
+
+memcached_return_t memcached_set_sasl_auth_data(memcached_st *ptr, const char *username, const char *password);
+
+const char *memcached_last_error_message(memcached_st *);
 """)
 
 libmemcached = ffi.verify("""
@@ -103,6 +108,14 @@ libmemcached = ffi.verify("""
 
 class Error(Exception):
     retcode = None
+
+    def __init__(self, what, error_message, key=None):
+        lead = 'error %d from %s' % (self.retcode, what)
+        if key:
+            lead += '(%s)' % key
+
+        msg = '%s: %s' % (lead, error_message)
+        super(Error, self).__init__(msg)
 
 
 class Failure(Error):
@@ -282,6 +295,14 @@ support_compression = bool(libmemcached.PYLIBMC_COMPRESSION_SUPPORT)
 __version__ = "1.3.100-dev"
 
 
+def get_exception_by_return_code(rc):
+    for _, e in exceptions:
+        if e.retcode == rc:
+            return e
+
+    raise ValueError("Invalid memcached return code")
+
+
 class client(object):
     libmemcached = None
 
@@ -295,6 +316,13 @@ class client(object):
             if self._support_sasl:
                 if not username or not password:
                     raise TypeError("SASL requires both username and password")
+
+                rc = self.libmemcached.memcached_set_sasl_auth_data(self.mc, username, password)
+
+                if rc != self.libmemcached.MEMCACHED_SUCCESS:
+                    exception_class = get_exception_by_return_code(rc)
+                    raise exception_class('memcached_set_sasl_auth_data',
+                                          self.libmemcached.memcached_last_error_message(self.mc))
             else:
                 raise TypeError("libmemcached does not support SASL")
 

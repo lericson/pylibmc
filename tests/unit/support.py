@@ -3,10 +3,11 @@
 from mock import Mock
 
 from pylibmc import Client
+from pylibmc.compat import _pylibmc
 
 
 class FakeClient(Client):
-    libmemcached = Mock()
+    libmemcached = Mock(spec_set=_pylibmc.libmemcached)
 
     def __init__(self, servers=None, **kwargs):
         if not servers:
