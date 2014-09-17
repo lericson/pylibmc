@@ -1,10 +1,15 @@
 from __future__ import print_function
 import os
 import sys
+
 try:
     from setuptools import setup, Extension
+
+    extra = {'zip_safe': False}
 except ImportError:
     from distutils.core import setup, Extension
+
+    extra = {}
 
 # Need an 'open' function that supports the 'encoding' argument:
 if sys.version_info[0] < 3:
@@ -65,7 +70,7 @@ if use_zlib:
     libs.append("z")
     defs.append(("USE_ZLIB", None))
 
-## OS X non-PPC workaround
+# # OS X non-PPC workaround
 
 # Apple OS X 10.6 with Xcode 4 have Python compiled with PPC but they removed
 # support for compiling with that arch, so we have to override ARCHFLAGS.
@@ -90,6 +95,7 @@ if platform.python_implementation() == "PyPy":
     sys.path.append(src_path)
 
     import pypylibmc
+
     pylibmc_ext = pypylibmc.ffi.verifier.get_extension()
 else:
     pylibmc_ext = Extension("_pylibmc", ["src/_pylibmcmodule.c"],
@@ -122,4 +128,5 @@ setup(name="pylibmc", version=version,
       long_description=readme_text,
       ext_modules=[pylibmc_ext],
       package_dir={'': 'src'},
-      packages=['pylibmc', 'pypylibmc'])
+      packages=['pylibmc', 'pypylibmc'],
+      **extra)
