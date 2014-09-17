@@ -21,6 +21,12 @@ ffi.cdef("""
 #define MEMCACHED_EXPIRATION_NOT_ADD ...
 #define MEMCACHED_VERSION_STRING_LENGTH ...
 
+#define LIBMEMCACHED_VERSION_STRING ...
+#define LIBMEMCACHED_VERSION_HEX ...
+
+#define PYLIBMC_SASL_SUPPORT ...
+#define PYLIBMC_COMPRESSION_SUPPORT ...
+
 
 typedef enum {
   MEMCACHED_FAILURE,
@@ -75,136 +81,199 @@ typedef enum {
 
 libmemcached = ffi.verify("""
 #include <libmemcached/memcached.h>
+
+#if LIBMEMCACHED_WITH_SASL_SUPPORT
+    #define PYLIBMC_SASL_SUPPORT 1
+#else
+    #define PYLIBMC_SASL_SUPPORT 0
+#endif
+
+#ifdef USE_ZLIB
+    #define PYLIBMC_COMPRESSION_SUPPORT 1
+#else
+    #define PYLIBMC_COMPRESSION_SUPPORT 0
+#endif
 """, ext_package='pypylibmc')
 
 
-class MemcachedError(Exception):
+class Error(Exception):
     retcode = None
 
 
-class Failure(MemcachedError):
+class Failure(Error):
     retcode = libmemcached.MEMCACHED_FAILURE
 
 
-class HostLookupError(MemcachedError):
+class HostLookupError(Error):
     retcode = libmemcached.MEMCACHED_HOST_LOOKUP_FAILURE
 
 
-class ConnectionError(MemcachedError):
+class ConnectionError(Error):
     retcode = libmemcached.MEMCACHED_CONNECTION_FAILURE
 
 
-class ConnectionBindError(MemcachedError):
+class ConnectionBindError(Error):
     retcode = libmemcached.MEMCACHED_CONNECTION_BIND_FAILURE
 
 
-class WriteError(MemcachedError):
+class WriteError(Error):
     retcode = libmemcached.MEMCACHED_WRITE_FAILURE
 
 
-class ReadError(MemcachedError):
+class ReadError(Error):
     retcode = libmemcached.MEMCACHED_READ_FAILURE
 
 
-class UnknownReadFailure(MemcachedError):
+class UnknownReadFailure(Error):
     retcode = libmemcached.MEMCACHED_UNKNOWN_READ_FAILURE
 
 
-class ProtocolError(MemcachedError):
+class ProtocolError(Error):
     retcode = libmemcached.MEMCACHED_PROTOCOL_ERROR
 
 
-class ClientError(MemcachedError):
+class ClientError(Error):
     retcode = libmemcached.MEMCACHED_CLIENT_ERROR
 
 
-class ServerError(MemcachedError):
+class ServerError(Error):
     retcode = libmemcached.MEMCACHED_SERVER_ERROR
 
 
-class SocketCreateError(MemcachedError):
+class SocketCreateError(Error):
     retcode = libmemcached.MEMCACHED_CONNECTION_SOCKET_CREATE_FAILURE
 
 
-class DataExists(MemcachedError):
+class DataExists(Error):
     retcode = libmemcached.MEMCACHED_DATA_EXISTS
 
 
-class DataDoesNotExist(MemcachedError):
+class DataDoesNotExist(Error):
     retcode = libmemcached.MEMCACHED_DATA_DOES_NOT_EXIST
 
 
-class NotFound(MemcachedError):
+class NotFound(Error):
     retcode = libmemcached.MEMCACHED_NOTFOUND
 
 
-class AllocationError(MemcachedError):
+class AllocationError(Error):
     retcode = libmemcached.MEMCACHED_MEMORY_ALLOCATION_FAILURE
 
 
-class SomeErrors(MemcachedError):
+class SomeErrors(Error):
     retcode = libmemcached.MEMCACHED_SOME_ERRORS
 
 
-class NoServers(MemcachedError):
+class NoServers(Error):
     retcode = libmemcached.MEMCACHED_NO_SERVERS
 
 
-class UnixSocketError(MemcachedError):
+class UnixSocketError(Error):
     retcode = libmemcached.MEMCACHED_FAIL_UNIX_SOCKET
 
 
-class NotSupportedError(MemcachedError):
+class NotSupportedError(Error):
     retcode = libmemcached.MEMCACHED_NOT_SUPPORTED
 
 
-class FetchNotFinished(MemcachedError):
+class FetchNotFinished(Error):
     retcode = libmemcached.MEMCACHED_FETCH_NOTFINISHED
 
 
-class BadKeyProvided(MemcachedError):
+class BadKeyProvided(Error):
     retcode = libmemcached.MEMCACHED_BAD_KEY_PROVIDED
 
 
-class InvalidHostProtocolError(MemcachedError):
+class InvalidHostProtocolError(Error):
     retcode = libmemcached.MEMCACHED_INVALID_HOST_PROTOCOL
 
 
-class ServerDead(MemcachedError):
+class ServerDead(Error):
     retcode = libmemcached.MEMCACHED_SERVER_MARKED_DEAD
 
 
-class ServerDown(MemcachedError):
+class ServerDown(Error):
     retcode = libmemcached.MEMCACHED_SERVER_TEMPORARILY_DISABLED
 
 
-class UnknownStatKey(MemcachedError):
+class UnknownStatKey(Error):
     retcode = libmemcached.MEMCACHED_UNKNOWN_STAT_KEY
 
 
-exceptions = [('Error', MemcachedError),
-              ('Failure', Failure),
-              ('HostLookupError', HostLookupError),
-              ('ConnectionError', ConnectionError),
-              ('ConnectionBindError', ConnectionBindError),
-              ('WriteError', WriteError),
-              ('ReadError', ReadError),
-              ('UnknownReadFailure', UnknownReadFailure),
-              ('ProtocolError', ProtocolError),
-              ('ClientError', ClientError),
-              ('ServerError', ServerError),
-              ('SocketCreateError', SocketCreateError),
-              ('DataExists', DataExists),
-              ('DataDoesNotExist', DataDoesNotExist),
-              ('NotFound', NotFound),
-              ('AllocationError', AllocationError),
-              ('SomeErrors', SomeErrors),
-              ('NoServers', NoServers),
-              ('UnixSocketError', UnixSocketError),
-              ('NotSupportedError', NotSupportedError),
-              ('FetchNotFinished', FetchNotFinished),
-              ('BadKeyProvided', BadKeyProvided),
-              ('InvalidHostProtocolError', InvalidHostProtocolError),
-              ('ServerDead', ServerDead),
-              ('ServerDown', ServerDown),
-              ('UnknownStatKey', UnknownStatKey)]
+exceptions = [
+    ('Error', Error),
+    ('Failure', Failure),
+    ('HostLookupError', HostLookupError),
+    ('ConnectionError', ConnectionError),
+    ('ConnectionBindError', ConnectionBindError),
+    ('WriteError', WriteError),
+    ('ReadError', ReadError),
+    ('UnknownReadFailure', UnknownReadFailure),
+    ('ProtocolError', ProtocolError),
+    ('ClientError', ClientError),
+    ('ServerError', ServerError),
+    ('SocketCreateError', SocketCreateError),
+    ('DataExists', DataExists),
+    ('DataDoesNotExist', DataDoesNotExist),
+    ('NotFound', NotFound),
+    ('AllocationError', AllocationError),
+    ('SomeErrors', SomeErrors),
+    ('NoServers', NoServers),
+    ('UnixSocketError', UnixSocketError),
+    ('NotSupportedError', NotSupportedError),
+    ('FetchNotFinished', FetchNotFinished),
+    ('BadKeyProvided', BadKeyProvided),
+    ('InvalidHostProtocolError', InvalidHostProtocolError),
+    ('ServerDead', ServerDead),
+    ('ServerDown', ServerDown),
+    ('UnknownStatKey', UnknownStatKey)
+]
+
+all_behaviors = [
+    'no_block',
+    'tcp_nodelay',
+    'tcp_keepalive',
+    'hash',
+    'ketama_hash',
+    'ketama',
+    'ketama_weighted',
+    'distribution',
+    'cas',
+    'buffer_requests',
+    'verify_keys',
+    'connect_timeout',
+    'send_timeout',
+    'receive_timeout',
+    'num_replicas',
+    'auto_eject',
+    'retry_timeout',
+    'remove_failed',
+    'failure_limit',
+    '_io_msg_watermark',
+    '_io_bytes_watermark',
+    '_io_key_prefetch',
+    '_hash_with_prefix_key',
+    '_noreply',
+    '_sort_hosts',
+    '_poll_timeout',
+    '_socket_send_size',
+    '_socket_recv_size',
+    'dead_timeout'
+]
+
+all_callbacks = [
+    'namespace'
+]
+
+server_type_tcp = (1 << 0)
+server_type_udp = (1 << 1)
+server_type_unix = (1 << 2)
+
+libmemcached_version = libmemcached.LIBMEMCACHED_VERSION_STRING
+libmemcached_version_hex = libmemcached.LIBMEMCACHED_VERSION_HEX
+
+support_sasl = bool(libmemcached.PYLIBMC_SASL_SUPPORT)
+support_compression = bool(libmemcached.PYLIBMC_COMPRESSION_SUPPORT)
+__version__ = "1.3.100-dev"
+class client(object):
+    pass
