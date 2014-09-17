@@ -2,7 +2,7 @@ import functools
 import sys
 import time
 import pylibmc
-import _pylibmc
+from pylibmc.compat import _pylibmc
 from pylibmc.test import make_test_client
 from tests import PylibmcTestCase
 from nose import SkipTest

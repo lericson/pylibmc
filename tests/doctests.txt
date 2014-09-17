@@ -1,5 +1,6 @@
 Basic functionality.
->>> import pylibmc, _pylibmc
+>>> import pylibmc
+>>> from pylibmc.compat import _pylibmc
 >>> from tests import make_test_client
 >>> from hashlib import md5
 >>> _pylibmc.__version__ == pylibmc.__version__

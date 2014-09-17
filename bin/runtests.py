@@ -24,7 +24,8 @@ def hack_sys_path():
     logger.info("path to dev build: %s", lib_dirn)
     sys.path.insert(0, lib_dirn)
 
-    import pylibmc, _pylibmc
+    import pylibmc
+    from pylibmc.compat import _pylibmc
     if hasattr(_pylibmc, "__file__"):
         logger.info("loaded _pylibmc from %s", _pylibmc.__file__)
         if not _pylibmc.__file__.startswith(lib_dirn):
