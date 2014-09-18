@@ -303,14 +303,21 @@ def get_exception_by_return_code(rc):
     raise ValueError("Invalid memcached return code")
 
 
+def destructor(mc):
+    libmemcached.memcached_free(mc)
+
+
 class client(object):
     libmemcached = None
+
+    def _create_memcached_handle(self):
+        return ffi.gc(self.libmemcached.memcached_create(ffi.NULL), destructor)
 
     def __init__(self, servers=None, binary=None, username=None, password=None, behaviors=None):
         if not self.libmemcached:
             self.libmemcached = libmemcached
 
-        self.mc = self.libmemcached.memcached_create(ffi.NULL)
+        self.mc = self._create_memcached_handle()
 
         if username is not None or password is not None:
             if self._support_sasl:
@@ -325,9 +332,6 @@ class client(object):
                                           self.libmemcached.memcached_last_error_message(self.mc))
             else:
                 raise TypeError("libmemcached does not support SASL")
-
-    def __del__(self):
-        self.libmemcached.memcached_free(self.mc)
 
     def disconnect_all(self):
         self.libmemcached.memcached_quit(self.mc)
