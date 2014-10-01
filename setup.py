@@ -100,12 +100,26 @@ with open("README.rst", "U", encoding="utf-8") as r:
 with open("src/pylibmc-version.h", "U", encoding="utf-8") as r:
     version = r.read().strip().split("\"")[1]
 
-setup(name="pylibmc", version=version,
-      url="http://sendapatch.se/projects/pylibmc/",
-      author="Ludvig Ericson", author_email="ludvig@lericson.se",
-      license="3-clause BSD <http://www.opensource.org/licenses/bsd-license.php>",
-      description="Quick and small memcached client for Python",
-      long_description=readme_text,
-      ext_modules=[pylibmc_ext],
-      package_dir={'': 'src'},
-      packages=['pylibmc'])
+setup(
+    name="pylibmc",
+    version=version,
+    url="http://sendapatch.se/projects/pylibmc/",
+    author="Ludvig Ericson",
+    author_email="ludvig@lericson.se",
+    license="3-clause BSD <http://www.opensource.org/licenses/bsd-license.php>",
+    description="Quick and small memcached client for Python",
+    long_description=readme_text,
+    ext_modules=[pylibmc_ext],
+    package_dir={'': 'src'},
+    packages=['pylibmc'],
+    classifiers=[
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 2.6',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.2',
+        'Programming Language :: Python :: 3.3',
+        'Programming Language :: Python :: 3.4',
+    ],
+)
