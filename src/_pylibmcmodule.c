@@ -1697,13 +1697,14 @@ static PyObject *PylibMC_Client_get_multi(
         /* Long-winded, but this way we can handle NUL-bytes in keys. */
         key_obj = PyBytes_FromStringAndSize(memcached_result_key_value(res) + prefix_len,
                                              memcached_result_key_length(res) - prefix_len);
+        if (key_obj == NULL)
+            goto unpack_error;
+
         if (PyDict_Contains(key_str_mapping, key_obj)) {
             temp_key_obj = key_obj;
             key_obj = PyDict_GetItem(key_str_mapping, temp_key_obj);
             Py_DECREF(temp_key_obj);
         }
-        if (key_obj == NULL)
-            goto unpack_error;
 
         /* Parse out value */
         val = _PylibMC_parse_memcached_result(res);
