@@ -28,8 +28,8 @@ before_install:
   - sudo apt-get update -qq
   - sudo apt-get install memcached
   - sudo service memcached start
-  - echo "stats settings" | nc localhost 11211
   - sudo apt-get install libmemcached-dev
+  - echo "stats settings" | nc localhost 11211
 
 install: python setup.py install
 
