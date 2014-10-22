@@ -12,6 +12,13 @@ env:
   - LIBMEMCACHED_VERSION='0.53'
   - LIBMEMCACHED_VERSION='1.0.8'
 
+notifications:
+  irc:
+    channels:
+      - "chat.freenode.net#sendapatch"
+    on_success: change
+    on_failure: change
+
 before_install:
   # Default travis-ci libmemcached is 0.44 (ubuntu precise). If we need a
   # higher version, add in the appropriate ppa. The newer package will upgrade
