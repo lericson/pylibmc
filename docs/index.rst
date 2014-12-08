@@ -27,6 +27,7 @@ Create a memcached connection and configure it::
     >>> import pylibmc
     >>> mc = pylibmc.Client(["127.0.0.1"], binary=True,
     ...                     behaviors={"tcp_nodelay": True,
+    ...                                "verify_keys": True})
     ...                                "ketama": True})
 
 .. hint:: In earlier versions ``behaviors`` was no keyword

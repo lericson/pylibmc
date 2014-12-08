@@ -116,3 +116,15 @@ consequences that may not be obvious:
     []
     >>> c.get_multi((b'key1', 'key2'))
     {b'key1': 1, 'key2': 2}
+
+`verify_keys` ⋁ ¬ `verify_keys`
+===============================
+
+Security researchers have noted that disabling the `verify_keys` behavior is a
+potential threat when accepting unsanitized input. This is most troublesome as
+the default configuration disables this behavior. However, we have in fact
+**not** specified this as the default, it comes as a sort of heritage from
+libmemcached.
+
+For this reason, you are urged to enable `verify_keys` if you have the
+slightest doubt about user input getting through to your key names.
