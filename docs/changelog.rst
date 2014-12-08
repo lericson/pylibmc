@@ -2,7 +2,7 @@ Change Log
 ==========
 
 New in version 1.4.0
-====================
+--------------------
 
 Brace yourself, Python 3.x support has come!
 
