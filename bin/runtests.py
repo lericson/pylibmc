@@ -37,9 +37,6 @@ class PylibmcPlugin(Plugin):
     name = "info"
     enableOpt = "info"
 
-    def __init__(self):
-        Plugin.__init__(self)
-
     def begin(self):
         hack_sys_path()
         from pylibmc import build_info
