@@ -25,4 +25,11 @@ class ClientPoolTests(PoolTestCase):
             with p.reserve() as smc2:
                 self.assertRaises(queue.Empty, p.reserve().__enter__)
 
-# TODO Thread-mapped pool tests
+class ThreadMappedPoolTests(PoolTestCase):
+    def test_simple(self):
+        a_str = "a"
+        p = pylibmc.ThreadMappedPool(self.mc)
+        with p.reserve() as smc:
+            ok_(smc)
+            ok_(smc.set(a_str, 1))
+            eq_(smc[a_str], 1)
