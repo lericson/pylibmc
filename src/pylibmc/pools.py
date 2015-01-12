@@ -90,7 +90,7 @@ class ThreadMappedPool(dict):
 
     @property
     def current_key(self):
-        return threading.get_ident()
+        return threading.current_thread().ident
 
     @contextmanager
     def reserve(self):
