@@ -4,6 +4,11 @@ from __future__ import with_statement
 from contextlib import contextmanager
 
 try:
+    import threading
+except ImportError:
+    import dummy_threading as threading
+
+try:
     from Queue import Queue
 except ImportError:
     from queue import Queue
@@ -85,7 +90,7 @@ class ThreadMappedPool(dict):
 
     @property
     def current_key(self):
-        return thread.get_ident()
+        return threading.get_ident()
 
     @contextmanager
     def reserve(self):
@@ -110,9 +115,3 @@ class ThreadMappedPool(dict):
         this pool.
         """
         return self.pop(self.current_key, None)
-
-# This makes sure ThreadMappedPool doesn't exist with non-thread Pythons.
-try:
-    import thread
-except ImportError:
-    ThreadMappedPool = None
