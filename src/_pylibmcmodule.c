@@ -792,7 +792,7 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
     PyObject *curr_key, *curr_value;
     PyObject *key_str_mapping = NULL;
     PyObject *temp_key_obj = NULL;
-    Py_ssize_t pos;
+    Py_ssize_t i;
     size_t nkeys;
     pylibmc_mset* serialized;
     bool allsuccess;
@@ -842,13 +842,13 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
      * this is safe because Python strings are immutable
      */
 
-    pos = 0; /* PyDict_Next's 'pos' isn't an incrementing index */
+    i = 0; /* PyDict_Next's 'i' isn't an incrementing index */
 
     if (key_prefix_raw != NULL) {
         key_prefix = PyBytes_FromStringAndSize(key_prefix_raw, key_prefix_len);
     }
 
-    for (idx = 0; PyDict_Next(keys, &pos, &curr_key, &curr_value); idx++) {
+    for (idx = 0; PyDict_Next(keys, &i, &curr_key, &curr_value); idx++) {
         int success = _PylibMC_SerializeValue(curr_key, key_prefix,
                                               curr_value, time,
                                               &serialized[idx]);
@@ -897,8 +897,8 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
 
 cleanup:
     if (serialized != NULL) {
-        for (pos = 0; pos < nkeys; pos++) {
-            _PylibMC_FreeMset(&serialized[pos]);
+        for (i = 0; i < nkeys; i++) {
+            _PylibMC_FreeMset(&serialized[i]);
         }
         PyMem_Free(serialized);
     }
@@ -1120,14 +1120,14 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
                                    int compress_level) {
     memcached_st *mc = self->mc;
     memcached_return rc = MEMCACHED_SUCCESS;
-    int pos;
-    bool error = false;
-    bool allsuccess = true;
+    bool softerrors = false,
+         harderrors = false;
+    int i;
 
     Py_BEGIN_ALLOW_THREADS;
 
-    for (pos=0; pos < nkeys && !error; pos++) {
-        pylibmc_mset *mset = &msets[pos];
+    for (i = 0; i < nkeys && !harderrors; i++) {
+        pylibmc_mset *mset = &msets[i];
 
         char *value = mset->value;
         size_t value_len = (size_t)mset->value_len;
@@ -1152,10 +1152,7 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
         }
 #endif
 
-        /* Finally go and call the actual libmemcached function */
         if (mset->key_len == 0) {
-            /* Most other implementations ignore zero-length keys, so
-               we'll just do that */
             rc = MEMCACHED_NOTSTORED;
         } else {
             rc = f(mc, mset->key, mset->key_len,
@@ -1168,37 +1165,38 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
         }
 #endif
 
-      switch (rc) {
-          case MEMCACHED_SUCCESS:
-              mset->success = true;
-              break;
-          case MEMCACHED_FAILURE:
-          case MEMCACHED_NO_KEY_PROVIDED:
-          case MEMCACHED_BAD_KEY_PROVIDED:
-          case MEMCACHED_MEMORY_ALLOCATION_FAILURE:
-          case MEMCACHED_DATA_EXISTS:
-          case MEMCACHED_NOTSTORED:
-              mset->success = false;
-              allsuccess = false;
-              break;
-          default:
-              mset->success = false;
-              allsuccess = false;
-              error = true; /* will break the for loop */
-      } /* switch */
+        switch (rc) {
 
-    } /* end for each mset */
+            /* Successful case */
+            case MEMCACHED_SUCCESS:
+                mset->success = true;
+                break;
+
+            case MEMCACHED_FAILURE:
+            case MEMCACHED_NO_KEY_PROVIDED:
+            case MEMCACHED_BAD_KEY_PROVIDED:
+            case MEMCACHED_MEMORY_ALLOCATION_FAILURE:
+            case MEMCACHED_DATA_EXISTS:
+            case MEMCACHED_NOTSTORED:
+                mset->success = false;
+                softerrors = true;
+                break;
+
+            default:
+                mset->success = false;
+                softerrors = true;
+                harderrors = true;
+                break;
+        }
+    }
 
     Py_END_ALLOW_THREADS;
 
-    /* We only return the last return value, even for a _multi
-       operation, but we do set the success on the mset */
-    if (error) {
+    if (harderrors) {
         PylibMC_ErrFromMemcached(self, fname, rc);
-        return false;
-    } else {
-        return allsuccess;
     }
+
+    return !softerrors;
 }
 
 /* These all just call _PylibMC_RunSetCommand with the appropriate
