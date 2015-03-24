@@ -20,8 +20,8 @@
    To specify UDP, the server address should be prefixed with ``"udp:"``, as in
    ``"udp:127.0.0.1"``.
 
-   To specify UNIX domain socket, the server address must contain a slash, as
-   in ``"./foo.sock"``.
+   To specify UNIX domain socket, the server address must start with a slash, as
+   in ``"/run/foo.sock"``.
 
    Mixing transport types is prohibited by :mod:`pylibmc` as this is not supported by
    libmemcached.
