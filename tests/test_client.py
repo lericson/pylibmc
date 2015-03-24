@@ -94,3 +94,10 @@ class ClientTests(PylibmcTestCase):
         mc = make_test_client(binary=True)
         ok_(mc.set(k, 0))
         ok_(mc.get(k_enc) == 0)
+
+    def test_buffered_requests(self):
+        # See https://github.com/lericson/pylibmc/issues/180
+        mc = make_test_client(binary=True, behaviors={'buffer_requests':True})
+        mc.set('foo', 'bar')
+        ok_(mc.get('foo', 'bar'))
+
