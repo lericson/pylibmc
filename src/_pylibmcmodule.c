@@ -2347,6 +2347,7 @@ static int _key_normalized_obj(PyObject **key) {
     key_sz = PyBytes_GET_SIZE(*key);
     rc = _key_normalized_str(&key_str, &key_sz);
     if (rc == 2) {
+        Py_DECREF(*key);
         *key = PyBytes_FromStringAndSize(key_str, key_sz);
         rc = 1;
     }
