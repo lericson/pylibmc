@@ -2324,6 +2324,7 @@ static int _key_normalized_obj(PyObject **key) {
     int rc;
     char *key_str;
     Py_ssize_t key_sz;
+    PyObject *prev = *key;
 
     if (*key == NULL) {
         PyErr_SetString(PyExc_ValueError, "key must be given");
@@ -2331,7 +2332,6 @@ static int _key_normalized_obj(PyObject **key) {
     }
 
     if (PyUnicode_Check(*key)) {
-        PyObject *prev = *key;
         *key = PyUnicode_AsUTF8String(prev);
         Py_DECREF(prev);
         if (*key == NULL)
@@ -2347,8 +2347,8 @@ static int _key_normalized_obj(PyObject **key) {
     key_sz = PyBytes_GET_SIZE(*key);
     rc = _key_normalized_str(&key_str, &key_sz);
     if (rc == 2) {
-        Py_DECREF(*key);
         *key = PyBytes_FromStringAndSize(key_str, key_sz);
+        Py_DECREF(prev);
         rc = 1;
     }
     return rc;
