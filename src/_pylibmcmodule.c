@@ -2331,7 +2331,9 @@ static int _key_normalized_obj(PyObject **key) {
     }
 
     if (PyUnicode_Check(*key)) {
-        *key = PyUnicode_AsUTF8String(*key);
+        PyObject *prev = *key;
+        *key = PyUnicode_AsUTF8String(prev);
+        Py_DECREF(prev);
         if (*key == NULL)
             return 0;
     }
