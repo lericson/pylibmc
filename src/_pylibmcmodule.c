@@ -453,37 +453,41 @@ error:
 
 /* {{{ str/bytes key functionality (unicode/bytes on Python 2) */
 static PyObject *_PylibMC_map_str_keys(PyObject *keys) {
-    PyObject *key_str_mapping = NULL;
+    PyObject *key_str_map = NULL;
     PyObject *iter = NULL;
     PyObject *key = NULL;
     PyObject *key_bytes = NULL;
 
-    key_str_mapping = PyDict_New();
+    key_str_map = PyDict_New();
+    if (key_str_map == NULL)
+        goto cleanup;
 
     if ((iter = PyObject_GetIter(keys)) == NULL)
-        goto error;
+        goto cleanup;
 
     while ((key = PyIter_Next(iter)) != NULL) {
         if (PyUnicode_Check(key)) {
             key_bytes = PyUnicode_AsUTF8String(key);
-            PyDict_SetItem(key_str_mapping, key_bytes, key);
+            if (key_bytes == NULL)
+                goto cleanup;
+            PyDict_SetItem(key_str_map, key_bytes, key);
+            Py_DECREF(key_bytes);
         }
-    }
-error:
-    return key_str_mapping;
-}
-
-static void _PylibMC_cleanup_str_key_mapping(PyObject* mapping) {
-    PyObject *iter = NULL;
-    PyObject *key = NULL;
-
-    if ((iter = PyObject_GetIter(mapping)) == NULL)
-        return;
-
-    while ((key = PyIter_Next(iter)) != NULL) {
         Py_DECREF(key);
     }
-    Py_DECREF(mapping);
+
+    Py_DECREF(iter);
+    return key_str_map;
+
+cleanup:
+    Py_XDECREF(key);
+    Py_XDECREF(iter);
+    Py_XDECREF(key_str_map);
+    return NULL;
+}
+
+static void _PylibMC_cleanup_str_key_mapping(PyObject *key_str_map) {
+    Py_XDECREF(key_str_map);
 }
 /* }}} */
 
@@ -599,10 +603,13 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
     uint32_t flags;
     memcached_return error;
 
+    Py_INCREF(arg);
+
     if (!_key_normalized_obj(&arg)) {
+        Py_DECREF(arg);
         return NULL;
     } else if (!PySequence_Length(arg) ) {
-        /* Others do this, so... */
+        Py_DECREF(arg);
         Py_RETURN_NONE;
     }
 
@@ -611,6 +618,8 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
             PyBytes_AS_STRING(arg), PyBytes_GET_SIZE(arg),
             &val_size, &flags, &error);
     Py_END_ALLOW_THREADS;
+
+    Py_DECREF(arg);
 
     if (mc_val != NULL) {
         PyObject *r = _PylibMC_parse_memcached_value(mc_val, val_size, flags);
@@ -637,7 +646,10 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
     memcached_return rc;
     PyObject* ret = NULL;
 
+    Py_INCREF(arg);
+
     if (!_key_normalized_obj(&arg)) {
+        Py_DECREF(arg);
         return NULL;
     } else if (!PySequence_Length(arg)) {
         return Py_BuildValue("(OO)", Py_None, Py_None);
@@ -651,6 +663,8 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
      * which is the only way to get at the returned cas value. */
     *keys = PyBytes_AS_STRING(arg);
     *keylengths = (size_t)PyBytes_GET_SIZE(arg);
+
+    Py_DECREF(arg);
 
     Py_BEGIN_ALLOW_THREADS;
 
@@ -787,14 +801,13 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
     unsigned int time = 0;
     unsigned int min_compress = 0;
     int compress_level = -1;
-    PyObject *retval = NULL;
+    PyObject *failed = NULL;
     size_t idx = 0;
     PyObject *curr_key, *curr_value;
-    PyObject *key_str_mapping = NULL;
-    PyObject *temp_key_obj = NULL;
+    PyObject *key_str_map = NULL;
     Py_ssize_t i;
     size_t nkeys;
-    pylibmc_mset* serialized;
+    pylibmc_mset* serialized = NULL;
     bool allsuccess;
 
     static char *kws[] = { "keys", "time", "key_prefix",
@@ -824,73 +837,55 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
 
     nkeys = (size_t)PyDict_Size(keys);
 
-    key_str_mapping = _PylibMC_map_str_keys(keys);
+    key_str_map = _PylibMC_map_str_keys(keys);
+    if (key_str_map == NULL) {
+        goto cleanup;
+    }
 
     serialized = PyMem_New(pylibmc_mset, nkeys);
     if (serialized == NULL) {
         goto cleanup;
     }
 
-    /**
-     * We're pointing into existing Python memory with the 'key' members of
-     * pylibmc_mset (extracted using PyDict_Next) and during
-     * _PylibMC_RunSetCommand (which uses those same 'key' params, and
-     * potentially points into value string objects too), so we don't want to
-     * go around decrementing any references that risk destroying the pointed
-     * objects until we're done, especially since we're going to release the
-     * GIL while we do the I/O that accesses that memory. We're assuming that
-     * this is safe because Python strings are immutable
-     */
-
-    i = 0; /* PyDict_Next's 'i' isn't an incrementing index */
-
     if (key_prefix_raw != NULL) {
         key_prefix = PyBytes_FromStringAndSize(key_prefix_raw, key_prefix_len);
     }
 
-    for (idx = 0; PyDict_Next(keys, &i, &curr_key, &curr_value); idx++) {
+    for (i = 0, idx = 0; PyDict_Next(keys, &i, &curr_key, &curr_value); idx++) {
         int success = _PylibMC_SerializeValue(curr_key, key_prefix,
                                               curr_value, time,
                                               &serialized[idx]);
 
         if (!success || PyErr_Occurred() != NULL) {
-            /* exception should already be on the stack */
-            /* free only the object we have allocated */
             nkeys = idx + 1;
             goto cleanup;
         }
     }
 
-    if (PyErr_Occurred() != NULL) {
-        /* an iteration error of some sort */
-        goto cleanup;
-    }
-
     allsuccess = _PylibMC_RunSetCommand(self, f, fname,
-                                             serialized, nkeys,
-                                             min_compress, compress_level);
+                                        serialized, nkeys,
+                                        min_compress, compress_level);
 
     if (PyErr_Occurred() != NULL) {
         goto cleanup;
     }
 
-    /* Return value for set_multi, which is a list
-       of keys which failed to be set */
-    if ((retval = PyList_New(0)) == NULL)
+    if ((failed = PyList_New(0)) == NULL)
         return PyErr_NoMemory();
 
     for (idx = 0; !allsuccess && idx < nkeys; idx++) {
+        PyObject *key_obj;
+
         if (serialized[idx].success)
             continue;
 
-        temp_key_obj = serialized[idx].key_obj;
-        if (PyDict_Contains(key_str_mapping, temp_key_obj)) {
-            temp_key_obj = PyDict_GetItem(key_str_mapping, temp_key_obj);
+        key_obj = serialized[idx].key_obj;
+        if (PyDict_Contains(key_str_map, key_obj)) {
+            key_obj = PyDict_GetItem(key_str_map, key_obj);
         }
-        if (PyList_Append(retval, temp_key_obj) != 0) {
-            /* Ugh */
-            Py_DECREF(retval);
-            retval = PyErr_NoMemory();
+        if (PyList_Append(failed, key_obj) != 0) {
+            Py_DECREF(failed);
+            failed = PyErr_NoMemory();
             goto cleanup;
         }
     }
@@ -903,9 +898,9 @@ cleanup:
         PyMem_Free(serialized);
     }
     Py_XDECREF(key_prefix);
-    _PylibMC_cleanup_str_key_mapping(key_str_mapping);
+    _PylibMC_cleanup_str_key_mapping(key_str_map);
 
-    return retval;
+    return failed;
 }
 
 static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *self,
@@ -973,15 +968,15 @@ cleanup:
 }
 
 static void _PylibMC_FreeMset(pylibmc_mset *mset) {
-      Py_XDECREF(mset->key_obj);
-      mset->key_obj = NULL;
+    Py_XDECREF(mset->key_obj);
+    mset->key_obj = NULL;
 
-      Py_XDECREF(mset->prefixed_key_obj);
-      mset->prefixed_key_obj = NULL;
+    Py_XDECREF(mset->prefixed_key_obj);
+    mset->prefixed_key_obj = NULL;
 
-      /* Either a ref we own, or a ref passed to us which we borrowed. */
-      Py_XDECREF(mset->value_obj);
-      mset->value_obj = NULL;
+    /* Either a ref we own, or a ref passed to us which we borrowed. */
+    Py_XDECREF(mset->value_obj);
+    mset->value_obj = NULL;
 }
 
 static int _PylibMC_SerializeValue(PyObject* key_obj,
@@ -998,26 +993,35 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
     serialized->success = false;
     serialized->flags = PYLIBMC_FLAG_NONE;
 
-    if(!_key_normalized_obj(&key_obj)
-       || PyBytes_AsStringAndSize(key_obj, &serialized->key,
-                                   &serialized->key_len) == -1) {
+    /* Make an owned reference to key_obj */
+    Py_INCREF(key_obj);
+
+    if (!_key_normalized_obj(&key_obj)) {
+        Py_DECREF(key_obj);
         return false;
     }
 
-    /* We need to incr our reference here so that it's guaranteed to
-       exist while we release the GIL. Even if we fail after this it
-       should be decremented by pylibmc_mset_free */
-    Py_INCREF(key_obj);
     serialized->key_obj = key_obj;
+
+    if (PyBytes_AsStringAndSize(key_obj,
+                                &serialized->key,
+                                &serialized->key_len) == -1) {
+        Py_DECREF(key_obj);
+        return false;
+    }
 
     /* Check the key_prefix */
     if (key_prefix != NULL) {
+        Py_INCREF(key_prefix);
+
         if (!_key_normalized_obj(&key_prefix)) {
+            Py_DECREF(key_prefix);
             return false;
         }
 
         /* Ignore empty prefixes */
         if (!PyBytes_Size(key_prefix)) {
+            Py_DECREF(key_prefix);
             key_prefix = NULL;
         }
     }
@@ -1030,7 +1034,10 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
                 PyBytes_AS_STRING(key_prefix),
                 PyBytes_AS_STRING(key_obj));
 
-        if(prefixed_key_obj == NULL) {
+        Py_DECREF(key_prefix);
+        key_prefix = NULL;
+
+        if (prefixed_key_obj == NULL) {
             return false;
         }
 
@@ -1039,23 +1046,18 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
            || PyBytes_AsStringAndSize(prefixed_key_obj,
                                        &serialized->key,
                                        &serialized->key_len) == -1) {
-            Py_DECREF(prefixed_key_obj);
             return false;
         }
 
         serialized->prefixed_key_obj = prefixed_key_obj;
     }
 
-    /* Key/key_size should be harmonized, now onto the value */
+    /* Build store_val, a Python str/bytes object */
 
-
-
-    /* First build store_val, a Python String object, out of the object
-       we were passed */
     if (PyBytes_Check(value_obj)) {
+        /* Make store_val an owned reference */
         store_val = value_obj;
-        Py_INCREF(store_val); /* because we'll be decring it again in
-                                 pylibmc_mset_free*/
+        Py_INCREF(store_val);
 #if PY_MAJOR_VERSION >= 3
     } else if (PyBool_Check(value_obj)) {
         serialized->flags |= PYLIBMC_FLAG_BOOL;
@@ -1080,7 +1082,7 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
         store_val = PyObject_Bytes(tmp);
         Py_DECREF(tmp);
 #endif
-    } else if(value_obj != NULL) {
+    } else if (value_obj != NULL) {
         /* we have no idea what it is, so we'll store it pickled */
         Py_INCREF(value_obj);
         serialized->flags |= PYLIBMC_FLAG_PICKLE;
@@ -1092,22 +1094,14 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
         return false;
     }
 
+    /* store_val is an owned reference; released when we're done with value and
+     * value_len (i.e. not here.) */
+    serialized->value_obj = store_val;
+
     if (PyBytes_AsStringAndSize(store_val, &serialized->value,
-                                 &serialized->value_len) == -1) {
-        if (serialized->flags == PYLIBMC_FLAG_NONE) {
-            /* For some reason we weren't able to extract the value/size
-               from a string that we were explicitly passed, that we
-               INCREF'd above */
-            Py_DECREF(store_val);
-        }
+                                &serialized->value_len) == -1) {
         return false;
     }
-
-    /* So now we have a reference to a string that we may have
-       created. we need that to keep existing while we release the GIL,
-       so we need to hold the reference, but we need to free it up when
-       we're done */
-    serialized->value_obj = store_val;
 
     return true;
 }
@@ -1575,7 +1569,7 @@ static PyObject *PylibMC_Client_get_multi(
     Py_ssize_t prefix_len = 0;
     Py_ssize_t i;
     PyObject *key_it, *ckey;
-    PyObject *key_str_mapping = NULL;
+    PyObject *key_str_map = NULL;
     PyObject *temp_key_obj;
     size_t *key_lens;
     size_t nkeys, nresults = 0;
@@ -1606,7 +1600,7 @@ static PyObject *PylibMC_Client_get_multi(
      * exceptions as a loop predicate. */
     PyErr_Clear();
 
-    key_str_mapping = _PylibMC_map_str_keys(key_seq);
+    key_str_map = _PylibMC_map_str_keys(key_seq);
     /* Iterate through all keys and set lengths etc. */
     key_it = PyObject_GetIter(key_seq);
     i = 0;
@@ -1696,29 +1690,29 @@ static PyObject *PylibMC_Client_get_multi(
         key_obj = PyBytes_FromStringAndSize(memcached_result_key_value(res) + prefix_len,
                                              memcached_result_key_length(res) - prefix_len);
         if (key_obj == NULL)
-            goto unpack_error;
+            goto loopcleanup;
 
-        if (PyDict_Contains(key_str_mapping, key_obj)) {
+        if (PyDict_Contains(key_str_map, key_obj)) {
             temp_key_obj = key_obj;
-            key_obj = PyDict_GetItem(key_str_mapping, temp_key_obj);
+            key_obj = PyDict_GetItem(key_str_map, temp_key_obj);
             Py_DECREF(temp_key_obj);
         }
 
         /* Parse out value */
         val = _PylibMC_parse_memcached_result(res);
         if (val == NULL)
-            goto unpack_error;
+            goto loopcleanup;
 
         rc = PyDict_SetItem(retval, key_obj, val);
         Py_DECREF(key_obj);
         Py_DECREF(val);
 
         if (rc != 0)
-            goto unpack_error;
+            goto loopcleanup;
 
         continue;
 
-unpack_error:
+loopcleanup:
         Py_DECREF(retval);
         retval = NULL;
         break;
@@ -1731,7 +1725,7 @@ earlybird:
     for (i = 0; i < nkeys; i++)
         Py_DECREF(key_objs[i]);
     PyMem_Free(key_objs);
-    _PylibMC_cleanup_str_key_mapping(key_str_mapping);
+    _PylibMC_cleanup_str_key_mapping(key_str_map);
 
     if (results != NULL) {
         for (i = 0; i < nresults && results != NULL; i++) {
@@ -1761,10 +1755,10 @@ static PyObject *_PylibMC_DoMulti(PyObject *values, PyObject *func,
     int is_mapping = PyDict_Check(values);
 
     if (retval == NULL)
-        goto error;
+        goto cleanup;
 
     if ((iter = PyObject_GetIter(values)) == NULL)
-        goto error;
+        goto cleanup;
 
     while ((item = PyIter_Next(iter)) != NULL) {
         PyObject *args_f = NULL;
@@ -1779,7 +1773,7 @@ static PyObject *_PylibMC_DoMulti(PyObject *values, PyObject *func,
          * the key is of the same type before trying to append.
          */
         if (!_key_normalized_obj(&item))
-            goto iter_error;
+            goto loopcleanup;
         if (prefix == NULL || prefix == Py_None) {
             /* We now have two owned references to item. */
             key = item;
@@ -1792,7 +1786,7 @@ static PyObject *_PylibMC_DoMulti(PyObject *values, PyObject *func,
          * we might have created a key that's too long
          */
         if (key == NULL || !_key_normalized_obj(&key))
-            goto iter_error;
+            goto loopcleanup;
 
         /* Calculate args. */
         if (is_mapping) {
@@ -1800,7 +1794,7 @@ static PyObject *_PylibMC_DoMulti(PyObject *values, PyObject *func,
             char *key_str = PyBytes_AS_STRING(item);
 
             if ((value = PyMapping_GetItemString(values, key_str)) == NULL)
-                goto iter_error;
+                goto loopcleanup;
 
             args = PyTuple_Pack(2, key, value);
             Py_DECREF(value);
@@ -1808,7 +1802,7 @@ static PyObject *_PylibMC_DoMulti(PyObject *values, PyObject *func,
             args = PyTuple_Pack(1, key);
         }
         if (args == NULL)
-            goto iter_error;
+            goto loopcleanup;
 
         /* Calculate full argument tuple. */
         if (extra_args == NULL) {
@@ -1816,7 +1810,7 @@ static PyObject *_PylibMC_DoMulti(PyObject *values, PyObject *func,
             args_f = args;
         } else {
             if ((args_f = PySequence_Concat(args, extra_args)) == NULL)
-                goto iter_error;
+                goto loopcleanup;
         }
 
         /* Call stuff. */
@@ -1825,27 +1819,27 @@ static PyObject *_PylibMC_DoMulti(PyObject *values, PyObject *func,
          * only comparing addresses. */
         Py_XDECREF(ro);
         if (ro == NULL) {
-            goto iter_error;
+            goto loopcleanup;
         } else if (ro != Py_True) {
             if (PyList_Append(retval, item) != 0)
-                goto iter_error;
+                goto loopcleanup;
         }
         Py_DECREF(args_f);
         Py_DECREF(args);
         Py_DECREF(key);
         Py_DECREF(item);
         continue;
-iter_error:
+loopcleanup:
         Py_XDECREF(args_f);
         Py_XDECREF(args);
         Py_XDECREF(key);
         Py_DECREF(item);
-        goto error;
+        goto cleanup;
     }
     Py_DECREF(iter);
 
     return retval;
-error:
+cleanup:
     Py_XDECREF(retval);
     Py_XDECREF(iter);
     return NULL;
