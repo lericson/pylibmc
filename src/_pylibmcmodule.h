@@ -311,8 +311,8 @@ static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *, const char *,
         memcached_return);
 static PyObject *_PylibMC_Unpickle(const char *, size_t);
 static PyObject *_PylibMC_Pickle(PyObject *);
-static int _key_normalized_obj(PyObject **);
-static int _key_normalized_str(char **, Py_ssize_t *);
+static PyObject *_key_normalized_obj(PyObject *);
+static bool _key_normalized_str(char **, Py_ssize_t *);
 static int _PylibMC_SerializeValue(PyObject *key_obj,
                                    PyObject *key_prefix,
                                    PyObject *value_obj,
