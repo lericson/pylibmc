@@ -1,0 +1,24 @@
+digraph G {
+    bgcolor="transparent";
+    init [label="new client" fillcolor=lightgray style=filled];
+    initconnect [label="first connect" fillcolor=white style=filled];
+    connerr [label="connection error" color=red fillcolor=white style=filled];
+    timeout [label="server has\ntemporarily failed" color=red fillcolor=white style=filled];
+    server_dead [label="server is\nmarked dead" color=red fillcolor=white style=filled];
+    removed [label="server removed\nfrom rotation" color=red fillcolor=white style=filled];
+    added [label="server added back\ninto rotation" fillcolor=white style=filled];
+    new [fillcolor=white style=filled];
+    connected [fillcolor=white style=filled];
+    init -> initconnect [label="on get/set"];
+    initconnect -> connerr;
+    connerr -> timeout;
+    initconnect -> connected;
+    new -> connected [label="on get/set"];
+    timeout -> server_dead [label="after remove_failed\nconnection attempts"];
+    server_dead -> removed;
+    timeout -> new [label="after retry_timeout\n(or dead_timeout)"];
+    removed -> added [label="after dead_timeout,\nmake a single\nconnection attempt"];
+    added -> timeout;
+    connected -> connected;
+    connected -> timeout;
+}

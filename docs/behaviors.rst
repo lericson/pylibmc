@@ -216,26 +216,36 @@ Failover
 --------
 
 Most people desire the classical "I don't really care" type of failover
-support: if a server goes down, just use another one. This, sadly, is not an
-option with libmemcached for the time being.
+support: if a server goes down, just use another one. This case is supported,
+but not by default. As explained above, the default distribution mechanism is
+not very smart, and libmemcached doesn't support any meaningful failover for
+it. If a server goes down, it stays down, and all of its alloted keys will
+simply fail. The recommended failover behaviors is for that reason::
 
-When libmemcached introduced a behavior called ``remove_failed``, two other
-behaviors were deprecated in its stead called ``auto_eject`` and
-``failure_limit`` -- this new behavior is a combination of the latter two. When
-enabled, the numeric value is the number of times a server may fail before it
-is ejected, and when not, no ejection occurs.
+    mc.behaviors['ketama'] = True
+    mc.behaviors['remove_failed'] = 1
+    mc.behaviors['retry_timeout'] = 1
+    mc.behaviors['dead_timeout'] = 60
 
-"Ejection" simply means *libmemcached will stop using that server without
-trying any others.*
+This will enable ketama hashing, and remove failed servers from rotation on
+their first failure, and retry them once every minute. It is the most robust
+configuration.
 
-So, if you configure the behaviors ``remove_failed=4`` and ``retry_timeout=10``
-and one of your four servers go down for some reason, then the first request to
-that server will trigger whatever actual error occurred (connection reset, read
-error, etc), then the subsequent requests to that server within 10 seconds will
-all raise ``ServerDown``, then again an actual request is made and the cycle
-repeats until four consequent errors have occurred, at which point
-``ServerDead`` will be raised immediately.
+To fully understand the failover state machine, peruse the following graph:
 
-In other words, ``ServerDown`` means that if the server comes back up, it goes
-into rotation; ``ServerDead`` means that this key is unusable until the client
-is reset.
+.. image:: failover.svg
+
+While it might seem daunting at first, a closer examination will bring clarity
+to this picture. When a server connection fails, the server is marked as
+temporarily failed. This state is exited either by ``retry_timeout`` expiring,
+in which case the connection is retried, or, if ``remove_failed`` connection
+attempts have been made.
+
+When a server runs out of retries, it is marked dead. This removes it from
+rotation. However, **only** the ``ketama`` distribution actually removes
+servers.
+
+.. note:: There used to be two behaviors called ``failure_limit`` and
+          ``auto_eject``; these still exist, but their interaction with the
+          state machine is unclear, and should be avoided. ``remove_failed``
+          acts as a combination of the two.
