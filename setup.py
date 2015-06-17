@@ -97,6 +97,32 @@ if cmd == "gen-setup":
 
 with open("README.rst", "U", encoding="utf-8") as r:
     readme_text = r.read()
+
+with open("docs/changelog.rst", "U", encoding="utf-8") as r:
+    in_block = False
+    block_start_index = 0
+    block_end_index = 0
+    data = []
+
+    lines = r.readlines()
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+
+        if line.startswith('---'):
+            if in_block:
+                index = index - 1
+                in_block = False
+                block_end_index = index
+                data.append(''.join(lines[block_start_index:block_end_index]))
+            else:
+                in_block = True
+                block_start_index = index - 1
+
+        index += 1
+
+    readme_text += '\n' + ''.join(data[0:3])
+
 with open("src/pylibmc-version.h", "U", encoding="utf-8") as r:
     version = r.read().strip().split("\"")[1]
 

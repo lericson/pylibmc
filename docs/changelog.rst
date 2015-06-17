@@ -1,5 +1,8 @@
 Change Log
 ==========
+New in version 1.4.3
+--------------------
+- Fixed several major memory leaks
 
 New in version 1.4.0
 --------------------
