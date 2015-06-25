@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+New in version 1.5.0
+====================
+
+This release fixes critical memory leaks in common code paths introduced in
+1.4.2. Highly recommended.
+
 New in version 1.4.0
 --------------------
 

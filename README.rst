@@ -7,6 +7,12 @@ __ http://sendapatch.se/projects/pylibmc/
 .. image:: https://travis-ci.org/lericson/pylibmc.png?branch=master
    :target: https://travis-ci.org/lericson/pylibmc
 
+New in version 1.5.0
+====================
+
+This release fixes critical memory leaks in common code paths introduced in
+1.4.2. Highly recommended.
+
 New in version 1.4.0
 ====================
 
