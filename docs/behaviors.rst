@@ -120,16 +120,17 @@ libmemcached behavior constants.
 .. _remove_failed:
 
 ``"remove_failed"``
-   Remove a server from the server list after operations on it have failed for
-   the specified number of times in a row. See the section on Failover_.
+   If set, a server will be removed from the server list after this many
+   operations on it in a row have failed. See the section on Failover_.
 
 .. _failure_limit:
 
 ``"failure_limit"`` : deprecated
-   Use ``"remove_failed"`` if at all possible.
+   Use ``"remove_failed"`` if at all possible, which has the same meaning but
+   uses newer behaviour.
 
-   Remove a server from the server list after operations on it have failed for
-   the specified number of times in a row.
+   If set, a server will be removed from the server list after this many
+   operations on it in a row have failed.
 
 .. _auto_eject:
 
