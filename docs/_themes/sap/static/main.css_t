@@ -9,7 +9,7 @@
  *
  */
 
-@import url("default.css");
+@import url("classic.css");
 
 /* -- page layout ----------------------------------------------------------- */
 
