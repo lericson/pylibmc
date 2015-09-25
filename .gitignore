@@ -8,3 +8,4 @@ tmp
 .tox
 MANIFEST
 sendapatch.se
+*.swp
