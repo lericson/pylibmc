@@ -74,7 +74,7 @@ if sys.platform == "darwin" and not os.environ.get("ARCHFLAGS"):
 
 # There's a bug in <py3 with Py_True/False that will propagate with GCC's
 # strict aliasing rules. Let's skip this flag for now.
-cflags = ["-fno-strict-aliasing", ]
+cflags = ["-fno-strict-aliasing", "-std=c99"]
 
 ## Extension definitions
 
