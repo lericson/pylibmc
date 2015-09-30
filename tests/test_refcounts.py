@@ -49,7 +49,7 @@ class RefcountTests(PylibmcTestCase):
 
     def test_get_multi(self):
         bc = make_test_client(binary=True)
-        keys = ["first", "second"]
+        keys = ["first", "second", "", b""]
         value = "first_value"
         refcountables = keys + [value]
         initial_refcounts = get_refcounts(refcountables)

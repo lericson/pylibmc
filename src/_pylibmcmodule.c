@@ -1577,7 +1577,7 @@ static PyObject *PylibMC_Client_get_multi(
     PyObject *key_str_map = NULL;
     PyObject *temp_key_obj;
     size_t *key_lens;
-    Py_ssize_t nkeys, orig_nkeys;
+    Py_ssize_t nkeys = 0, orig_nkeys = 0;
     size_t nresults = 0;
     memcached_return rc;
     pylibmc_mget_req req;
@@ -1588,34 +1588,31 @@ static PyObject *PylibMC_Client_get_multi(
             &key_seq, &prefix, &prefix_len))
         return NULL;
 
-    if ((orig_nkeys = nkeys = PySequence_Length(key_seq)) == -1)
+    if ((orig_nkeys = PySequence_Length(key_seq)) == -1)
         return NULL;
 
     /* Populate keys and key_lens. */
-    keys = PyMem_New(char *, nkeys);
-    key_lens = PyMem_New(size_t, (size_t) nkeys);
-    key_objs = PyMem_New(PyObject *, (size_t) nkeys);
-    orig_key_objs = PyMem_New(PyObject *, (size_t) nkeys);
+    keys = PyMem_New(char *, orig_nkeys);
+    key_lens = PyMem_New(size_t, (size_t) orig_nkeys);
+    key_objs = PyMem_New(PyObject *, (size_t) orig_nkeys);
+    orig_key_objs = PyMem_New(PyObject *, (size_t) orig_nkeys);
     if (!keys || !key_lens || !key_objs || !orig_key_objs) {
-        PyMem_Free(keys);
-        PyMem_Free(key_lens);
-        PyMem_Free(key_objs);
-        PyMem_Free(orig_key_objs);
-        return PyErr_NoMemory();
+        PyErr_NoMemory();
+        goto memory_cleanup;
     }
 
     /* Clear potential previous exception, because we explicitly check for
      * exceptions as a loop predicate. */
     PyErr_Clear();
 
-    key_str_map = _PylibMC_map_str_keys(key_seq, orig_key_objs, &nkeys);
+    key_str_map = _PylibMC_map_str_keys(key_seq, orig_key_objs, &orig_nkeys);
     if (key_str_map == NULL) {
-        return NULL;
+        goto memory_cleanup;
     }
 
     /* Iterate through all keys and set lengths etc. */
     Py_ssize_t key_idx = 0;
-    for (i = 0; i < nkeys; i++) {
+    for (i = 0; i < orig_nkeys; i++) {
         PyObject *ckey = orig_key_objs[i];
         char *key;
         Py_ssize_t key_len;
@@ -1737,15 +1734,16 @@ loopcleanup:
     }
 
 earlybird:
-    PyMem_Free(key_lens);
-    PyMem_Free(keys);
-
-    for (i = 0; i < nkeys; i++)
-        Py_DECREF(key_objs[i]);
     for (i = 0; i < orig_nkeys; i++)
         Py_DECREF(orig_key_objs[i]);
-    PyMem_Free(key_objs);
+    for (i = 0; i < nkeys; i++)
+        Py_DECREF(key_objs[i]);
     _PylibMC_cleanup_str_key_mapping(key_str_map);
+
+memory_cleanup:
+    PyMem_Free(key_lens);
+    PyMem_Free(keys);
+    PyMem_Free(key_objs);
     PyMem_Free(orig_key_objs);
 
     if (results != NULL) {
