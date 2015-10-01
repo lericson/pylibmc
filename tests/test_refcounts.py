@@ -47,6 +47,9 @@ class RefcountTests(PylibmcTestCase):
     def test_get_simple(self):
         self._test_get(b"refcountest2", 485295)
 
+    def test_get_singleton(self):
+        self._test_get(b"refcountest3", False)
+
     def test_get_multi(self):
         bc = make_test_client(binary=True)
         keys = ["first", "second", "", b""]

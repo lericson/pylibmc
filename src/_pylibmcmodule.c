@@ -511,11 +511,9 @@ static void _PylibMC_cleanup_str_key_mapping(PyObject *key_str_map) {
 }
 /* }}} */
 
-static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
-        uint32_t flags) {
+static PyObject *_PylibMC_parse_memcached_value(PylibMC_Client *self,
+        char *value, size_t size, uint32_t flags) {
     PyObject *retval = NULL;
-    PyObject *tmp = NULL;
-    uint32_t dtype = flags & PYLIBMC_FLAG_TYPES;
 
 #if USE_ZLIB
     PyObject *inflated = NULL;
@@ -571,50 +569,75 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
     }
 #endif
 
-    switch (dtype) {
-        case PYLIBMC_FLAG_PICKLE:
-            retval = _PylibMC_Unpickle(value, size);
-            break;
-        case PYLIBMC_FLAG_INTEGER:
-        case PYLIBMC_FLAG_LONG:
-        case PYLIBMC_FLAG_BOOL:
-            /* PyInt_FromString doesn't take a length param and we're
-               not NULL-terminated, so we'll have to make an
-               intermediate Python string out of it */
-            tmp = PyBytes_FromStringAndSize(value, size);
-            if(tmp == NULL) {
-              goto cleanup;
-            }
-            retval = PyLong_FromString(PyBytes_AS_STRING(tmp), NULL, 10);
-            if(retval != NULL && dtype == PYLIBMC_FLAG_BOOL) {
-              Py_DECREF(tmp);
-              tmp = retval;
-              retval = PyBool_FromLong(PyLong_AS_LONG(tmp));
-            }
-            break;
-        case PYLIBMC_FLAG_NONE:
-            retval = PyBytes_FromStringAndSize(value, (Py_ssize_t)size);
-            break;
-        default:
-            PyErr_Format(PylibMCExc_Error,
-                    "unknown memcached key flags %u", flags);
-    }
-
-cleanup:
+#if PY_MAJOR_VERSION >= 3
+    retval = PyObject_CallMethod((PyObject *)self, "deserialize", "y#I", value, size, (unsigned int) flags);
+#else
+    retval = PyObject_CallMethod((PyObject *)self, "deserialize", "s#I", value, size, (unsigned int) flags);
+#endif
 
 #if USE_ZLIB
     Py_XDECREF(inflated);
 #endif
 
-    Py_XDECREF(tmp);
 
     return retval;
 }
 
-static PyObject *_PylibMC_parse_memcached_result(memcached_result_st *res) {
-        return _PylibMC_parse_memcached_value((char *)memcached_result_value(res),
+PyObject *PylibMC_Client_deserialize(PylibMC_Client *self, PyObject *args) {
+    PyObject *retval = NULL;
+
+    PyObject *value;
+    unsigned int flags;
+    if (!PyArg_ParseTuple(args, "OI", &value, &flags)) {
+        return NULL;
+    }
+    uint32_t dtype = ((uint32_t) flags) & PYLIBMC_FLAG_TYPES;
+
+    switch (dtype) {
+        case PYLIBMC_FLAG_PICKLE:
+            retval = _PylibMC_Unpickle(value);
+            break;
+        case PYLIBMC_FLAG_INTEGER:
+        case PYLIBMC_FLAG_LONG:
+        case PYLIBMC_FLAG_BOOL:
+            retval = PyLong_FromString(PyBytes_AS_STRING(value), NULL, 10);
+            if (retval != NULL && dtype == PYLIBMC_FLAG_BOOL) {
+                PyObject *bool_retval = PyBool_FromLong(PyLong_AS_LONG(retval));
+                Py_DECREF(retval);
+                retval = bool_retval;
+            }
+            break;
+        case PYLIBMC_FLAG_NONE:
+            /* acquire an additional reference for parity */
+            retval = value;
+            Py_INCREF(retval);
+            break;
+        default:
+            PyErr_Format(PylibMCExc_Error,
+                    "unknown memcached key flags %u", dtype);
+    }
+
+    return retval;
+}
+
+static PyObject *_PylibMC_parse_memcached_result(PylibMC_Client *self, memcached_result_st *res) {
+        return _PylibMC_parse_memcached_value(
+                                              self,
+                                              (char *)memcached_result_value(res),
                                               memcached_result_length(res),
                                               memcached_result_flags(res));
+}
+
+/* Helper to call after _PylibMC_parse_memcached_value;
+   determines whether the deserialized value should be ignored
+   and treated as a miss.
+*/
+static int _PylibMC_cache_miss_simulated(PyObject *r) {
+    if (r == NULL && PyErr_Occurred() && PyErr_ExceptionMatches(PylibMCExc_CacheMiss)) {
+        PyErr_Clear();
+        return 1;
+    }
+    return 0;
 }
 
 static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
@@ -638,8 +661,13 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
     Py_DECREF(arg);
 
     if (mc_val != NULL) {
-        PyObject *r = _PylibMC_parse_memcached_value(mc_val, val_size, flags);
+        PyObject *r = _PylibMC_parse_memcached_value(self, mc_val, val_size, flags);
         free(mc_val);
+        if (_PylibMC_cache_miss_simulated(r)) {
+            /* Since python-memcache returns None when the key doesn't exist,
+             * so shall we. */
+            Py_RETURN_NONE;
+        }
         return r;
     } else if (error == MEMCACHED_SUCCESS) {
         /* This happens for empty values, and so we fake an empty string. */
@@ -687,23 +715,35 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
 
     Py_END_ALLOW_THREADS;
 
+    int miss = 0;
+    int fail = 0;
     if (rc == MEMCACHED_SUCCESS && res != NULL) {
-        ret = Py_BuildValue("(NL)",
-                            _PylibMC_parse_memcached_result(res),
-                            memcached_result_cas(res));
+        PyObject *val = _PylibMC_parse_memcached_result(self, res);
+        if (_PylibMC_cache_miss_simulated(val)) {
+            miss = 1;
+        } else {
+            ret = Py_BuildValue("(NL)",
+                                val,
+                                memcached_result_cas(res));
+        }
 
         /* we have to fetch the last result from the mget cursor */
         if (NULL != memcached_fetch_result(self->mc, NULL, &rc)) {
             memcached_quit(self->mc);
             Py_DECREF(ret);
             ret = NULL;
+            fail = 1;
             PyErr_SetString(PyExc_RuntimeError, "fetch not done");
         }
     } else if (rc == MEMCACHED_END || rc == MEMCACHED_NOTFOUND) {
-        /* Key not found => (None, None) */
-        ret = Py_BuildValue("(OO)", Py_None, Py_None);
+        miss = 1;
     } else {
         ret = PylibMC_ErrFromMemcached(self, "memcached_gets", rc);
+    }
+
+    if (miss && !fail) {
+        /* Key not found => (None, None) */
+        ret = Py_BuildValue("(OO)", Py_None, Py_None);
     }
 
     if (res != NULL) {
@@ -781,7 +821,7 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
      */
     key = PyBytes_FromStringAndSize(key_raw, keylen);
 
-    success = _PylibMC_SerializeValue(key, NULL, value, time, &serialized);
+    success = _PylibMC_SerializeValue(self, key, NULL, value, time, &serialized);
 
     if (!success)
         goto cleanup;
@@ -865,7 +905,7 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
     }
 
     for (i = 0, idx = 0; PyDict_Next(keys, &i, &curr_key, &curr_value); idx++) {
-        int success = _PylibMC_SerializeValue(curr_key, key_prefix,
+        int success = _PylibMC_SerializeValue(self, curr_key, key_prefix,
                                               curr_value, time,
                                               &serialized[idx]);
 
@@ -946,7 +986,7 @@ static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *self,
 
     /* TODO: because it's RunSetCommand that does the zlib
        compression, cas can't currently use compressed values. */
-    success = _PylibMC_SerializeValue(key, NULL, value, time, &mset);
+    success = _PylibMC_SerializeValue(self, key, NULL, value, time, &mset);
 
     if (!success || PyErr_Occurred() != NULL) {
         goto cleanup;
@@ -992,19 +1032,19 @@ static void _PylibMC_FreeMset(pylibmc_mset *mset) {
     mset->value_obj = NULL;
 }
 
-static int _PylibMC_SerializeValue(PyObject* key_obj,
+static int _PylibMC_SerializeValue(PylibMC_Client *self,
+                                   PyObject* key_obj,
                                    PyObject* key_prefix,
                                    PyObject* value_obj,
                                    time_t time,
                                    pylibmc_mset* serialized) {
-    PyObject* store_val = NULL;
 
     /* first zero the whole structure out */
     memset((void *)serialized, 0x0, sizeof(pylibmc_mset));
 
     serialized->time = time;
     serialized->success = false;
-    serialized->flags = PYLIBMC_FLAG_NONE;
+    serialized->value_obj = NULL;
 
     if (!_key_normalized_obj(&key_obj)) {
         return false;
@@ -1058,7 +1098,56 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
         serialized->prefixed_key_obj = prefixed_key_obj;
     }
 
-    /* Build store_val, a Python str/bytes object */
+    /* Build serialized->value_obj, a Python str/bytes object. */
+    PyObject *serval_and_flags = PyObject_CallMethod((PyObject *)self, "serialize", "(O)", value_obj);
+    if (serval_and_flags == NULL) {
+        return false;
+    }
+
+    if (PyTuple_Check(serval_and_flags)) {
+        PyObject *flags_obj = PyTuple_GetItem(serval_and_flags, 1);
+        if (flags_obj != NULL) {
+#if PY_MAJOR_VERSION >= 3
+            if (PyLong_Check(flags_obj)) {
+                serialized->flags = (uint32_t) PyLong_AsLong(flags_obj);
+                serialized->value_obj = PyTuple_GetItem(serval_and_flags, 0);
+            }
+#else
+            if (PyInt_Check(flags_obj)) {
+                serialized->flags = (uint32_t) PyInt_AsLong(flags_obj);
+                serialized->value_obj = PyTuple_GetItem(serval_and_flags, 0);
+            }
+#endif
+        }
+    }
+
+    if (serialized->value_obj == NULL) {
+        /* PyErr_SetObject(PyExc_ValueError, serval_and_flags); */
+        PyErr_SetString(PyExc_ValueError, "serialize() must return (bytes, flags)");
+        Py_DECREF(serval_and_flags);
+        return false;
+    } else {
+        /* We're getting rid of serval_and_flags, which owns the only new
+           reference to value_obj. However, we can't deallocate value_obj
+           until we're done with value and value_len (after the set
+           operation). Therefore, take possession of a new reference to it
+           before cleaning up the tuple: */
+        Py_INCREF(serialized->value_obj);
+        Py_DECREF(serval_and_flags);
+    }
+
+
+    if (PyBytes_AsStringAndSize(serialized->value_obj, &serialized->value,
+                                &serialized->value_len) == -1) {
+        return false;
+    }
+
+    return true;
+}
+
+static PyObject *PylibMC_Client_serialize(PylibMC_Client *self, PyObject *value_obj) {
+    uint32_t flags = PYLIBMC_FLAG_NONE;
+    PyObject *store_val = NULL;
 
     if (PyBytes_Check(value_obj)) {
         /* Make store_val an owned reference */
@@ -1066,24 +1155,24 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
         Py_INCREF(store_val);
 #if PY_MAJOR_VERSION >= 3
     } else if (PyBool_Check(value_obj)) {
-        serialized->flags |= PYLIBMC_FLAG_BOOL;
+        flags |= PYLIBMC_FLAG_BOOL;
         store_val = PyBytes_FromFormat("%ld", PyLong_AsLong(value_obj));
     } else if (PyLong_Check(value_obj)) {
-        serialized->flags |= PYLIBMC_FLAG_LONG;
+        flags |= PYLIBMC_FLAG_LONG;
         store_val = PyBytes_FromFormat("%ld", PyLong_AsLong(value_obj));
 #else
     } else if (PyBool_Check(value_obj)) {
-        serialized->flags |= PYLIBMC_FLAG_BOOL;
+        flags |= PYLIBMC_FLAG_BOOL;
         PyObject* tmp = PyNumber_Long(value_obj);
         store_val = PyObject_Bytes(tmp);
         Py_DECREF(tmp);
     } else if (PyInt_Check(value_obj)) {
-        serialized->flags |= PYLIBMC_FLAG_INTEGER;
+        flags |= PYLIBMC_FLAG_INTEGER;
         PyObject* tmp = PyNumber_Int(value_obj);
         store_val = PyObject_Bytes(tmp);
         Py_DECREF(tmp);
     } else if (PyLong_Check(value_obj)) {
-        serialized->flags |= PYLIBMC_FLAG_LONG;
+        flags |= PYLIBMC_FLAG_LONG;
         PyObject* tmp = PyNumber_Long(value_obj);
         store_val = PyObject_Bytes(tmp);
         Py_DECREF(tmp);
@@ -1091,25 +1180,17 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
     } else if (value_obj != NULL) {
         /* we have no idea what it is, so we'll store it pickled */
         Py_INCREF(value_obj);
-        serialized->flags |= PYLIBMC_FLAG_PICKLE;
+        flags |= PYLIBMC_FLAG_PICKLE;
         store_val = _PylibMC_Pickle(value_obj);
         Py_DECREF(value_obj);
     }
 
     if (store_val == NULL) {
-        return false;
+        return NULL;
     }
 
-    /* store_val is an owned reference; released when we're done with value and
-     * value_len (i.e. not here.) */
-    serialized->value_obj = store_val;
-
-    if (PyBytes_AsStringAndSize(store_val, &serialized->value,
-                                &serialized->value_len) == -1) {
-        return false;
-    }
-
-    return true;
+    /* we own a reference to store_val. "give" it to the tuple return value: */
+    return Py_BuildValue("(NI)", store_val, flags);
 }
 
 /* {{{ Set commands (set, replace, add, prepend, append) */
@@ -1713,8 +1794,12 @@ static PyObject *PylibMC_Client_get_multi(
         }
 
         /* Parse out value */
-        val = _PylibMC_parse_memcached_result(res);
-        if (val == NULL)
+        val = _PylibMC_parse_memcached_result(self, res);
+        if (_PylibMC_cache_miss_simulated(val)) {
+            Py_DECREF(key_obj);
+            continue;
+        }
+        else if (val == NULL)
             goto loopcleanup;
 
         rc = PyDict_SetItem(retval, key_obj, val);
@@ -2304,18 +2389,14 @@ static PyObject *_PylibMC_GetPickles(const char *attname) {
     return pickle_attr;
 }
 
-static PyObject *_PylibMC_Unpickle(const char *buff, size_t size) {
+static PyObject *_PylibMC_Unpickle(PyObject *val) {
     PyObject *pickle_load;
     PyObject *retval = NULL;
 
     retval = NULL;
     pickle_load = _PylibMC_GetPickles("loads");
     if (pickle_load != NULL) {
-#if PY_MAJOR_VERSION >= 3
-        retval = PyObject_CallFunction(pickle_load, "y#", buff, size);
-#else
-        retval = PyObject_CallFunction(pickle_load, "s#", buff, size);
-#endif
+        retval = PyObject_CallFunctionObjArgs(pickle_load, val, NULL);
         Py_DECREF(pickle_load);
     }
 
@@ -2489,9 +2570,14 @@ static void _make_excs(PyObject *module) {
     PylibMCExc_Error = PyErr_NewException(
             "pylibmc.Error", NULL, NULL);
 
+    PylibMCExc_CacheMiss = PyErr_NewException(
+            "_pylibmc.CacheMiss", NULL, NULL);
+
     exc_objs = PyList_New(0);
     PyList_Append(exc_objs,
                   Py_BuildValue("sO", "Error", (PyObject *)PylibMCExc_Error));
+    PyList_Append(exc_objs,
+                  Py_BuildValue("sO", "CacheMiss", (PyObject *)PylibMCExc_CacheMiss));
 
     for (err = PylibMCExc_mc_errs; err->name != NULL; err++) {
         char excnam[64];
@@ -2505,6 +2591,9 @@ static void _make_excs(PyObject *module) {
 
     PyModule_AddObject(module, "Error",
                        (PyObject *)PylibMCExc_Error);
+
+    PyModule_AddObject(module, "CacheMiss",
+                       (PyObject *)PylibMCExc_CacheMiss);
 
     /* Backwards compatible name for <= pylibmc 1.2.3
      *

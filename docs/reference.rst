@@ -218,6 +218,34 @@
       not a key exists depends on the version of libmemcached and memcached
       used.
 
+   .. method:: serialize(value) -> bytestring, flag
+
+      Serialize a Python value to bytes *bytestring* and an integer *flag* field
+      for storage in memcached. The default implementation has special cases
+      for bytes, ints/longs, and bools, and falls back to pickle for all other
+      objects. Override this method to use a custom serialization format, or
+      otherwise modify the behavior.
+
+      *flag* is exposed by libmemcached. In this context, it adds flexibility
+      in terms of encoding schemes: for example, objects *a* and *b* of
+      different types may coincidentally encode to the same *bytestring*,
+      just so long as they encode with different values of *flag*. If distinct
+      values always encode to different byte strings (for example, when
+      serializing all values with pickle), *flag* can simply be set to a
+      constant.
+
+   .. method:: deserialize(bytestring, flag) -> value
+
+      Deserialize *bytestring*, stored with *flag*, back to a Python object.
+      Override this method (in concert with ``serialize``) to use a custom
+      serialization format, or otherwise modify the behavior.
+
+      Raise ``CacheMiss`` in order to simulate a cache miss for the relevant
+      key, i.e., ``get`` will return None and ``get_multi`` will omit the key
+      from the returned mapping. This can be used to recover gracefully from
+      version skew (e.g., retrieving a value that was pickled by a different,
+      incompatible code version).
+
    .. data:: behaviors
 
       The behaviors used by the underlying libmemcached object. See
