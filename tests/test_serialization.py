@@ -10,10 +10,7 @@ import pylibmc
 import _pylibmc
 from pylibmc.test import make_test_client
 from tests import PylibmcTestCase
-
-
-def get_refcounts(refcountables):
-    return [sys.getrefcount(val) for val in refcountables]
+from tests import get_refcounts
 
 def long_(val):
     try:
@@ -47,7 +44,7 @@ class SerializationTests(PylibmcTestCase):
         c = make_test_client(MyClient, behaviors={'cas': True})
         eq_(c.get('notathing'), None)
 
-        refcountables = ['foo', 'myobj', 'noneobj', 'myobj2', 'cachemiss', None]
+        refcountables = ['foo', 'myobj', 'noneobj', 'myobj2', 'cachemiss']
         initial_refcounts = get_refcounts(refcountables)
 
         c['foo'] = 'foo'

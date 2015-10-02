@@ -10,10 +10,7 @@ import pylibmc
 import _pylibmc
 from pylibmc.test import make_test_client
 from tests import PylibmcTestCase
-
-
-def get_refcounts(refcountables):
-    return [sys.getrefcount(val) for val in refcountables]
+from tests import get_refcounts
 
 
 class RefcountTests(PylibmcTestCase):
