@@ -84,6 +84,9 @@
 #define PyObject_Bytes PyObject_Str
 #endif
 
+/* Cache the values of {cP,p}ickle.{load,dump}s */
+static PyObject *_PylibMC_pickle_loads = NULL;
+static PyObject *_PylibMC_pickle_dumps = NULL;
 
 /* {{{ Type methods */
 static PylibMC_Client *PylibMC_ClientType_new(PyTypeObject *type,
@@ -2390,30 +2393,11 @@ static PyObject *_PylibMC_GetPickles(const char *attname) {
 }
 
 static PyObject *_PylibMC_Unpickle(PyObject *val) {
-    PyObject *pickle_load;
-    PyObject *retval = NULL;
-
-    retval = NULL;
-    pickle_load = _PylibMC_GetPickles("loads");
-    if (pickle_load != NULL) {
-        retval = PyObject_CallFunctionObjArgs(pickle_load, val, NULL);
-        Py_DECREF(pickle_load);
-    }
-
-    return retval;
+    return PyObject_CallFunctionObjArgs(_PylibMC_pickle_loads, val, NULL);
 }
 
 static PyObject *_PylibMC_Pickle(PyObject *val) {
-    PyObject *pickle_dump;
-    PyObject *retval = NULL;
-
-    pickle_dump = _PylibMC_GetPickles("dumps");
-    if (pickle_dump != NULL) {
-        retval = PyObject_CallFunction(pickle_dump, "Oi", val, -1);
-        Py_DECREF(pickle_dump);
-    }
-
-    return retval;
+    return PyObject_CallFunctionObjArgs(_PylibMC_pickle_dumps, val, NULL);
 }
 /* }}} */
 
@@ -2681,6 +2665,14 @@ by using comma-separation. Good luck with that.\n", PylibMC_functions);
     }
 
     _make_excs(module);
+
+    if (!(_PylibMC_pickle_loads = _PylibMC_GetPickles("loads"))) {
+        return MOD_ERROR_VAL;
+    }
+
+    if (!(_PylibMC_pickle_dumps = _PylibMC_GetPickles("dumps"))) {
+        return MOD_ERROR_VAL;
+    }
 
     PyModule_AddStringConstant(module, "__version__", PYLIBMC_VERSION);
     PyModule_ADD_REF(module, "client", (PyObject *)&PylibMC_ClientType);
