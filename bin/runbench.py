@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
-
 """Run benchmarks with build/lib.* in sys.path"""
+
+from __future__ import print_function, unicode_literals
 
 import sys
 import math
@@ -15,7 +16,7 @@ from contextlib import contextmanager
 logger = logging.getLogger('pylibmc.bench')
 
 Benchmark = namedtuple('Benchmark', 'name f args kwargs')
-Participant = namedtuple('Participant', 'name factory')
+Participant = namedtuple('Participant', 'name connect')
 
 
 def build_lib_dirname():
@@ -26,15 +27,6 @@ def build_lib_dirname():
     return build_cmd.build_lib
 
 
-def ratio(a, b):
-    if a > b:
-        return (a / b, 1)
-    elif a < b:
-        return (1, b / a)
-    else:
-        return (1, 1)
-
-
 class Stopwatch(object):
     "A stopwatch that never stops"
 
@@ -43,17 +35,24 @@ class Stopwatch(object):
         self.laps = []
 
     def __unicode__(self):
-        m = self.mean()
-        d = self.stddev()
-        fmt = u"%.3gs, σ=%.3g, n=%d, snr=%.3g:%.3g".__mod__
-        return fmt((m, d, len(self.laps)) + ratio(m, d))
+        mean, diff = self.interval()
+        return u"%.3g ± %.3g secs" % (mean, diff)
 
     def mean(self):
         return sum(self.laps) / len(self.laps)
 
-    def stddev(self):
+    def stddev(self, mean=None):
+        mean = self.mean() if mean is None else mean
+        sqsum = sum((lap - mean)**2 for lap in self.laps)
+        return math.sqrt(sqsum / len(self.laps))
+
+    def interval(self, alpha=0.05):
+        "Confidence interval of 1 - alpha probability"
+        from scipy.stats import norm
         mean = self.mean()
-        return math.sqrt(sum((lap - mean)**2 for lap in self.laps) / len(self.laps))
+        sigma = self.stddev(mean=mean)
+        diff = norm(0, sigma).ppf(1 - alpha/2)
+        return mean, diff
 
     def total(self):
         return time.clock() - self.t0
@@ -93,8 +92,18 @@ def bench_get_set_multi(mc, keys, pairs):
         logger.warn('get_multi() incomplete')
 
 
+@benchmark_method
+def bench_incr_decr(mc, key):
+    mc.set(key, 0)
+    mc.incr(key)
+    mc.incr(key, 2)
+    mc.decr(key, 10)
+    if mc.get(key) != 0:
+        logger.warn('key not zero')
+
+
 def multi_pairs(n, *keys):
-    d = dict(('%s%d' % (k, i), 'data%s%d' % (k, i))
+    d = dict((b'%s%d' % (k, i), b'data%s%d' % (k, i))
              for i in xrange(n)
              for k in keys)
     return (d.keys(), d)
@@ -103,61 +112,94 @@ def multi_pairs(n, *keys):
 complex_data_type = ([], {}, __import__('fractions').Fraction(3, 4))
 
 benchmarks = [
-    bench_get_set('Small I/O', 'abc', 'all work no play jack is a dull boy'),
-    bench_get_set_multi('Multi I/O', *multi_pairs(10, 'abc', 'def', 'ghi', 'kjl')),
-    bench_get_set('4k uncompressed I/O', 'abc' * 8, 'defb' * 1000),
-    bench_get_set('4k compressed I/O', 'abc' * 8, 'a' + 'defb' * 1000),
-    bench_get_set('Complex data I/O', 'abc', complex_data_type),
+    bench_get_set('Small I/O', b'abc', b'all work no play jack is a dull boy'),
+    bench_get_set_multi('Multi I/O', *multi_pairs(10, b'abc', b'def', b'ghi', b'kjl')),
+    bench_get_set('4k uncompressed I/O', b'abc' * 8, b'defb' * 1000),
+    bench_get_set('4k compressed I/O', b'abc' * 8, b'a' + 'defb' * 1000),
+    bench_get_set('Complex data I/O', b'abc', complex_data_type),
+    bench_incr_decr('Incr/decr I/O', b'abc'),
 ]
 
 participants = [
 
     Participant(name='pylibmc',
-               factory=lambda: __import__('pylibmc.test').test.make_test_client()),
+               connect=lambda: __import__('pylibmc.test').test.make_test_client()),
 
-    Participant(name='pylibmc nonblock',
-               factory=lambda: __import__('pylibmc.test').test.make_test_client(
+    Participant(name='nonblock',
+               connect=lambda: __import__('pylibmc.test').test.make_test_client(
         behaviors={'tcp_nodelay':  True,
                    'verify_keys':  False,
                    'hash':         'crc',
                    'no_block':     True})),
 
-    Participant(name='pylibmc binary',
-               factory=lambda: __import__('pylibmc.test').test.make_test_client(
+    Participant(name='binary',
+               connect=lambda: __import__('pylibmc.test').test.make_test_client(
         binary=True,
         behaviors={'tcp_nodelay': True,
                    'hash':        'crc'})),
 
     Participant(name='python-memcache',
-               factory=lambda: __import__('memcache').Client(['127.0.0.1:11211'])),
+               connect=lambda: __import__('memcache').Client(['127.0.0.1:11211'])),
 
 ]
 
 
-def bench(participants=participants, benchmarks=benchmarks, bench_time=10.0):
+class Workout(object):
     """Do you even lift?"""
 
-    mcs     = [p.factory() for p in participants]
-    means   = [[]          for p in participants]
-    stddevs = [[]          for p in participants]
+    # Confidence level in plot
+    plot_alpha = 0.1
 
-    # Have each lifter do one benchmark each
-    for benchmark_name, f, args, kwargs in benchmarks:
-        logger.info('%s', benchmark_name)
+    def __init__(self, timings=None,
+                 participants=participants, benchmarks=benchmarks,
+                 bench_time=10.0):
+        self.timings = timings
+        self.participants = participants
+        self.benchmarks = benchmarks
+        self.bench_time = bench_time
 
-        for i, (participant, mc) in enumerate(zip(participants, mcs)):
+    def bench(self):
+        self.mcs = [p.connect() for p in self.participants]
+        self.timings = [list(self._time(*b)) for b in self.benchmarks]
+
+    def _time(self, name, f, args, kwargs):
+        "Perform a benchmark for all participants and time it"
+        logger.info('Benchmark %s', name)
+        for participant, mc in zip(self.participants, self.mcs):
             sw = Stopwatch()
-
-            while sw.total() < bench_time:
+            while sw.total() < self.bench_time:
                 with sw.timing():
                     f(mc, *args, **kwargs)
-
-            means[i].append(sw.mean())
-            stddevs[i].append(sw.stddev())
-
             logger.info(u'%s: %s', participant.name, sw)
+            yield sw
 
-    return means, stddevs
+    def print_stats(self, file=sys.stdout):
+        for i, timings in enumerate(self.timings):
+            print(self.benchmarks[i].name, file=file)
+            for participant, timing in zip(self.participants, timings):
+                print(' - {}: {}'.format(participant.name, timing), file=file)
+
+    def plot(self, filename):
+        from matplotlib import pyplot as plt
+
+        # Find how many rows and columns the benchmark plots can be laid out on
+        # while still "filling the rectangle" by the greatest divisor of the
+        # number of benchmarks.
+        n = len(self.benchmarks)
+        rows = next(i for i in range(n - 1, 0, -1) if i*(n/i) == n)
+        cols = n/rows
+        assert cols*rows == n
+
+        plt.figure(figsize=(6*cols, 2.5*rows))
+
+        for i, (name, f, args, kwargs) in enumerate(self.benchmarks):
+            plt.subplot(rows, cols, 1+i)
+            plt.title(name)
+            plt.boxplot([timing.laps for timing in self.timings[i]],
+                        labels=[p.name for p in self.participants])
+
+        plt.tight_layout()
+        plt.savefig(filename)
 
 
 def main(args=sys.argv[1:]):
@@ -165,19 +207,41 @@ def main(args=sys.argv[1:]):
     from pylibmc import build_info
     logger.info('Loaded %s', build_info())
 
-    ps = [p for p in participants if p.name in args]
-    ps = ps if ps else participants
-
-    bs = benchmarks[:]
+    ps = participants
+    bs = benchmarks
 
     logger.info('%d participants in %d benchmarks', len(ps), len(bs))
 
-    means, stddevs = bench(participants=ps, benchmarks=bs)
+    import pickle
 
-    print 'labels =',     [p.name for p in ps]
-    print 'benchmarks =', [b.name for b in bs]
-    print 'means =',      means
-    print 'stddevs =',    stddevs
+    # usages:
+    #   runbench.py bench -- run benchmark once
+    #   runbench.py dump [stats] -- run benchmark and write stats to file
+    #   runbench.py plot [stats] [plot] -- load stats and write a plot to file
+
+    def bench():
+        workout = Workout(participants=ps, benchmarks=bs)
+        workout.bench()
+        workout.print_stats()
+        return workout
+
+    def dump(fn='tmp/timings.pickle'):
+        workout = bench()
+        with open(fn, 'wb') as f:
+            pickle.dump(workout.timings, f)
+
+    def plot(fn='tmp/timings.pickle', out='tmp/timing_plot.svg'):
+        with open(fn, 'rb') as f:
+            workout = Workout(timings=pickle.load(f))
+        workout.print_stats()
+        workout.plot(filename=out)
+
+    if args:
+        fs = (bench, dump, plot)
+        f = dict((f.__name__, f) for f in fs)[args[0]]
+        f(*args[1:])
+    else:
+        bench()
 
 
 if __name__ == "__main__":
