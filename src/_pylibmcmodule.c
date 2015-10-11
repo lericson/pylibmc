@@ -2555,7 +2555,7 @@ static void _make_excs(PyObject *module) {
             "pylibmc.Error", NULL, NULL);
 
     PylibMCExc_CacheMiss = PyErr_NewException(
-            "_pylibmc.CacheMiss", NULL, NULL);
+            "_pylibmc.CacheMiss", PylibMCExc_Error, NULL);
 
     exc_objs = PyList_New(0);
     PyList_Append(exc_objs,
