@@ -10,10 +10,7 @@ import pylibmc
 import _pylibmc
 from pylibmc.test import make_test_client
 from tests import PylibmcTestCase
-
-
-def get_refcounts(refcountables):
-    return [sys.getrefcount(val) for val in refcountables]
+from tests import get_refcounts
 
 
 class RefcountTests(PylibmcTestCase):
@@ -47,9 +44,12 @@ class RefcountTests(PylibmcTestCase):
     def test_get_simple(self):
         self._test_get(b"refcountest2", 485295)
 
+    def test_get_singleton(self):
+        self._test_get(b"refcountest3", False)
+
     def test_get_multi(self):
         bc = make_test_client(binary=True)
-        keys = ["first", "second"]
+        keys = ["first", "second", "", b""]
         value = "first_value"
         refcountables = keys + [value]
         initial_refcounts = get_refcounts(refcountables)

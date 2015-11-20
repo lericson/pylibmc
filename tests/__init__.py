@@ -1,6 +1,8 @@
 """Tests. They want YOU!!"""
-
 from __future__ import print_function
+
+import gc
+import sys
 import unittest
 import pylibmc
 from pylibmc.test import make_test_client
@@ -29,3 +31,13 @@ def dump_infos():
     print("Reported libmemcached version:", _pylibmc.libmemcached_version)
     print("Reported pylibmc version:", _pylibmc.__version__)
     print("Support compression:", _pylibmc.support_compression)
+
+def get_refcounts(refcountables):
+    """Measure reference counts during testing.
+
+    Measuring reference counts typically changes them (since at least
+    one new reference is created as the argument to sys.getrefcount).
+    Therefore, try to do it in a consistent and deterministic fashion.
+    """
+    gc.collect()
+    return [sys.getrefcount(val) for val in refcountables]

@@ -131,6 +131,7 @@ typedef struct {
 
 /* {{{ Exceptions */
 static PyObject *PylibMCExc_Error;
+static PyObject *PylibMCExc_CacheMiss;
 
 /* Mapping of memcached_return value -> Python exception object. */
 typedef struct {
@@ -279,6 +280,8 @@ static PylibMC_Client *PylibMC_ClientType_new(PyTypeObject *, PyObject *,
         PyObject *);
 static void PylibMC_ClientType_dealloc(PylibMC_Client *);
 static int PylibMC_Client_init(PylibMC_Client *, PyObject *, PyObject *);
+static PyObject *PylibMC_Client_deserialize(PylibMC_Client *, PyObject *arg);
+static PyObject *PylibMC_Client_serialize(PylibMC_Client *, PyObject *val);
 static PyObject *PylibMC_Client_get(PylibMC_Client *, PyObject *arg);
 static PyObject *PylibMC_Client_gets(PylibMC_Client *, PyObject *arg);
 static PyObject *PylibMC_Client_set(PylibMC_Client *, PyObject *, PyObject *);
@@ -307,11 +310,12 @@ static PyObject *PylibMC_ErrFromMemcachedWithKey(PylibMC_Client *, const char *,
         memcached_return, const char *, Py_ssize_t);
 static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *, const char *,
         memcached_return);
-static PyObject *_PylibMC_Unpickle(const char *, size_t);
+static PyObject *_PylibMC_Unpickle(PyObject *);
 static PyObject *_PylibMC_Pickle(PyObject *);
 static int _key_normalized_obj(PyObject **);
 static int _key_normalized_str(char **, Py_ssize_t *);
-static int _PylibMC_SerializeValue(PyObject *key_obj,
+static int _PylibMC_SerializeValue(PylibMC_Client *self,
+                                   PyObject *key_obj,
                                    PyObject *key_prefix,
                                    PyObject *value_obj,
                                    time_t time,
@@ -338,6 +342,12 @@ static bool _PylibMC_IncrDecr(PylibMC_Client *, pylibmc_incr *, size_t);
 
 /* {{{ Type's method table */
 static PyMethodDef PylibMC_ClientType_methods[] = {
+    {"serialize", (PyCFunction)PylibMC_Client_serialize, METH_O,
+        "Serialize an object to a byte string and flag field, to be stored "
+         "in memcached."},
+    {"deserialize", (PyCFunction)PylibMC_Client_deserialize, METH_VARARGS,
+        "Deserialize a bytestring and flag field retrieved from memcached. "
+        "Raise pylibmc.CacheMiss to simulate a cache miss."},
     {"get", (PyCFunction)PylibMC_Client_get, METH_O,
         "Retrieve a key from a memcached."},
     {"gets", (PyCFunction)PylibMC_Client_gets, METH_O,
