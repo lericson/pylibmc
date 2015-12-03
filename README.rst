@@ -34,6 +34,11 @@ address `12dveKhqiJWCY8zXT4kaHdHELXPeGAUo9h`__.
 __ http://static.adzerk.net/Advertisers/5af77cf0094d4303bb308b955dd05992.jpg
 __ bitcoin:12dveKhqiJWCY8zXT4kaHdHELXPeGAUo9h
 
+License
+=======
+
+Released under the BSD 3-clause license; see `LICENSE <LICENSE>`_ for details.
+
 Maintainer
 ==========
 
