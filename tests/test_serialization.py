@@ -25,9 +25,10 @@ class SerializationTests(PylibmcTestCase):
     def test_override_deserialize(self):
         class MyClient(pylibmc.Client):
             ignored = []
+
             def deserialize(self, bytes_, flags):
                 try:
-                    return super(MyClient, self).deserialize(bytes_, flags)
+                    return self._deserialize(bytes_, flags)
                 except Exception as error:
                     self.ignored.append(error)
                     raise pylibmc.CacheMiss
@@ -110,6 +111,7 @@ class SerializationTests(PylibmcTestCase):
                 return json.dumps(value).encode('utf-8'), 0
 
             def deserialize(self, bytes_, flags):
+                assert flags == 0
                 return json.loads(bytes_.decode('utf-8'))
 
         c = make_test_client(MyClient)

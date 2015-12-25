@@ -183,6 +183,11 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
         }
     }
 
+    /* Detect whether we should dispatch to user-modified Python
+     * serialization implementations. */
+    self->native_serialization = !PyObject_HasAttrString((PyObject *)self, "serialize");
+    self->native_deserialization = !PyObject_HasAttrString((PyObject *)self, "deserialize");
+
     while ((c_srv = PyIter_Next(srvs_it)) != NULL) {
         unsigned char stype;
         char *hostname;
@@ -572,11 +577,15 @@ static PyObject *_PylibMC_parse_memcached_value(PylibMC_Client *self,
     }
 #endif
 
+    if (self->native_deserialization) {
+        retval = _PylibMC_deserialize_native(self, NULL, value, size, flags);
+    } else {
 #if PY_MAJOR_VERSION >= 3
-    retval = PyObject_CallMethod((PyObject *)self, "deserialize", "y#I", value, size, (unsigned int) flags);
+        retval = PyObject_CallMethod((PyObject *)self, "deserialize", "y#I", value, size, (unsigned int) flags);
 #else
-    retval = PyObject_CallMethod((PyObject *)self, "deserialize", "s#I", value, size, (unsigned int) flags);
+        retval = PyObject_CallMethod((PyObject *)self, "deserialize", "s#I", value, size, (unsigned int) flags);
 #endif
+    }
 
 #if USE_ZLIB
     Py_XDECREF(inflated);
@@ -586,24 +595,44 @@ static PyObject *_PylibMC_parse_memcached_value(PylibMC_Client *self,
     return retval;
 }
 
-PyObject *PylibMC_Client_deserialize(PylibMC_Client *self, PyObject *args) {
+/** Helper because PyLong_FromString requires a null-terminated string. */
+static PyObject *_PyLong_FromStringAndSize(char *value, size_t size, char **pend, int base) {
+    PyObject *retval;
+    char *tmp;
+    if ((tmp = malloc(size+1)) == NULL) {
+        return PyErr_NoMemory();
+    }
+    strncpy(tmp, value, size);
+    tmp[size] = '\0';
+    retval = PyLong_FromString(tmp, pend, base);
+    free(tmp);
+    return retval;
+}
+
+/** C implementation of deserialization.
+
+  This either takes a Python bytestring as `value`, or else `value` is NULL and
+  the value to be deserialized is a byte array `value_str` of length
+  `value_size`.
+  */
+static PyObject *_PylibMC_deserialize_native(PylibMC_Client *self, PyObject *value, char *value_str, size_t value_size, uint32_t flags) {
+    assert(value || value_str);
     PyObject *retval = NULL;
 
-    PyObject *value;
-    unsigned int flags;
-    if (!PyArg_ParseTuple(args, "OI", &value, &flags)) {
-        return NULL;
-    }
-    uint32_t dtype = ((uint32_t) flags) & PYLIBMC_FLAG_TYPES;
+    uint32_t dtype = flags & PYLIBMC_FLAG_TYPES;
 
     switch (dtype) {
         case PYLIBMC_FLAG_PICKLE:
-            retval = _PylibMC_Unpickle(value);
+            retval = value ? _PylibMC_Unpickle_Bytes(value) : _PylibMC_Unpickle(value_str, value_size);
             break;
         case PYLIBMC_FLAG_INTEGER:
         case PYLIBMC_FLAG_LONG:
         case PYLIBMC_FLAG_BOOL:
-            retval = PyLong_FromString(PyBytes_AS_STRING(value), NULL, 10);
+            if (value) {
+                retval = PyLong_FromString(PyBytes_AS_STRING(value), NULL, 10);
+            } else {
+                retval = _PyLong_FromStringAndSize(value_str, value_size, NULL, 10);;
+            }
             if (retval != NULL && dtype == PYLIBMC_FLAG_BOOL) {
                 PyObject *bool_retval = PyBool_FromLong(PyLong_AS_LONG(retval));
                 Py_DECREF(retval);
@@ -611,9 +640,13 @@ PyObject *PylibMC_Client_deserialize(PylibMC_Client *self, PyObject *args) {
             }
             break;
         case PYLIBMC_FLAG_NONE:
-            /* acquire an additional reference for parity */
-            retval = value;
-            Py_INCREF(retval);
+            if (value) {
+                /* acquire an additional reference for parity */
+                Py_INCREF(value);
+                retval = value;
+            } else {
+                retval = PyBytes_FromStringAndSize(value_str, value_size);
+            }
             break;
         default:
             PyErr_Format(PylibMCExc_Error,
@@ -621,6 +654,15 @@ PyObject *PylibMC_Client_deserialize(PylibMC_Client *self, PyObject *args) {
     }
 
     return retval;
+}
+
+static PyObject *PylibMC_Client__deserialize(PylibMC_Client *self, PyObject *args) {
+    PyObject *value;
+    unsigned int flags;
+    if (!PyArg_ParseTuple(args, "OI", &value, &flags)) {
+        return NULL;
+    }
+    return _PylibMC_deserialize_native(self, value, NULL, 0, flags);
 }
 
 static PyObject *_PylibMC_parse_memcached_result(PylibMC_Client *self, memcached_result_st *res) {
@@ -1101,7 +1143,27 @@ static int _PylibMC_SerializeValue(PylibMC_Client *self,
         serialized->prefixed_key_obj = prefixed_key_obj;
     }
 
+    int success;
     /* Build serialized->value_obj, a Python str/bytes object. */
+    if (self->native_serialization) {
+        success = _PylibMC_serialize_native(self, value_obj, &(serialized->value_obj), &(serialized->flags));
+    } else {
+        success = _PylibMC_serialize_user(self, value_obj, &(serialized->value_obj), &(serialized->flags));
+    }
+
+    if (!success) {
+        return false;
+    }
+
+    if (PyBytes_AsStringAndSize(serialized->value_obj, &serialized->value,
+                                &serialized->value_len) == -1) {
+        return false;
+    }
+
+    return true;
+}
+
+static int _PylibMC_serialize_user(PylibMC_Client *self, PyObject *value_obj, PyObject **dest, uint32_t *flags) {
     PyObject *serval_and_flags = PyObject_CallMethod((PyObject *)self, "serialize", "(O)", value_obj);
     if (serval_and_flags == NULL) {
         return false;
@@ -1112,19 +1174,19 @@ static int _PylibMC_SerializeValue(PylibMC_Client *self,
         if (flags_obj != NULL) {
 #if PY_MAJOR_VERSION >= 3
             if (PyLong_Check(flags_obj)) {
-                serialized->flags = (uint32_t) PyLong_AsLong(flags_obj);
-                serialized->value_obj = PyTuple_GetItem(serval_and_flags, 0);
+                *flags = (uint32_t) PyLong_AsLong(flags_obj);
+                *dest = PyTuple_GetItem(serval_and_flags, 0);
             }
 #else
             if (PyInt_Check(flags_obj)) {
-                serialized->flags = (uint32_t) PyInt_AsLong(flags_obj);
-                serialized->value_obj = PyTuple_GetItem(serval_and_flags, 0);
+                *flags = (uint32_t) PyInt_AsLong(flags_obj);
+                *dest = PyTuple_GetItem(serval_and_flags, 0);
             }
 #endif
         }
     }
 
-    if (serialized->value_obj == NULL) {
+    if (*dest == NULL) {
         /* PyErr_SetObject(PyExc_ValueError, serval_and_flags); */
         PyErr_SetString(PyExc_ValueError, "serialize() must return (bytes, flags)");
         Py_DECREF(serval_and_flags);
@@ -1135,47 +1197,47 @@ static int _PylibMC_SerializeValue(PylibMC_Client *self,
            until we're done with value and value_len (after the set
            operation). Therefore, take possession of a new reference to it
            before cleaning up the tuple: */
-        Py_INCREF(serialized->value_obj);
+        Py_INCREF(*dest);
         Py_DECREF(serval_and_flags);
-    }
-
-
-    if (PyBytes_AsStringAndSize(serialized->value_obj, &serialized->value,
-                                &serialized->value_len) == -1) {
-        return false;
     }
 
     return true;
 }
 
-static PyObject *PylibMC_Client_serialize(PylibMC_Client *self, PyObject *value_obj) {
-    uint32_t flags = PYLIBMC_FLAG_NONE;
+/** C implementation of serialization.
+
+    This either returns true and stores the serialized bytestring in *dest
+    and the flags in *flags, or it returns false with an exception set.
+*/
+static int _PylibMC_serialize_native(PylibMC_Client *self, PyObject *value_obj, PyObject **dest, uint32_t *flags) {
     PyObject *store_val = NULL;
+    uint32_t store_flags = PYLIBMC_FLAG_NONE;
 
     if (PyBytes_Check(value_obj)) {
+        store_flags = PYLIBMC_FLAG_NONE;
         /* Make store_val an owned reference */
         store_val = value_obj;
         Py_INCREF(store_val);
 #if PY_MAJOR_VERSION >= 3
     } else if (PyBool_Check(value_obj)) {
-        flags |= PYLIBMC_FLAG_BOOL;
+        store_flags |= PYLIBMC_FLAG_BOOL;
         store_val = PyBytes_FromFormat("%ld", PyLong_AsLong(value_obj));
     } else if (PyLong_Check(value_obj)) {
-        flags |= PYLIBMC_FLAG_LONG;
+        store_flags |= PYLIBMC_FLAG_LONG;
         store_val = PyBytes_FromFormat("%ld", PyLong_AsLong(value_obj));
 #else
     } else if (PyBool_Check(value_obj)) {
-        flags |= PYLIBMC_FLAG_BOOL;
+        store_flags |= PYLIBMC_FLAG_BOOL;
         PyObject* tmp = PyNumber_Long(value_obj);
         store_val = PyObject_Bytes(tmp);
         Py_DECREF(tmp);
     } else if (PyInt_Check(value_obj)) {
-        flags |= PYLIBMC_FLAG_INTEGER;
+        store_flags |= PYLIBMC_FLAG_INTEGER;
         PyObject* tmp = PyNumber_Int(value_obj);
         store_val = PyObject_Bytes(tmp);
         Py_DECREF(tmp);
     } else if (PyLong_Check(value_obj)) {
-        flags |= PYLIBMC_FLAG_LONG;
+        store_flags |= PYLIBMC_FLAG_LONG;
         PyObject* tmp = PyNumber_Long(value_obj);
         store_val = PyObject_Bytes(tmp);
         Py_DECREF(tmp);
@@ -1183,17 +1245,28 @@ static PyObject *PylibMC_Client_serialize(PylibMC_Client *self, PyObject *value_
     } else if (value_obj != NULL) {
         /* we have no idea what it is, so we'll store it pickled */
         Py_INCREF(value_obj);
-        flags |= PYLIBMC_FLAG_PICKLE;
+        store_flags |= PYLIBMC_FLAG_PICKLE;
         store_val = _PylibMC_Pickle(value_obj);
         Py_DECREF(value_obj);
     }
 
     if (store_val == NULL) {
-        return NULL;
+        return false;
     }
 
-    /* we own a reference to store_val. "give" it to the tuple return value: */
-    return Py_BuildValue("(NI)", store_val, flags);
+    *dest = store_val;
+    *flags = store_flags;
+    return true;
+}
+
+static PyObject *PylibMC_Client__serialize(PylibMC_Client *self, PyObject *value_obj) {
+    PyObject *serialized_val;
+    uint32_t flags;
+    if (!_PylibMC_serialize_native(self, value_obj, &serialized_val, &flags)) {
+        return NULL;
+    }
+    /* we own a reference to serialized_val. "give" it to the tuple return value: */
+    return Py_BuildValue("(NI)", serialized_val, flags);
 }
 
 /* {{{ Set commands (set, replace, add, prepend, append) */
@@ -2312,6 +2385,8 @@ static PyObject *PylibMC_Client_clone(PylibMC_Client *self) {
     Py_BEGIN_ALLOW_THREADS;
     clone->mc = memcached_clone(NULL, self->mc);
     Py_END_ALLOW_THREADS;
+    clone->native_serialization = self->native_serialization;
+    clone->native_deserialization = self->native_deserialization;
     return (PyObject *)clone;
 }
 /* }}} */
@@ -2392,7 +2467,15 @@ static PyObject *_PylibMC_GetPickles(const char *attname) {
     return pickle_attr;
 }
 
-static PyObject *_PylibMC_Unpickle(PyObject *val) {
+static PyObject *_PylibMC_Unpickle(const char *buff, size_t size) {
+#if PY_MAJOR_VERSION >= 3
+        return PyObject_CallFunction(_PylibMC_pickle_loads, "y#", buff, size);
+#else
+        return PyObject_CallFunction(_PylibMC_pickle_loads, "s#", buff, size);
+#endif
+}
+
+static PyObject *_PylibMC_Unpickle_Bytes(PyObject *val) {
     return PyObject_CallFunctionObjArgs(_PylibMC_pickle_loads, val, NULL);
 }
 
