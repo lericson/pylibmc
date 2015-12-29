@@ -1218,19 +1218,19 @@ static int _PylibMC_serialize_native(PylibMC_Client *self, PyObject *value_obj, 
         /* Make store_val an owned reference */
         store_val = value_obj;
         Py_INCREF(store_val);
-#if PY_MAJOR_VERSION >= 3
     } else if (PyBool_Check(value_obj)) {
         store_flags |= PYLIBMC_FLAG_BOOL;
-        store_val = PyBytes_FromFormat("%ld", PyLong_AsLong(value_obj));
+        /* bool cannot be subclassed; there are only two singleton values,
+           Py_True and Py_False */
+        const char *value_str = (value_obj == Py_True) ? "1" : "0";
+        store_val = PyBytes_FromString(value_str);
+#if PY_MAJOR_VERSION >= 3
     } else if (PyLong_Check(value_obj)) {
         store_flags |= PYLIBMC_FLAG_LONG;
-        store_val = PyBytes_FromFormat("%ld", PyLong_AsLong(value_obj));
-#else
-    } else if (PyBool_Check(value_obj)) {
-        store_flags |= PYLIBMC_FLAG_BOOL;
-        PyObject* tmp = PyNumber_Long(value_obj);
-        store_val = PyObject_Bytes(tmp);
+        PyObject *tmp = PyObject_Str(value_obj);
+        store_val = PyUnicode_AsEncodedString(tmp, "ascii", "strict");
         Py_DECREF(tmp);
+#else
     } else if (PyInt_Check(value_obj)) {
         store_flags |= PYLIBMC_FLAG_INTEGER;
         PyObject* tmp = PyNumber_Int(value_obj);
