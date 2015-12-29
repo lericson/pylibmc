@@ -79,7 +79,6 @@
 #define PyBytes_GET_SIZE PyString_GET_SIZE
 #define PyBytes_Size PyString_Size
 #define PyLong_AS_LONG PyInt_AS_LONG
-#define PyNumber_Long PyNumber_Int
 #define _PyBytes_Resize _PyString_Resize
 #define PyObject_Bytes PyObject_Str
 #endif
