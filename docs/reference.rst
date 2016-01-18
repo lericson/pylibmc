@@ -220,10 +220,11 @@
 
    .. method:: serialize(value) -> bytestring, flag
 
-      Implement this method in order to change the default serialization
-      implementation. This method takes a Python value and returns bytes
-      *bytestring* and an integer *flag* field for storage in memcached.
-      Call the *_serialize* method to access the default behavior.
+      Serialize a Python value to bytes *bytestring* and an integer *flag* field
+      for storage in memcached. The default implementation has special cases
+      for bytes, ints/longs, and bools, and falls back to pickle for all other
+      objects. Override this method to use a custom serialization format, or
+      otherwise modify the behavior.
 
       *flag* is exposed by the memcached protocol. It adds flexibility
       in terms of encoding schemes: for example, objects *a* and *b* of
@@ -235,10 +236,9 @@
 
    .. method:: deserialize(bytestring, flag) -> value
 
-      Implement this method in order to change the default serialization
-      implementation. This method takes *bytestring* and *flag*, stored
-      in memcached, and deserializes them back to a Python object.
-      Call the *_deserialize* method to access the default behavior.
+      Deserialize *bytestring*, stored with *flag*, back to a Python object.
+      Override this method (in concert with ``serialize``) to use a custom
+      serialization format, or otherwise modify the behavior.
 
       Raise ``CacheMiss`` in order to simulate a cache miss for the relevant
       key, i.e., ``get`` will return None and ``get_multi`` will omit the key

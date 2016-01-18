@@ -104,6 +104,28 @@ static PylibMC_Client *PylibMC_ClientType_new(PyTypeObject *type,
     return self;
 }
 
+/* Helper: detect whether the serialize and deserialize methods were overridden. */
+static int _PylibMC_method_is_overridden(PylibMC_Client *self, const char *method) {
+    /* `self.__class__.serialize is _pylibmc.client.serialize`, in C */
+    PyObject *base_method = NULL, *current_class = NULL, *current_method = NULL;
+
+    base_method = PyObject_GetAttrString((PyObject *) &PylibMC_ClientType, method);
+    current_class = PyObject_GetAttrString((PyObject *) self, "__class__");
+    if (current_class != NULL) {
+        current_method = PyObject_GetAttrString(current_class, method);
+    }
+
+    Py_XDECREF(base_method);
+    Py_XDECREF(current_class);
+    Py_XDECREF(current_method);
+
+    if (base_method && current_class && current_method) {
+        return base_method == current_method;
+    } else {
+        return -1;
+    }
+}
+
 static void PylibMC_ClientType_dealloc(PylibMC_Client *self) {
     if (self->mc != NULL) {
 #if LIBMEMCACHED_WITH_SASL_SUPPORT
@@ -184,8 +206,15 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
 
     /* Detect whether we should dispatch to user-modified Python
      * serialization implementations. */
-    self->native_serialization = !PyObject_HasAttrString((PyObject *)self, "serialize");
-    self->native_deserialization = !PyObject_HasAttrString((PyObject *)self, "deserialize");
+    int native_serialization, native_deserialization;
+    if ((native_serialization = _PylibMC_method_is_overridden(self, "serialize")) == -1) {
+        goto error;
+    }
+    self->native_serialization = (uint8_t) native_serialization;
+    if ((native_deserialization = _PylibMC_method_is_overridden(self, "deserialize")) == -1) {
+        goto error;
+    }
+    self->native_deserialization = (uint8_t) native_deserialization;
 
     while ((c_srv = PyIter_Next(srvs_it)) != NULL) {
         unsigned char stype;
@@ -655,7 +684,7 @@ static PyObject *_PylibMC_deserialize_native(PylibMC_Client *self, PyObject *val
     return retval;
 }
 
-static PyObject *PylibMC_Client__deserialize(PylibMC_Client *self, PyObject *args) {
+static PyObject *PylibMC_Client_deserialize(PylibMC_Client *self, PyObject *args) {
     PyObject *value;
     unsigned int flags;
     if (!PyArg_ParseTuple(args, "OI", &value, &flags)) {
@@ -1258,7 +1287,7 @@ static int _PylibMC_serialize_native(PylibMC_Client *self, PyObject *value_obj, 
     return true;
 }
 
-static PyObject *PylibMC_Client__serialize(PylibMC_Client *self, PyObject *value_obj) {
+static PyObject *PylibMC_Client_serialize(PylibMC_Client *self, PyObject *value_obj) {
     PyObject *serialized_val;
     uint32_t flags;
     if (!_PylibMC_serialize_native(self, value_obj, &serialized_val, &flags)) {

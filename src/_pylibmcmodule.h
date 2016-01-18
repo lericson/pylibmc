@@ -282,6 +282,8 @@ static PylibMC_Client *PylibMC_ClientType_new(PyTypeObject *, PyObject *,
         PyObject *);
 static void PylibMC_ClientType_dealloc(PylibMC_Client *);
 static int PylibMC_Client_init(PylibMC_Client *, PyObject *, PyObject *);
+static PyObject *PylibMC_Client_deserialize(PylibMC_Client *, PyObject *arg);
+static PyObject *PylibMC_Client_serialize(PylibMC_Client *, PyObject *val);
 static PyObject *PylibMC_Client_get(PylibMC_Client *, PyObject *arg);
 static PyObject *PylibMC_Client_gets(PylibMC_Client *, PyObject *arg);
 static PyObject *PylibMC_Client_set(PylibMC_Client *, PyObject *, PyObject *);
@@ -315,8 +317,6 @@ static PyObject *_PylibMC_Unpickle_Bytes(PyObject *);
 static PyObject *_PylibMC_Pickle(PyObject *);
 static int _key_normalized_obj(PyObject **);
 static int _key_normalized_str(char **, Py_ssize_t *);
-static PyObject *PylibMC_Client__serialize(PylibMC_Client *self, PyObject *value_obj);
-static PyObject *PylibMC_Client__deserialize(PylibMC_Client *self, PyObject *value_obj);
 static int _PylibMC_serialize_user(PylibMC_Client *, PyObject *, PyObject **, uint32_t *);
 static int _PylibMC_serialize_native(PylibMC_Client *, PyObject *, PyObject **, uint32_t *);
 static PyObject *_PylibMC_deserialize_native(PylibMC_Client *, PyObject *, char *, size_t, uint32_t);
@@ -348,6 +348,12 @@ static bool _PylibMC_IncrDecr(PylibMC_Client *, pylibmc_incr *, size_t);
 
 /* {{{ Type's method table */
 static PyMethodDef PylibMC_ClientType_methods[] = {
+    {"serialize", (PyCFunction)PylibMC_Client_serialize, METH_O,
+        "Serialize an object to a byte string and flag field, to be stored "
+         "in memcached."},
+    {"deserialize", (PyCFunction)PylibMC_Client_deserialize, METH_VARARGS,
+        "Deserialize a bytestring and flag field retrieved from memcached. "
+        "Raise pylibmc.CacheMiss to simulate a cache miss."},
     {"get", (PyCFunction)PylibMC_Client_get, METH_O,
         "Retrieve a key from a memcached."},
     {"gets", (PyCFunction)PylibMC_Client_gets, METH_O,
@@ -397,10 +403,6 @@ static PyMethodDef PylibMC_ClientType_methods[] = {
         "another thread. This creates a new connection."},
     {"touch", (PyCFunction)PylibMC_Client_touch, METH_VARARGS,
         "Change the TTL of a key."},
-    {"_serialize", (PyCFunction)PylibMC_Client__serialize, METH_O,
-        "Python binding for the default serialization behavior."},
-    {"_deserialize", (PyCFunction)PylibMC_Client__deserialize, METH_VARARGS,
-        "Python binding for the default deserialization behavior."},
     {NULL, NULL, 0, NULL}
 };
 /* }}} */

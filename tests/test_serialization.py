@@ -27,21 +27,21 @@ def long_(val):
 
 
 class SerializationMethodTests(PylibmcTestCase):
-    """Coverage tests for _serialize and _deserialize."""
+    """Coverage tests for serialize and deserialize."""
 
     def test_integers(self):
         c = make_test_client(binary=True)
         if sys.version_info[0] == 3:
-            eq_(c._serialize(1), (b'1', 4))
-            eq_(c._serialize(2**64), (b'18446744073709551616', 4))
+            eq_(c.serialize(1), (b'1', 4))
+            eq_(c.serialize(2**64), (b'18446744073709551616', 4))
         else:
-            eq_(c._serialize(1), (b'1', 2))
-            eq_(c._serialize(2**64), (b'18446744073709551616', 4))
+            eq_(c.serialize(1), (b'1', 2))
+            eq_(c.serialize(2**64), (b'18446744073709551616', 4))
 
-            eq_(c._deserialize(b'1', 2), 1)
+            eq_(c.deserialize(b'1', 2), 1)
 
-        eq_(c._deserialize(b'18446744073709551616', 4), 2**64)
-        eq_(c._deserialize(b'1', 4), long_(1))
+        eq_(c.deserialize(b'18446744073709551616', 4), 2**64)
+        eq_(c.deserialize(b'1', 4), long_(1))
 
     def test_nonintegers(self):
         # tuples (python_value, (expected_bytestring, expected_flags))
@@ -58,8 +58,8 @@ class SerializationMethodTests(PylibmcTestCase):
 
         c = make_test_client(binary=True)
         for value, serialized_value in SERIALIZATION_TEST_VALUES:
-            eq_(c._serialize(value), serialized_value)
-            eq_(c._deserialize(*serialized_value), value)
+            eq_(c.serialize(value), serialized_value)
+            eq_(c.deserialize(*serialized_value), value)
 
 
 class SerializationTests(PylibmcTestCase):
@@ -71,7 +71,7 @@ class SerializationTests(PylibmcTestCase):
 
             def deserialize(self, bytes_, flags):
                 try:
-                    return self._deserialize(bytes_, flags)
+                    return super(MyClient, self).deserialize(bytes_, flags)
                 except Exception as error:
                     self.ignored.append(error)
                     raise pylibmc.CacheMiss
