@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 from __future__ import print_function
 
+import datetime
 import json
 import sys
 
@@ -12,6 +13,11 @@ from pylibmc.test import make_test_client
 from tests import PylibmcTestCase
 from tests import get_refcounts
 
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
+
 def long_(val):
     try:
         return long(val)
@@ -19,12 +25,50 @@ def long_(val):
         # this happens under Python 3
         return val
 
+
+class SerializationMethodTests(PylibmcTestCase):
+    """Coverage tests for serialize and deserialize."""
+
+    def test_integers(self):
+        c = make_test_client(binary=True)
+        if sys.version_info[0] == 3:
+            eq_(c.serialize(1), (b'1', 4))
+            eq_(c.serialize(2**64), (b'18446744073709551616', 4))
+        else:
+            eq_(c.serialize(1), (b'1', 2))
+            eq_(c.serialize(2**64), (b'18446744073709551616', 4))
+
+            eq_(c.deserialize(b'1', 2), 1)
+
+        eq_(c.deserialize(b'18446744073709551616', 4), 2**64)
+        eq_(c.deserialize(b'1', 4), long_(1))
+
+    def test_nonintegers(self):
+        # tuples (python_value, (expected_bytestring, expected_flags))
+        SERIALIZATION_TEST_VALUES = [
+            # booleans
+            (True, (b'1', 16)),
+            (False, (b'0', 16)),
+            # bytestrings
+            (b'asdf', (b'asdf', 0)),
+            (b'\xb5\xb1\xbf\xed\xa9\xc2{8', (b'\xb5\xb1\xbf\xed\xa9\xc2{8', 0)),
+            # objects
+            (datetime.date(2015, 12, 28), (pickle.dumps(datetime.date(2015, 12, 28)), 1)),
+        ]
+
+        c = make_test_client(binary=True)
+        for value, serialized_value in SERIALIZATION_TEST_VALUES:
+            eq_(c.serialize(value), serialized_value)
+            eq_(c.deserialize(*serialized_value), value)
+
+
 class SerializationTests(PylibmcTestCase):
     """Test coverage for overriding serialization behavior in subclasses."""
 
     def test_override_deserialize(self):
         class MyClient(pylibmc.Client):
             ignored = []
+
             def deserialize(self, bytes_, flags):
                 try:
                     return super(MyClient, self).deserialize(bytes_, flags)
@@ -110,6 +154,7 @@ class SerializationTests(PylibmcTestCase):
                 return json.dumps(value).encode('utf-8'), 0
 
             def deserialize(self, bytes_, flags):
+                assert flags == 0
                 return json.loads(bytes_.decode('utf-8'))
 
         c = make_test_client(MyClient)

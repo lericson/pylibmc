@@ -273,6 +273,8 @@ typedef struct {
     PyObject_HEAD
     memcached_st *mc;
     uint8_t sasl_set;
+    uint8_t native_serialization;
+    uint8_t native_deserialization;
 } PylibMC_Client;
 
 /* {{{ Prototypes */
@@ -310,10 +312,14 @@ static PyObject *PylibMC_ErrFromMemcachedWithKey(PylibMC_Client *, const char *,
         memcached_return, const char *, Py_ssize_t);
 static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *, const char *,
         memcached_return);
-static PyObject *_PylibMC_Unpickle(PyObject *);
+static PyObject *_PylibMC_Unpickle(const char *, size_t);
+static PyObject *_PylibMC_Unpickle_Bytes(PyObject *);
 static PyObject *_PylibMC_Pickle(PyObject *);
 static int _key_normalized_obj(PyObject **);
 static int _key_normalized_str(char **, Py_ssize_t *);
+static int _PylibMC_serialize_user(PylibMC_Client *, PyObject *, PyObject **, uint32_t *);
+static int _PylibMC_serialize_native(PylibMC_Client *, PyObject *, PyObject **, uint32_t *);
+static PyObject *_PylibMC_deserialize_native(PylibMC_Client *, PyObject *, char *, size_t, uint32_t);
 static int _PylibMC_SerializeValue(PylibMC_Client *self,
                                    PyObject *key_obj,
                                    PyObject *key_prefix,

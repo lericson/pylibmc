@@ -226,7 +226,7 @@
       objects. Override this method to use a custom serialization format, or
       otherwise modify the behavior.
 
-      *flag* is exposed by libmemcached. In this context, it adds flexibility
+      *flag* is exposed by the memcached protocol. It adds flexibility
       in terms of encoding schemes: for example, objects *a* and *b* of
       different types may coincidentally encode to the same *bytestring*,
       just so long as they encode with different values of *flag*. If distinct
