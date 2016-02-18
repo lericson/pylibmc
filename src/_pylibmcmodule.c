@@ -434,6 +434,7 @@ static int _PylibMC_Inflate(char *value, size_t size,
         /* Fall-through */
         case Z_OK:
             if((tryrealloc = realloc(out, rvalsz << 1)) == NULL || errno == ENOMEM) {
+                if (tryrealloc) out = tryrealloc;
                 *failure_reason = "realloc";
                 rc = Z_MEM_ERROR;
                 goto zerror;
@@ -462,6 +463,7 @@ static int _PylibMC_Inflate(char *value, size_t size,
 
     if(tryrealloc == NULL || errno == ENOMEM) {
         /* we failed to *shrink* the value? */
+        if (tryrealloc) out = tryrealloc;
         *failure_reason = "realloc";
         rc = Z_MEM_ERROR;
         goto error;
