@@ -193,7 +193,9 @@ typedef struct {
 static PylibMC_Behavior PylibMC_behaviors[] = {
     { MEMCACHED_BEHAVIOR_NO_BLOCK, "no_block" },
     { MEMCACHED_BEHAVIOR_TCP_NODELAY, "tcp_nodelay" },
+#ifdef MEMCACHED_BEHAVIOR_TCP_KEEPALIVE
     { MEMCACHED_BEHAVIOR_TCP_KEEPALIVE, "tcp_keepalive" },
+#endif
     { MEMCACHED_BEHAVIOR_HASH, "hash" },
     { MEMCACHED_BEHAVIOR_KETAMA_HASH, "ketama_hash" },
     { MEMCACHED_BEHAVIOR_KETAMA, "ketama" },
@@ -257,13 +259,19 @@ static PylibMC_Behavior PylibMC_distributions[] = {
 #if LIBMEMCACHED_VERSION_HEX >= 0x01000000
     { MEMCACHED_DISTRIBUTION_CONSISTENT_WEIGHTED, "consistent_weighted" },
 #endif
+#ifdef MEMCACHED_DISTRIBUTION_CONSISTENT_KETAMA
     { MEMCACHED_DISTRIBUTION_CONSISTENT_KETAMA, "consistent_ketama" },
+#endif
+#ifdef MEMCACHED_DISTRIBUTION_CONSISTENT_KETAMA_SPY
     { MEMCACHED_DISTRIBUTION_CONSISTENT_KETAMA_SPY, "consistent_ketama_spy" },
+#endif
     { MEMCACHED_DISTRIBUTION_RANDOM, "random" },
 #if LIBMEMCACHED_VERSION_HEX >= 0x01000000
     { MEMCACHED_DISTRIBUTION_VIRTUAL_BUCKET, "virtual_bucket" },
 #endif
+#ifdef MEMCACHED_DISTRIBUTION_CONSISTENT_MAX
     { MEMCACHED_DISTRIBUTION_CONSISTENT_MAX, "consistent_max" },
+#endif
     { 0, NULL }
 };
 /* }}} */
