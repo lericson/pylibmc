@@ -433,16 +433,14 @@ static int _PylibMC_Inflate(char *value, size_t size,
             }
         /* Fall-through */
         case Z_OK:
-            if((tryrealloc = realloc(out, rvalsz << 1)) == NULL || errno == ENOMEM) {
+            if ((tryrealloc = realloc(out, rvalsz << 1)) == NULL) {
                 *failure_reason = "realloc";
                 rc = Z_MEM_ERROR;
                 goto zerror;
             }
-
             out = tryrealloc;
 
             /* Wind forward */
-
             strm.next_out = (unsigned char*)(out + rvalsz);
             strm.avail_out = rvalsz;
             rvalsz = rvalsz << 1;
@@ -458,15 +456,11 @@ static int _PylibMC_Inflate(char *value, size_t size,
         goto error;
     }
 
-    tryrealloc = realloc(out, strm.total_out);
-
-    if(tryrealloc == NULL || errno == ENOMEM) {
-        /* we failed to *shrink* the value? */
+    if ((tryrealloc = realloc(out, strm.total_out)) == NULL) {
         *failure_reason = "realloc";
         rc = Z_MEM_ERROR;
         goto error;
     }
-
     out = tryrealloc;
 
     *result = out;
@@ -478,7 +472,7 @@ zerror:
     inflateEnd(&strm);
 
 error:
-    if(out != NULL) {
+    if (out != NULL) {
         free(out);
     }
     *result = NULL;
