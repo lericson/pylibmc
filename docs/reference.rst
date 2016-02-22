@@ -2,7 +2,7 @@
  Reference
 ===========
 
-.. class:: pylibmc.Client(servers[, binary=False, behaviors=None])
+.. class:: pylibmc.Client(servers[, binary=False, username=None, password=None, behaviors=None])
 
    Interface to a set of memcached servers.
 
@@ -10,6 +10,9 @@
 
    *binary* specifies whether or not to use the binary protocol to talk to the
    memcached servers.
+
+   *username* and *password* are credentials for SASL authentication. It requires support
+   in libmemcached, and binary=True. Test for local support with pylibmc.support_sasl.
 
    *behaviors*, if given, is passed to :meth:`Client.set_behaviors` after
    initialization.
