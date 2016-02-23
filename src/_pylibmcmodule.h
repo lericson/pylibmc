@@ -193,7 +193,7 @@ typedef struct {
 static PylibMC_Behavior PylibMC_behaviors[] = {
     { MEMCACHED_BEHAVIOR_NO_BLOCK, "no_block" },
     { MEMCACHED_BEHAVIOR_TCP_NODELAY, "tcp_nodelay" },
-#if LIBMEMCACHED_VERSION_HEX >= 0x01000000
+#if LIBMEMCACHED_VERSION_HEX >= 0x00049000
     { MEMCACHED_BEHAVIOR_TCP_KEEPALIVE, "tcp_keepalive" },
 #endif
     { MEMCACHED_BEHAVIOR_HASH, "hash" },
