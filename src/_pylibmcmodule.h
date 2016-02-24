@@ -193,7 +193,7 @@ typedef struct {
 static PylibMC_Behavior PylibMC_behaviors[] = {
     { MEMCACHED_BEHAVIOR_NO_BLOCK, "no_block" },
     { MEMCACHED_BEHAVIOR_TCP_NODELAY, "tcp_nodelay" },
-#if LIBMEMCACHED_VERSION_HEX >= 0x00049000
+#if LIBMEMCACHED_VERSION_HEX >= 0x00044000
     { MEMCACHED_BEHAVIOR_TCP_KEEPALIVE, "tcp_keepalive" },
 #endif
     { MEMCACHED_BEHAVIOR_HASH, "hash" },
@@ -258,7 +258,9 @@ static PylibMC_Behavior PylibMC_distributions[] = {
     { MEMCACHED_DISTRIBUTION_CONSISTENT, "consistent" },
     { MEMCACHED_DISTRIBUTION_RANDOM, "random" },
     { MEMCACHED_DISTRIBUTION_CONSISTENT_KETAMA, "consistent_ketama" },
+#if LIBMEMCACHED_VERSION_HEX >= 0x00044000
     { MEMCACHED_DISTRIBUTION_CONSISTENT_KETAMA_SPY, "consistent_ketama_spy" },
+#endif
 #if LIBMEMCACHED_VERSION_HEX >= 0x01000000
     { MEMCACHED_DISTRIBUTION_CONSISTENT_WEIGHTED, "consistent_weighted" },
     { MEMCACHED_DISTRIBUTION_VIRTUAL_BUCKET, "virtual_bucket" },
