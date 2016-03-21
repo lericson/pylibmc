@@ -11,7 +11,16 @@ New in version 1.5.0
 ====================
 
 This release fixes critical memory leaks in common code paths introduced in
-1.4.2. Highly recommended.
+1.4.2. Also fixes a critical bug in a corner of the zlib inflation code, where
+prior memory errors would trigger a double free. Thank you to everybody
+involved in the making of this release, and especially `Eau de Web`__, without
+their contributions, this release and the bug fixes it contains wouldn't have
+been so expedient.
+
+__ http://www.eaudeweb.ro/
+
+.. comment: 1.5.x should have been an extension to 1.4.x, therefore it's best
+   to keep the 1.4.x release announcement below.
 
 New in version 1.4.0
 ====================
@@ -52,3 +61,4 @@ Maintainer
 .. image:: http://www.smbc-comics.com/comics/20110908.gif
    :target: http://www.smbc-comics.com/index.php?db=comics&id=2362
    :align: center
+   :title: Look ma, we're famous!
