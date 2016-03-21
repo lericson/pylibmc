@@ -61,4 +61,3 @@ Maintainer
 .. image:: http://www.smbc-comics.com/comics/20110908.gif
    :target: http://www.smbc-comics.com/index.php?db=comics&id=2362
    :align: center
-   :title: Look ma, we're famous!
