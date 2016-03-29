@@ -160,28 +160,19 @@
 
    .. Deleting
 
-   .. method:: delete(key[, time=0]) -> deleted
+   .. method:: delete(key) -> deleted
 
       Delete *key* if it exists.
-
-      If *time* is non-zero, this is equivalent of setting an expiry time for a
-      key, i.e., the key will cease to exist after that many seconds.
 
       Returns ``True`` if the key was deleted, ``False`` otherwise (as is the case if
       it wasn't set in the first place.)
 
-      .. note:: Some versions of libmemcached are unable to set *time* for a
-                delete. This is true of versions up until at least 0.38.
-
-   .. method:: delete_multi(keys[, time=0, key_prefix=None]) -> deleted
+   .. method:: delete_multi(keys[, key_prefix=None]) -> deleted
 
       Delete each of key in the sequence *keys*.
 
       :param keys: Sequence of keys to delete
-      :param time: Number of seconds until the keys are deleted
       :param key_prefix: Prefix for the keys to delete
-
-      If *time* is zero, the keys are deleted immediately.
 
       Returns ``True`` if all keys were successfully deleted, ``False``
       otherwise (as is the case if it wasn't set in the first place.)
