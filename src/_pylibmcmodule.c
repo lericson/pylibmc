@@ -2062,10 +2062,8 @@ static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
     const char *prefix_raw = NULL;
     Py_ssize_t prefix_len;
     PyObject *prefix = NULL;
-    PyObject *time = NULL;
     PyObject *delete;
     PyObject *keys;
-    PyObject *call_args;
     PyObject *retval;
 
     static char *kws[] = { "keys", "key_prefix", NULL };
@@ -2075,48 +2073,25 @@ static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
         return NULL;
 
     /**
-     * Because of how DoMulti works, we have to prohibit the use of mappings
-     * here. Otherwise, the values of the mapping will be the second argument
-     * to the delete function; the time argument will then become a third
-     * argument, which delete doesn't take.
-     *
-     * So a mapping to DoMulti would produce calls like:
-     *   DoMulti({"a": 1, "b": 2}, time=3)
-     *      delete("a", 1, 3)
-     *      delete("b", 2, 3)
-     */
-#if PY_MAJOR_VERSION >= 3
-    /*
-     * This isn't optimal, but PyMapping_Check returns 1 for
-     * tuples, lists and other sequences in Python 3. According to
-     * http://bugs.python.org/issue5945 PyMapping_Check has never
-     * been particularly reliable, so hopefully it's enough to
-     * check for dict objects (and subclasses) specifically.
+     * Prohibit use of mappings, otherwise DoMulti interprets the values of
+     * such mappings as the 2nd argument to the delete function, e.g.
+     * DoMulti({"a": 1, "b": 2}) calls delete("a", 1) and delete("b", 2), which
+     * is nonsense.
      */
     if (PyDict_Check(keys)) {
-#else
-    if (PyMapping_Check(keys)) {
-#endif
         PyErr_SetString(PyExc_TypeError,
             "keys must be a sequence, not a mapping");
         return NULL;
     }
 
-    if (prefix_raw != NULL) {
+    if (prefix_raw != NULL)
         prefix = PyBytes_FromStringAndSize(prefix_raw, prefix_len);
-    }
 
     if ((delete = PyObject_GetAttrString((PyObject *)self, "delete")) == NULL)
         return NULL;
 
-    if (time == NULL) {
-        retval = _PylibMC_DoMulti(keys, delete, prefix, NULL);
-    } else {
-        if ((call_args = PyTuple_Pack(1, time)) == NULL)
-            goto error;
-        retval = _PylibMC_DoMulti(keys, delete, prefix, call_args);
-        Py_DECREF(call_args);
-    }
+    retval = _PylibMC_DoMulti(keys, delete, prefix, NULL);
+
     Py_DECREF(delete);
     Py_XDECREF(prefix);
 
@@ -2130,12 +2105,9 @@ static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
         Py_DECREF(retval);
         retval = Py_False;
     }
-    Py_INCREF(retval);
 
+    Py_INCREF(retval);
     return retval;
-error:
-    Py_XDECREF(delete);
-    return NULL;
 }
 
 static PyObject *PylibMC_Client_get_behaviors(PylibMC_Client *self) {
