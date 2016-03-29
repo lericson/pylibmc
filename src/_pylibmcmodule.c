@@ -1501,11 +1501,6 @@ static PyObject *_PylibMC_IncrSingle(PylibMC_Client *self,
         return NULL;
     }
 
-    if ((unsigned int)delta != delta) {
-        PyErr_Format(PyExc_OverflowError, "%d", delta);
-        return NULL;
-    }
-
     incr.key = key;
     incr.key_len = key_len;
     incr.incr_func = incr_func;
