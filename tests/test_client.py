@@ -94,3 +94,19 @@ class ClientTests(PylibmcTestCase):
         mc = make_test_client(binary=True)
         ok_(mc.set(k, 0))
         ok_(mc.get(k_enc) == 0)
+
+    def test_get_with_default(self):
+        mc = make_test_client(binary=True)
+        key = 'get-api-test'
+        mc.delete(key)
+        eq_(mc.get(key), None)
+        default = object()
+        assert mc.get(key, default) is default
+
+    def test_none_values(self):
+        mc = make_test_client(binary=True)
+        mc.set('none-test', None)
+        self.assertEqual(mc.get('none-test'), None)
+        self.assertEqual(mc.get('none-test', 'default'), None)
+        # formerly, this would raise a KeyError, which was incorrect
+        self.assertEqual(mc['none-test'], None)
