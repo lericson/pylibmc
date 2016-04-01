@@ -110,3 +110,4 @@ class ClientTests(PylibmcTestCase):
         self.assertEqual(mc.get('none-test', 'default'), None)
         # formerly, this would raise a KeyError, which was incorrect
         self.assertEqual(mc['none-test'], None)
+        self.assertIn('none-test', mc)

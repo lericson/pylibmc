@@ -170,7 +170,7 @@ class Client(_pylibmc.client):
             raise KeyError(key)
 
     def __contains__(self, key):
-        return self.get(key) is not None
+        return self.get(key, _MISS_SENTINEL) is not _MISS_SENTINEL
     # }}}
 
     # {{{ Behaviors
