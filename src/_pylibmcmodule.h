@@ -105,10 +105,10 @@ typedef struct {
 
 typedef struct {
   char **keys;
-  size_t nkeys;
+  Py_ssize_t nkeys;
   size_t *key_lens;
   memcached_result_st **results;
-  size_t *nresults;
+  Py_ssize_t *nresults;
   char **err_func;
   PyObject *transform;
 } pylibmc_mget_req;
@@ -314,14 +314,14 @@ static PyObject *PylibMC_ErrFromMemcachedWithKey(PylibMC_Client *, const char *,
         memcached_return, const char *, Py_ssize_t);
 static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *, const char *,
         memcached_return);
-static PyObject *_PylibMC_Unpickle(const char *, size_t);
+static PyObject *_PylibMC_Unpickle(const char *, Py_ssize_t);
 static PyObject *_PylibMC_Unpickle_Bytes(PyObject *);
 static PyObject *_PylibMC_Pickle(PyObject *);
 static int _key_normalized_obj(PyObject **);
 static int _key_normalized_str(char **, Py_ssize_t *);
 static int _PylibMC_serialize_user(PylibMC_Client *, PyObject *, PyObject **, uint32_t *);
 static int _PylibMC_serialize_native(PylibMC_Client *, PyObject *, PyObject **, uint32_t *);
-static PyObject *_PylibMC_deserialize_native(PylibMC_Client *, PyObject *, char *, size_t, uint32_t);
+static PyObject *_PylibMC_deserialize_native(PylibMC_Client *, PyObject *, char *, Py_ssize_t, uint32_t);
 static int _PylibMC_SerializeValue(PylibMC_Client *self,
                                    PyObject *key_obj,
                                    PyObject *key_prefix,
@@ -335,16 +335,16 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
         _PylibMC_SetCommand f, char *fname, PyObject *args, PyObject *kwds);
 static bool _PylibMC_RunSetCommand(PylibMC_Client *self,
                                    _PylibMC_SetCommand f, char *fname,
-                                   pylibmc_mset *msets, size_t nkeys,
-                                   size_t min_compress,
+                                   pylibmc_mset *msets, Py_ssize_t nkeys,
+                                   Py_ssize_t min_compress,
                                    int compress_level);
-static int _PylibMC_Deflate(char *value, size_t value_len,
-                            char **result, size_t *result_len,
+static int _PylibMC_Deflate(char *value, Py_ssize_t value_len,
+                            char **result, Py_ssize_t *result_len,
                             int compress_level);
-static int _PylibMC_Inflate(char *value, size_t size,
-                            char** result, size_t* result_size,
+static int _PylibMC_Inflate(char *value, Py_ssize_t size,
+                            char** result, Py_ssize_t* result_size,
                             char** failure_reason);
-static bool _PylibMC_IncrDecr(PylibMC_Client *, pylibmc_incr *, size_t);
+static bool _PylibMC_IncrDecr(PylibMC_Client *, pylibmc_incr *, Py_ssize_t);
 
 /* }}} */
 
