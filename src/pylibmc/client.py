@@ -12,6 +12,8 @@ server_type_map = {"tcp":   _pylibmc.server_type_tcp,
                    "udp":   _pylibmc.server_type_udp,
                    "unix":  _pylibmc.server_type_unix}
 
+_MISS_SENTINEL = object()
+
 def _split_spec_type(spec):
     if spec.startswith("/"):
         return ("unix", spec)
@@ -153,8 +155,8 @@ class Client(_pylibmc.client):
 
     # {{{ Mapping interface
     def __getitem__(self, key):
-        value = self.get(key)
-        if value is None:
+        value = self.get(key, _MISS_SENTINEL)
+        if value is _MISS_SENTINEL:
             raise KeyError(key)
         else:
             return value
@@ -168,7 +170,7 @@ class Client(_pylibmc.client):
             raise KeyError(key)
 
     def __contains__(self, key):
-        return self.get(key) is not None
+        return self.get(key, _MISS_SENTINEL) is not _MISS_SENTINEL
     # }}}
 
     # {{{ Behaviors

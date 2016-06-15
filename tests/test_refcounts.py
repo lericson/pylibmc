@@ -47,6 +47,25 @@ class RefcountTests(PylibmcTestCase):
     def test_get_singleton(self):
         self._test_get(b"refcountest3", False)
 
+    def test_get_with_default(self):
+        bc = make_test_client(binary=True)
+        key = b'refcountest4'
+        val = 'some_value'
+        default = object()
+        refcountables = [key, val, default]
+        initial_refcounts = get_refcounts(refcountables)
+        bc.set(key, val)
+        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert bc.get(key) == val
+        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert bc.get(key, default) == val
+        eq_(get_refcounts(refcountables), initial_refcounts)
+        bc.delete(key)
+        assert bc.get(key) is None
+        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert bc.get(key, default) is default
+        eq_(get_refcounts(refcountables), initial_refcounts)
+
     def test_get_multi(self):
         bc = make_test_client(binary=True)
         keys = ["first", "second", "", b""]

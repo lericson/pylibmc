@@ -707,47 +707,54 @@ static int _PylibMC_cache_miss_simulated(PyObject *r) {
     return 0;
 }
 
-static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *arg) {
+static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *args) {
     char *mc_val;
     size_t val_size;
     uint32_t flags;
     memcached_return error;
+    PyObject *key;
+    /* if a default argument was in fact passed, it's still a borrowed reference
+       at this point, so borrow a reference to Py_None as well for parity. */
+    PyObject *default_value = Py_None;
 
-    if (!_key_normalized_obj(&arg)) {
+    if (!PyArg_UnpackTuple(args, "get", 1, 2, &key, &default_value)) {
         return NULL;
-    } else if (!PySequence_Length(arg) ) {
-        Py_RETURN_NONE;
+    }
+
+    if (!_key_normalized_obj(&key)) {
+        return NULL;
+    } else if (!PySequence_Length(key) ) {
+        Py_INCREF(default_value);
+        return default_value;
     }
 
     Py_BEGIN_ALLOW_THREADS;
     mc_val = memcached_get(self->mc,
-            PyBytes_AS_STRING(arg), PyBytes_GET_SIZE(arg),
+            PyBytes_AS_STRING(key), PyBytes_GET_SIZE(key),
             &val_size, &flags, &error);
     Py_END_ALLOW_THREADS;
 
-    Py_DECREF(arg);
+    Py_DECREF(key);
 
     if (mc_val != NULL) {
         PyObject *r = _PylibMC_parse_memcached_value(self, mc_val, val_size, flags);
         free(mc_val);
         if (_PylibMC_cache_miss_simulated(r)) {
-            /* Since python-memcache returns None when the key doesn't exist,
-             * so shall we. */
-            Py_RETURN_NONE;
+            Py_INCREF(default_value);
+            return default_value;
         }
         return r;
     } else if (error == MEMCACHED_SUCCESS) {
         /* This happens for empty values, and so we fake an empty string. */
         return PyBytes_FromStringAndSize("", 0);
     } else if (error == MEMCACHED_NOTFOUND) {
-        /* Since python-memcache returns None when the key doesn't exist,
-         * so shall we. */
-        Py_RETURN_NONE;
+        Py_INCREF(default_value);
+        return default_value;
     }
 
     return PylibMC_ErrFromMemcachedWithKey(self, "memcached_get", error,
-                                           PyBytes_AS_STRING(arg),
-                                           PyBytes_GET_SIZE(arg));
+                                           PyBytes_AS_STRING(key),
+                                           PyBytes_GET_SIZE(key));
 }
 
 static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {

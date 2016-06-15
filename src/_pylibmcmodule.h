@@ -356,7 +356,7 @@ static PyMethodDef PylibMC_ClientType_methods[] = {
     {"deserialize", (PyCFunction)PylibMC_Client_deserialize, METH_VARARGS,
         "Deserialize a bytestring and flag field retrieved from memcached. "
         "Raise pylibmc.CacheMiss to simulate a cache miss."},
-    {"get", (PyCFunction)PylibMC_Client_get, METH_O,
+    {"get", (PyCFunction)PylibMC_Client_get, METH_VARARGS,
         "Retrieve a key from a memcached."},
     {"gets", (PyCFunction)PylibMC_Client_gets, METH_O,
         "Retrieve a key and cas_id from a memcached."},

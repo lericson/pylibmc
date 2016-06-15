@@ -35,9 +35,10 @@
 
    .. Reading
 
-   .. method:: get(key) -> value
+   .. method:: get(key[, default]) -> value
 
-      Get *key* if it exists, otherwise ``None``.
+      Get *key* if it exists, otherwise *default*. If *default* is not given,
+      it defaults to ``None``.
 
    .. method:: get_multi(keys[, key_prefix=None]) -> values
 
