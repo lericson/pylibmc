@@ -2412,6 +2412,10 @@ static void _set_error(memcached_st *mc, memcached_return error, char *lead) {
                      lead, strerror(errno));
     } else if (error == MEMCACHED_SUCCESS) {
         PyErr_Format(PyExc_RuntimeError, "error == MEMCACHED_SUCCESS");
+#if LIBMEMCACHED_VERSION_HEX >= 0x01000002
+    } else if (error == MEMCACHED_E2BIG) {
+        PyErr_SetNone(_exc_by_rc(error));
+#endif
     } else {
         PyObject *exc = _exc_by_rc(error);
 #if LIBMEMCACHED_VERSION_HEX >= 0x00049000

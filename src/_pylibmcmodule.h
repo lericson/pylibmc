@@ -177,6 +177,7 @@ static PylibMC_McErr PylibMCExc_mc_errs[] = {
     { MEMCACHED_SERVER_MARKED_DEAD, "ServerDead", NULL },
 #if LIBMEMCACHED_VERSION_HEX >= 0x01000002
     { MEMCACHED_SERVER_TEMPORARILY_DISABLED, "ServerDown", NULL },
+    { MEMCACHED_E2BIG, "TooBig", NULL },
 #endif
     { MEMCACHED_UNKNOWN_STAT_KEY, "UnknownStatKey", NULL },
     //{ MEMCACHED_E2BIG, "TooBigError", NULL },
