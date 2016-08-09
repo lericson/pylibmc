@@ -2638,7 +2638,7 @@ static void _make_excs(PyObject *module) {
             "pylibmc.Error", NULL, NULL);
 
     PylibMCExc_CacheMiss = PyErr_NewException(
-            "_pylibmc.CacheMiss", PylibMCExc_Error, NULL);
+            "pylibmc.CacheMiss", PylibMCExc_Error, NULL);
 
     exc_objs = PyList_New(0);
     PyList_Append(exc_objs,
@@ -2648,7 +2648,7 @@ static void _make_excs(PyObject *module) {
 
     for (err = PylibMCExc_mc_errs; err->name != NULL; err++) {
         char excnam[64];
-        snprintf(excnam, 64, "_pylibmc.%s", err->name);
+        snprintf(excnam, 64, "pylibmc.%s", err->name);
         err->exc = PyErr_NewException(excnam, PylibMCExc_Error, NULL);
         PyObject_SetAttrString(err->exc, "retcode", PyLong_FromLong(err->rc));
         PyModule_AddObject(module, err->name, (PyObject *)err->exc);

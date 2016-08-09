@@ -69,16 +69,11 @@ See http://sendapatch.se/projects/pylibmc/
 """
 
 import _pylibmc
+from _pylibmc import *
+from _pylibmc import __version__
 from .consts import hashers, distributions
 from .client import Client
 from .pools import ClientPool, ThreadMappedPool
-
-libmemcached_version = _pylibmc.libmemcached_version
-support_compression = _pylibmc.support_compression
-support_sasl = _pylibmc.support_sasl
-Error = _pylibmc.Error
-
-__version__ = _pylibmc.__version__
 
 def build_info():
     return ("pylibmc %s for libmemcached %s (compression=%s, sasl=%s)"
@@ -88,4 +83,4 @@ def build_info():
                support_sasl))
 
 __all__ = ["hashers", "distributions", "Client",
-           "ClientPool", "ThreadMappedPool"]
+           "ClientPool", "ThreadMappedPool"] + dir(_pylibmc)
