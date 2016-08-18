@@ -53,7 +53,8 @@ class SerializationMethodTests(PylibmcTestCase):
             (b'asdf', (b'asdf', 0)),
             (b'\xb5\xb1\xbf\xed\xa9\xc2{8', (b'\xb5\xb1\xbf\xed\xa9\xc2{8', 0)),
             # objects
-            (datetime.date(2015, 12, 28), (pickle.dumps(datetime.date(2015, 12, 28)), 1)),
+            (datetime.date(2015, 12, 28), (pickle.dumps(datetime.date(2015, 12, 28),
+                                                        protocol=-1), 1)),
         ]
 
         c = make_test_client(binary=True)
