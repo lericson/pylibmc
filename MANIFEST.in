@@ -3,6 +3,6 @@ include src/_pylibmcmodule.c src/_pylibmcmodule.h src/pylibmc-version.h
 recursive-include pylibmc *.py
 recursive-include tests *.py
 
-include docs/Makefile docs/make.bat docs/conf.py
+include docs/Makefile docs/make.bat docs/conf.py docs/*.svg
 recursive-include docs *.rst
 recursive-include docs/_themes *
