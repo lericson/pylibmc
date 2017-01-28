@@ -2419,7 +2419,11 @@ static void _set_error(memcached_st *mc, memcached_return error, char *lead) {
     } else {
         PyObject *exc = _exc_by_rc(error);
 #if LIBMEMCACHED_VERSION_HEX >= 0x00049000
-        PyErr_Format(exc, "%s: %.200s", lead, memcached_last_error_message(mc));
+        if (memcached_last_error(mc) != MEMCACHED_SUCCESS) {
+            PyErr_Format(exc, "%s: %.200s", lead, memcached_last_error_message(mc));
+        } else {
+            PyErr_SetString(exc, lead);
+        }
 #else
         PyErr_Format(exc, "%s: %.200s", lead, memcached_strerror(mc, error));
 #endif
