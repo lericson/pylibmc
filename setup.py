@@ -52,6 +52,11 @@ for arg in sys.argv[1:]:
     unprocessed.append(arg)
 sys.argv[1:] = unprocessed
 
+# If no pkgdirs are given, default to /, /usr and /usr/local which should
+# work on every standard BSD/Linux install
+if not pkgdirs:
+    pkgdirs = ['/', '/usr', '/usr/local']
+
 for pkgdir in pkgdirs:
     incdirs.append(os.path.join(pkgdir, "include"))
     libdirs.append(os.path.join(pkgdir, "lib"))
