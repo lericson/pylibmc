@@ -28,7 +28,6 @@ libmemcached would end up in ``/opt/local``, hence
 From PyPI
 ---------
 
-Since ``pip`` doesn't support passing arguments to the setup script,
-you can also define environment variables::
+Using ``pip`` you can pass install options as follows::
 
-    LIBMEMCACHED=/opt/local pip install pylibmc
+    pip install pylibmc --install-option="--with-libmemcached=/usr/local/"
