@@ -31,3 +31,8 @@ From PyPI
 Using ``pip`` you can pass install options as follows::
 
     pip install pylibmc --install-option="--with-libmemcached=/usr/local/"
+
+Using Homebrew (MacOSX) you can install from PyPI via::
+
+    brew install libmemcached
+    pip install pylibmc --install-option="--with-libmemcached=/usr/local/Cellar/libmemcached"
