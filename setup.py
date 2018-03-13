@@ -76,14 +76,14 @@ if sys.platform == "darwin" and not os.environ.get("ARCHFLAGS"):
 # strict aliasing rules. Let's skip this flag for now.
 cflags = ["-fno-strict-aliasing", "-std=c99"]
 
-## Extension definitions
+# Extension definitions
 
 pylibmc_ext = Extension("_pylibmc", ["src/_pylibmcmodule.c"],
                         libraries=libs, include_dirs=incdirs,
                         library_dirs=libdirs, define_macros=defs,
                         extra_compile_args=cflags)
 
-# Hidden secret: if environment variable GEN_SETUP is set, generate Setup file.
+# Hidden secret: generate Setup file for statically compiling the extension.
 if cmd == "gen-setup":
     line = " ".join((
         pylibmc_ext.name,
