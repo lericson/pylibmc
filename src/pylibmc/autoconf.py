@@ -15,7 +15,7 @@ def _elasticache_config_get(address, key):
     host, port = address.split(':')
     port = int(port)
     sock.connect((host, port))
-    sock.send(b'config get %s\r\n' % (key,))
+    sock.send(('config get %s\r\n' % (key,)).encode('ascii'))
     state = 'wait-nl-header'
     nbytes = 0
     buff = b''
