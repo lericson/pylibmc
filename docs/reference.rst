@@ -180,13 +180,13 @@
 
    .. method:: touch(key, time) -> touched
 
-      Touch a given *key* and increase it's expiry time by *time* seconds.
+      Touch a given *key* and set its expiry time to *time* seconds.
 
       :param key: Key to touch
       :param time: Number of seconds until the key expires.
 
       Returns ``True`` if the key was successfully touched. ``False``
-      if the key did not exist.
+      if the key did not exist (so touching is not possible.)
 
    .. Utilities
 
