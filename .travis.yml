@@ -9,8 +9,9 @@ python:
   - 3.5
 
 env:
-  - LIBMEMCACHED_VERSION='0.53'
-  - LIBMEMCACHED_VERSION='1.0.16'
+  # Would be great to test 0.53 but there's no Ubuntu Trusty PPA that has it.
+  #- LIBMEMCACHED_VERSION='0.53'
+  - LIBMEMCACHED_VERSION='1.0.18'
   - LIBMEMCACHED_VERSION='default'
 
 notifications:
@@ -21,15 +22,15 @@ notifications:
     on_failure: change
 
 before_install:
-  # Default travis-ci libmemcached is 0.44 (ubuntu precise). If we need a
-  # higher version, add in the appropriate ppa. The newer package will upgrade
-  # the desired revision when we do a `apt-get install libmemcached-dev`.
-  - sh -c "if [ $LIBMEMCACHED_VERSION = '0.53' ] ; then sudo add-apt-repository ppa:chris-lea/libmemcached -y; fi"
-  - sh -c "if [ $LIBMEMCACHED_VERSION = '1.0.16' ] ; then sudo add-apt-repository ppa:msabramo/libmemcached -y; fi"
+  # Default Travis CI libmemcached is 1.0.8 (Ubuntu Trusty). Need PPAs for
+  # other versions.
+  #- sh -c "if [ $LIBMEMCACHED_VERSION = '0.53' ] ; then sudo add-apt-repository ppa:???/libmemcached -y; fi"
+  - sh -c "if [ $LIBMEMCACHED_VERSION = '1.0.18' ] ; then sudo add-apt-repository ppa:ondrej/php -y; fi"
   - sudo apt-get update -qq
   - sudo apt-get install memcached
   - sudo service memcached start
   - sudo apt-get install libmemcached-dev
+  - sh -c "[ $LIBMEMCACHED_VERSION = $(python -c 'import pylibmc; print(pylibmc.libmemcached_version)') ]"
   - echo "stats settings" | nc localhost 11211
 
 install: python setup.py install
