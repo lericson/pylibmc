@@ -20,14 +20,14 @@ def print_header(outf=sys.stdout):
 def collect_servers():
     try:
         in_addr = raw_input("Address [127.0.0.1]: ")
-    except:
+    except NameError:
         in_addr = input("Address [127.0.0.1]: ")
     if in_addr:
         while in_addr:
             yield in_addr
             try:
                 in_addr = raw_input("Address [<stop>]: ")
-            except:
+            except NameError:
                 in_addr = input("Address [<stop>]: ")
     else:
         yield "127.0.0.1"
