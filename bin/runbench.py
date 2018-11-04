@@ -12,6 +12,11 @@ from functools import wraps
 from collections import namedtuple
 from contextlib import contextmanager
 
+try:
+    xrange          # Python 2
+except NameError:
+    xrange = range  # Python 3
+
 
 logger = logging.getLogger('pylibmc.bench')
 
