@@ -24,6 +24,7 @@ class PylibmcTestCase(unittest.TestCase):
         del self.mc
 
 def dump_infos():
+    global _pylibmc  # _pylibmc is created when pylibmc is imported
     if hasattr(_pylibmc, "__file__"):
         print("Starting tests with _pylibmc at", _pylibmc.__file__)
     else:
