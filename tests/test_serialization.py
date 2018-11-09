@@ -25,6 +25,8 @@ def long_(val):
         # this happens under Python 3
         return val
 
+f_none = 0
+f_pickle, f_int, f_long, f_zlib, f_text = (1 << i for i in range(5))
 
 class SerializationMethodTests(PylibmcTestCase):
     """Coverage tests for serialize and deserialize."""
@@ -32,29 +34,33 @@ class SerializationMethodTests(PylibmcTestCase):
     def test_integers(self):
         c = make_test_client(binary=True)
         if sys.version_info[0] == 3:
-            eq_(c.serialize(1), (b'1', 4))
-            eq_(c.serialize(2**64), (b'18446744073709551616', 4))
+            eq_(c.serialize(1), (b'1', f_long))
+            eq_(c.serialize(2**64), (b'18446744073709551616', f_long))
         else:
-            eq_(c.serialize(1), (b'1', 2))
-            eq_(c.serialize(2**64), (b'18446744073709551616', 4))
+            eq_(c.serialize(1), (b'1', f_int))
+            eq_(c.serialize(2**64), (b'18446744073709551616', f_long))
 
-            eq_(c.deserialize(b'1', 2), 1)
+            eq_(c.deserialize(b'1', f_int), 1)
 
-        eq_(c.deserialize(b'18446744073709551616', 4), 2**64)
-        eq_(c.deserialize(b'1', 4), long_(1))
+        eq_(c.deserialize(b'18446744073709551616', f_long), 2**64)
+        eq_(c.deserialize(b'1', f_long), long_(1))
 
     def test_nonintegers(self):
         # tuples (python_value, (expected_bytestring, expected_flags))
         SERIALIZATION_TEST_VALUES = [
-            # booleans
-            (True, (b'1', 16)),
-            (False, (b'0', 16)),
+            # booleans are just ints
+            (True, (b'1', f_int)),
+            (False, (b'0', f_int)),
             # bytestrings
-            (b'asdf', (b'asdf', 0)),
-            (b'\xb5\xb1\xbf\xed\xa9\xc2{8', (b'\xb5\xb1\xbf\xed\xa9\xc2{8', 0)),
+            (b'asdf', (b'asdf', f_none)),
+            (b'\xb5\xb1\xbf\xed\xa9\xc2{8', (b'\xb5\xb1\xbf\xed\xa9\xc2{8', f_none)),
+            (b'', (b'', f_none)),
+            # unicode objects
+            (u'åäö', (u'åäö'.encode('utf-8'), f_text)),
+            (u'', (b'', f_text)),
             # objects
             (datetime.date(2015, 12, 28), (pickle.dumps(datetime.date(2015, 12, 28),
-                                                        protocol=-1), 1)),
+                                                        protocol=-1), f_pickle)),
         ]
 
         c = make_test_client(binary=True)

@@ -650,16 +650,17 @@ static PyObject *_PylibMC_deserialize_native(PylibMC_Client *self, PyObject *val
             break;
         case PYLIBMC_FLAG_INTEGER:
         case PYLIBMC_FLAG_LONG:
-        case PYLIBMC_FLAG_BOOL:
             if (value) {
                 retval = PyLong_FromString(PyBytes_AS_STRING(value), NULL, 10);
             } else {
                 retval = _PyLong_FromStringAndSize(value_str, value_size, NULL, 10);;
             }
-            if (retval != NULL && dtype == PYLIBMC_FLAG_BOOL) {
-                PyObject *bool_retval = PyBool_FromLong(PyLong_AS_LONG(retval));
-                Py_DECREF(retval);
-                retval = bool_retval;
+            break;
+        case PYLIBMC_FLAG_TEXT:
+            if (value) {
+                retval = PyUnicode_FromEncodedObject(value, NULL, NULL);
+            } else {
+                retval = PyUnicode_FromStringAndSize(value_str, value_size);
             }
             break;
         case PYLIBMC_FLAG_NONE:
@@ -724,7 +725,7 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *args) {
 
     if (!_key_normalized_obj(&key)) {
         return NULL;
-    } else if (!PySequence_Length(key) ) {
+    } else if (!PySequence_Length(key)) {
         Py_INCREF(default_value);
         return default_value;
     }
@@ -737,18 +738,23 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *args) {
 
     Py_DECREF(key);
 
-    if (mc_val != NULL) {
+    if (error == MEMCACHED_SUCCESS) {
+        /* note that mc_val can and is NULL for zero-length values. */
         PyObject *r = _PylibMC_parse_memcached_value(self, mc_val, val_size, flags);
-        free(mc_val);
+
+        if (mc_val != NULL) {
+            free(mc_val);
+        }
+
         if (_PylibMC_cache_miss_simulated(r)) {
             Py_INCREF(default_value);
             return default_value;
         }
+
         return r;
-    } else if (error == MEMCACHED_SUCCESS) {
-        /* This happens for empty values, and so we fake an empty string. */
-        return PyBytes_FromStringAndSize("", 0);
-    } else if (error == MEMCACHED_NOTFOUND) {
+    }
+
+    if (error == MEMCACHED_NOTFOUND) {
         Py_INCREF(default_value);
         return default_value;
     }
@@ -1248,12 +1254,12 @@ static int _PylibMC_serialize_native(PylibMC_Client *self, PyObject *value_obj, 
         /* Make store_val an owned reference */
         store_val = value_obj;
         Py_INCREF(store_val);
+    } else if (PyUnicode_Check(value_obj)) {
+        store_flags = PYLIBMC_FLAG_TEXT;
+        store_val = PyUnicode_AsUTF8String(value_obj);
     } else if (PyBool_Check(value_obj)) {
-        store_flags |= PYLIBMC_FLAG_BOOL;
-        /* bool cannot be subclassed; there are only two singleton values,
-           Py_True and Py_False */
-        const char *value_str = (value_obj == Py_True) ? "1" : "0";
-        store_val = PyBytes_FromString(value_str);
+        store_flags |= PYLIBMC_FLAG_INTEGER;
+        store_val = PyBytes_FromStringAndSize(&"01"[value_obj == Py_True], 1);
 #if PY_MAJOR_VERSION >= 3
     } else if (PyLong_Check(value_obj)) {
         store_flags |= PYLIBMC_FLAG_LONG;

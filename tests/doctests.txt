@@ -29,10 +29,30 @@ string containing "hello" by decoding a byte string
 'bar'
 
 We should handle empty values just nicely.
->>> c.set("foo", "")
+>>> c.set("foo", u"")
 True
 >>> c.get("foo")
 ''
+>>> c.set("foo", b"")
+True
+>>> c.get("foo")
+b''
+
+Some sort of idempotency seems meaningful
+>>> c.set("foo", "bar")
+True
+>>> c.get("foo")
+'bar'
+
+Important that we know how to deal with bytes and unicode data
+>>> c.set("foo", b"bar")
+True
+>>> isinstance(c.get("foo"), bytes)
+True
+>>> c.set("foo", u"bar")
+True
+>>> isinstance(c.get("foo"), bytes)
+False
 
 Now this section is because most other implementations ignore zero-keys.
 >>> c.get("")
@@ -153,12 +173,12 @@ True
 Get and set booleans.
 >>> c.set("greta", True)
 True
->>> c.get("greta")
-True
+>>> int(c.get("greta"))
+1
 >>> c.set("greta", False)
 True
->>> c.get("greta")
-False
+>>> int(c.get("greta"))
+0
 >>> c.delete("greta")
 True
 

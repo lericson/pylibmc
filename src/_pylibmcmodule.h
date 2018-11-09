@@ -65,13 +65,12 @@ enum PylibMC_Flags {
     PYLIBMC_FLAG_PICKLE  = (1 << 0),
     PYLIBMC_FLAG_INTEGER = (1 << 1),
     PYLIBMC_FLAG_LONG    = (1 << 2),
-    /* Note: python-memcached doesn't handle bools, this flag is pylibmc exclusive. */
-    PYLIBMC_FLAG_BOOL    = (1 << 4),
-    PYLIBMC_FLAG_ZLIB    = (1 << 3)
+    PYLIBMC_FLAG_ZLIB    = (1 << 3),
+    PYLIBMC_FLAG_TEXT    = (1 << 4),
 };
 
 #define PYLIBMC_FLAG_TYPES (PYLIBMC_FLAG_PICKLE | PYLIBMC_FLAG_INTEGER | \
-                            PYLIBMC_FLAG_LONG | PYLIBMC_FLAG_BOOL)
+                            PYLIBMC_FLAG_LONG | PYLIBMC_FLAG_TEXT)
 /* }}} */
 
 /* Behaviors that only affects pylibmc (i.e. not memached_set_behavior etc) */
