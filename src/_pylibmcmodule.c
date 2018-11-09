@@ -658,7 +658,7 @@ static PyObject *_PylibMC_deserialize_native(PylibMC_Client *self, PyObject *val
             break;
         case PYLIBMC_FLAG_TEXT:
             if (value) {
-                retval = PyUnicode_FromEncodedObject(value, NULL, NULL);
+                retval = PyUnicode_FromEncodedObject(value, "utf-8", "strict");
             } else {
                 retval = PyUnicode_FromStringAndSize(value_str, value_size);
             }
