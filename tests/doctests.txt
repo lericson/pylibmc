@@ -102,10 +102,11 @@ should not accept a time argument.
 Traceback (most recent call last):
   ...
 TypeError: delete() takes exactly 1 argument (2 given)
->>> c.delete_multi(["foo"], time=123)
-Traceback (most recent call last):
-  ...
-TypeError: 'time' is an invalid keyword argument for this function
+>>> try:
+...   c.delete_multi(["foo"], time=123)
+... except TypeError as e:
+...   print('nope')
+nope
 
 Now for keys with funny types.
 # moved to unit test; restore with doctest IGNORE_EXCEPTION_DETAIL directive
@@ -167,8 +168,8 @@ Complex data types!
 ('what?',)
 >>> c.set("tengil", v)
 True
->>> c.get("tengil")
-ValueError('what?',)
+>>> c.get("tengil").args == v.args
+True
 
 Cloning (ethically, I don't know about it.)
 >>> c is not c.clone()
@@ -286,6 +287,19 @@ Gets should return (None, None) for non-existing keys
 (None, None)
 >>> c.gets('non_existing_key')
 (None, None)
+
+Whoop, pickle protocol
+>>> c.behaviors['pickle_protocol']
+-1
+>>> c.behaviors['pickle_protocol'] = 2
+>>> c.set('foo', ('bar', 'quux'))
+True
+>>> c.behaviors['pickle_protocol'] = 1
+>>> c.set('foo', ('bar', 'quuz'))
+True
+>>> c.behaviors['pickle_protocol'] = -1
+>>> c.get('foo')
+('bar', 'quuz')
 
 Compression shouldn't break anything
 >>> c = make_test_client(_pylibmc.client, binary=True)

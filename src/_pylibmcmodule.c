@@ -216,6 +216,8 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
     }
     self->native_deserialization = (uint8_t) native_deserialization;
 
+    self->pickle_protocol = -1;
+
     while ((c_srv = PyIter_Next(srvs_it)) != NULL) {
         unsigned char stype;
         char *hostname;
@@ -352,9 +354,8 @@ static int _PylibMC_Deflate(char *value, Py_ssize_t value_len,
         goto error;
     }
 
-    if(strm.total_out >= value_len) {
-      /* if we didn't actually save anything, don't bother storing it
-         compressed */
+    if ((Py_ssize_t)strm.total_out >= value_len) {
+      /* if no data was saved, don't use compression */
       goto error;
     }
 
@@ -645,7 +646,7 @@ static PyObject *_PylibMC_deserialize_native(PylibMC_Client *self, PyObject *val
 
     switch (dtype) {
         case PYLIBMC_FLAG_PICKLE:
-            retval = value ? _PylibMC_Unpickle_Bytes(value) : _PylibMC_Unpickle(value_str, value_size);
+            retval = value ? _PylibMC_Unpickle_Bytes(self, value) : _PylibMC_Unpickle(self, value_str, value_size);
             break;
         case PYLIBMC_FLAG_INTEGER:
         case PYLIBMC_FLAG_LONG:
@@ -1275,7 +1276,7 @@ static int _PylibMC_serialize_native(PylibMC_Client *self, PyObject *value_obj, 
         /* we have no idea what it is, so we'll store it pickled */
         Py_INCREF(value_obj);
         store_flags |= PYLIBMC_FLAG_PICKLE;
-        store_val = _PylibMC_Pickle(value_obj);
+        store_val = _PylibMC_Pickle(self, value_obj);
         Py_DECREF(value_obj);
     }
 
@@ -2148,7 +2149,7 @@ static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *self,
         PyObject *behaviors) {
     PylibMC_Behavior *b;
     PyObject *py_v;
-    uint64_t v;
+    long v;
     memcached_return r;
     char *key;
 
@@ -2163,16 +2164,23 @@ static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *self,
             goto error;
         }
 
-        v = (uint64_t)PyLong_AS_LONG(py_v);
+        v = PyLong_AsLong(py_v);
         Py_DECREF(py_v);
 
-        r = memcached_behavior_set(self->mc, b->flag, v);
-        if (r != MEMCACHED_SUCCESS) {
-            PyErr_Format(PylibMCExc_Error,
-                         "memcached_behavior_set returned %d for "
-                         "behavior '%.32s' = %u", r, b->name, (unsigned int)v);
-            goto error;
+        switch (b->flag) {
+        case PYLIBMC_BEHAVIOR_PICKLE_PROTOCOL:
+            self->pickle_protocol = v;
+            break;
+        default:
+            r = memcached_behavior_set(self->mc, b->flag, (uint64_t)v);
+            if (r != MEMCACHED_SUCCESS) {
+                PyErr_Format(PylibMCExc_Error,
+                             "memcached_behavior_set returned %d for "
+                             "behavior '%.32s' = %ld", r, b->name, v);
+                goto error;
+            }
         }
+
     }
 
     for (b = PylibMC_callbacks; b->name != NULL; b++) {
@@ -2383,6 +2391,7 @@ static PyObject *PylibMC_Client_clone(PylibMC_Client *self) {
     Py_END_ALLOW_THREADS;
     clone->native_serialization = self->native_serialization;
     clone->native_deserialization = self->native_deserialization;
+    clone->pickle_protocol = self->pickle_protocol;
     return (PyObject *)clone;
 }
 /* }}} */
@@ -2471,7 +2480,7 @@ static PyObject *_PylibMC_GetPickles(const char *attname) {
     return pickle_attr;
 }
 
-static PyObject *_PylibMC_Unpickle(const char *buff, Py_ssize_t size) {
+static PyObject *_PylibMC_Unpickle(PylibMC_Client *self, const char *buff, Py_ssize_t size) {
 #if PY_MAJOR_VERSION >= 3
         return PyObject_CallFunction(_PylibMC_pickle_loads, "y#", buff, size);
 #else
@@ -2479,12 +2488,12 @@ static PyObject *_PylibMC_Unpickle(const char *buff, Py_ssize_t size) {
 #endif
 }
 
-static PyObject *_PylibMC_Unpickle_Bytes(PyObject *val) {
+static PyObject *_PylibMC_Unpickle_Bytes(PylibMC_Client *self, PyObject *val) {
     return PyObject_CallFunctionObjArgs(_PylibMC_pickle_loads, val, NULL);
 }
 
-static PyObject *_PylibMC_Pickle(PyObject *val) {
-    return PyObject_CallFunction(_PylibMC_pickle_dumps, "Oi", val, -1);
+static PyObject *_PylibMC_Pickle(PylibMC_Client *self, PyObject *val) {
+    return PyObject_CallFunction(_PylibMC_pickle_dumps, "Oi", val, self->pickle_protocol);
 }
 /* }}} */
 

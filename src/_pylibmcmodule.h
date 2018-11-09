@@ -60,23 +60,30 @@ typedef ssize_t Py_ssize_t;
 /* {{{ Key flags from python-memcached
  * Some flags (like the compression one, ZLIB) are combined with others.
  */
-#define PYLIBMC_FLAG_NONE    0
-#define PYLIBMC_FLAG_PICKLE  (1 << 0)
-#define PYLIBMC_FLAG_INTEGER (1 << 1)
-#define PYLIBMC_FLAG_LONG    (1 << 2)
-/* Note: this is an addition! python-memcached doesn't handle bools. */
-#define PYLIBMC_FLAG_BOOL    (1 << 4)
-#define PYLIBMC_FLAG_TYPES   (PYLIBMC_FLAG_PICKLE | PYLIBMC_FLAG_INTEGER | \
-                              PYLIBMC_FLAG_LONG | PYLIBMC_FLAG_BOOL)
-/* Modifier flags */
-#define PYLIBMC_FLAG_ZLIB    (1 << 3)
+enum PylibMC_Flags {
+    PYLIBMC_FLAG_NONE    = 0,
+    PYLIBMC_FLAG_PICKLE  = (1 << 0),
+    PYLIBMC_FLAG_INTEGER = (1 << 1),
+    PYLIBMC_FLAG_LONG    = (1 << 2),
+    /* Note: python-memcached doesn't handle bools, this flag is pylibmc exclusive. */
+    PYLIBMC_FLAG_BOOL    = (1 << 4),
+    PYLIBMC_FLAG_ZLIB    = (1 << 3)
+};
+
+#define PYLIBMC_FLAG_TYPES (PYLIBMC_FLAG_PICKLE | PYLIBMC_FLAG_INTEGER | \
+                            PYLIBMC_FLAG_LONG | PYLIBMC_FLAG_BOOL)
+/* }}} */
+
+/* Behaviors that only affects pylibmc (i.e. not memached_set_behavior etc) */
+enum PylibMC_Behaviors {
+    PYLIBMC_BEHAVIOR_PICKLE_PROTOCOL = 0xcafe0000,
+};
 
 /* Python 3 stuff */
 #ifndef PyVarObject_HEAD_INIT
 #define PyVarObject_HEAD_INIT(type, size)       \
     PyObject_HEAD_INIT(type) size,
 #endif
-/* }}} */
 
 typedef memcached_return (*_PylibMC_SetCommand)(memcached_st *, const char *,
         size_t, const char *, size_t, time_t, uint32_t);
@@ -228,6 +235,7 @@ static PylibMC_Behavior PylibMC_behaviors[] = {
 #if LIBMEMCACHED_VERSION_HEX >= 0x01000003
     { MEMCACHED_BEHAVIOR_DEAD_TIMEOUT, "dead_timeout" },
 #endif
+    { PYLIBMC_BEHAVIOR_PICKLE_PROTOCOL, "pickle_protocol" },
     { 0, NULL }
 };
 
@@ -278,6 +286,7 @@ typedef struct {
     uint8_t sasl_set;
     uint8_t native_serialization;
     uint8_t native_deserialization;
+    int pickle_protocol;
 } PylibMC_Client;
 
 /* {{{ Prototypes */
@@ -315,9 +324,9 @@ static PyObject *PylibMC_ErrFromMemcachedWithKey(PylibMC_Client *, const char *,
         memcached_return, const char *, Py_ssize_t);
 static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *, const char *,
         memcached_return);
-static PyObject *_PylibMC_Unpickle(const char *, Py_ssize_t);
-static PyObject *_PylibMC_Unpickle_Bytes(PyObject *);
-static PyObject *_PylibMC_Pickle(PyObject *);
+static PyObject *_PylibMC_Unpickle(PylibMC_Client *, const char *, Py_ssize_t);
+static PyObject *_PylibMC_Unpickle_Bytes(PylibMC_Client *, PyObject *);
+static PyObject *_PylibMC_Pickle(PylibMC_Client *, PyObject *);
 static int _key_normalized_obj(PyObject **);
 static int _key_normalized_str(char **, Py_ssize_t *);
 static int _PylibMC_serialize_user(PylibMC_Client *, PyObject *, PyObject **, uint32_t *);
