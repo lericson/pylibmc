@@ -595,7 +595,7 @@ static PyObject *_PylibMC_parse_memcached_value(PylibMC_Client *self,
 #else
     if (flags & PYLIBMC_FLAG_ZLIB) {
         PyErr_SetString(PylibMCExc_Error,
-            "value for key compressed, unable to inflate");
+            "key is compressed but pylibmc is compiled without zlib support");
         return NULL;
     }
 #endif
