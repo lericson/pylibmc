@@ -1,6 +1,22 @@
 Change Log
 ==========
 
+New in version 1.6.0
+--------------------
+
+Though no major feature overhauls have taken place, this release is partially
+incompatible with 1.5.0. This stems from the fact that python-memcached is now
+using a flag that pylibmc has been using for some years. python-memcached uses
+it for a different purpose, and an incompatible one. We deemed that it would be
+better to support this interoperability. The change also means that Unicode
+strings are now stored as UTF-8 rather than pickled, which may or may not
+result in a slight performance improvement for this type of data.
+
+We have also introduced a `pickle_protocol` behavior to enable seamless
+interoperability between Python 2.x and 3.x. Also, this release introduces a
+ManyLinux wheel, making installation a breeze on ManyLinux systems (which I
+suppose is many linuxes.)
+
 New in version 1.5.0
 --------------------
 
