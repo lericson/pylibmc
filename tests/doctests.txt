@@ -289,16 +289,16 @@ Gets should return (None, None) for non-existing keys
 (None, None)
 
 Whoop, pickle protocol
->>> c.behaviors['pickle_protocol']
+>>> mc.behaviors['pickle_protocol']
 -1
->>> c.behaviors['pickle_protocol'] = 2
->>> c.set('foo', ('bar', 'quux'))
+>>> mc.behaviors['pickle_protocol'] = 2
+>>> mc.set('foo', ('bar', 'quux'))
 True
->>> c.behaviors['pickle_protocol'] = 1
->>> c.set('foo', ('bar', 'quuz'))
+>>> mc.behaviors['pickle_protocol'] = 1
+>>> mc.set('foo', ('bar', 'quuz'))
 True
->>> c.behaviors['pickle_protocol'] = -1
->>> c.get('foo')
+>>> mc.behaviors['pickle_protocol'] = -1
+>>> mc.get('foo')
 ('bar', 'quuz')
 
 Compression shouldn't break anything

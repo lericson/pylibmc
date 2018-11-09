@@ -2129,14 +2129,21 @@ static PyObject *PylibMC_Client_get_behaviors(PylibMC_Client *self) {
         uint64_t bval;
         PyObject *x;
 
-        bval = memcached_behavior_get(self->mc, b->flag);
+        switch (b->flag) {
+        case PYLIBMC_BEHAVIOR_PICKLE_PROTOCOL:
+            bval = self->pickle_protocol;
+            break;
+        default:
+            bval = memcached_behavior_get(self->mc, b->flag);
+        }
+
         x = PyLong_FromLong((long)bval);
         if (x == NULL || PyDict_SetItemString(retval, b->name, x) == -1) {
             Py_XDECREF(x);
             goto error;
         }
-
         Py_DECREF(x);
+
     }
 
     return retval;
