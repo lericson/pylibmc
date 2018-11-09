@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -e
+
+usage() {
+    echo "usage: $0 <command> [arguments ...]"
+    echo "runs a given command with an instance of memcached"
+    echo "specify arguments to memcached with MEMCACHED_ARGS"
+    false
+}
+
+[ "$#" -lt 1 ] && usage >&2
+
+memcached $MEMCACHED_ARGS &
+pid=$!
+cleanup() {
+    trap - EXIT
+    echo "$0: cleaning up, stopping memcached" >&2
+    kill $pid
+}
+trap cleanup EXIT
+"${@}"
+cleanup
+wait $pid

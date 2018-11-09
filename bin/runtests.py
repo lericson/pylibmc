@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!./bin/with-memcached python3
 """Run nosetests with build/lib.* in sys.path"""
 
 import sys
