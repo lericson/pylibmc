@@ -250,3 +250,18 @@ servers.
           ``auto_eject``; these still exist, but their interaction with the
           state machine is unclear, and should be avoided. ``remove_failed``
           acts as a combination of the two.
+
+Non-libmemcached Behaviors
+--------------------------
+
+It wouldn't make sense to have multiple avenues of configuration, and so
+whenever possible, pylibmc tries to co-opt the behaviors dictionary for
+configuration of strictly pylibmc-level things. These are described below.
+
+.. _pickle_protocol:
+
+``"pickle_protocol"``
+   Specifies the default pickling protocol. This is by default set to -1, which
+   means the pickle module will use the latest protocol it understands. This is
+   an issue for interoperability, and so for example to work between Python 2
+   and 3, set this explicitly to 2 or whatever you prefer.
