@@ -29,14 +29,14 @@ string containing "hello" by decoding a byte string
 'bar'
 
 We should handle empty values just nicely.
->>> c.set("foo", u"")
+>>> c.set("foo", "")
 True
 >>> c.get("foo")
 ''
 >>> c.set("foo", b"")
 True
->>> c.get("foo")
-b''
+>>> c.get("foo") == b''
+True
 
 Some sort of idempotency seems meaningful
 >>> c.set("foo", "bar")
@@ -309,7 +309,7 @@ Gets should return (None, None) for non-existing keys
 (None, None)
 
 Whoop, pickle protocol
->>> mc.behaviors['pickle_protocol']
+>>> int(mc.behaviors['pickle_protocol'])
 -1
 >>> mc.behaviors['pickle_protocol'] = 2
 >>> mc.set('foo', ('bar', 'quux'))
