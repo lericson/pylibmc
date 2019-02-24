@@ -31,5 +31,6 @@ def get_refcounts(refcountables):
     one new reference is created as the argument to sys.getrefcount).
     Therefore, try to do it in a consistent and deterministic fashion.
     """
-    gc.collect()
-    return [sys.getrefcount(val) for val in refcountables]
+    if hasattr(sys, 'getrefcount'):
+        gc.collect()
+        return [sys.getrefcount(val) for val in refcountables]

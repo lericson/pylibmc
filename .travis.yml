@@ -8,6 +8,7 @@ python:
   - 3.6
   - 3.7
   - 3.8-dev
+  - pypy3.5
 
 env:
   # Would be great to test 0.53 but there's no Ubuntu Trusty PPA that has it.
@@ -37,4 +38,4 @@ before_script:
   - sh -c "[ x$LIBMEMCACHED_VERSION = x$(python -c 'import pylibmc; print(pylibmc.libmemcached_version)') ]"
   - pip install nose
 
-script: python bin/runtests.py
+script: python bin/runtests.py -v tests --with-doctest
