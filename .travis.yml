@@ -1,3 +1,4 @@
+dist: xenial
 language: python
 
 python:
@@ -7,10 +8,12 @@ python:
   - 3.4
   - 3.5
   - 3.6
+  - 3.7
 
 env:
   # Would be great to test 0.53 but there's no Ubuntu Trusty PPA that has it.
   #- LIBMEMCACHED_VERSION='0.53'
+  - LIBMEMCACHED_VERSION='1.0.18-4'
   - LIBMEMCACHED_VERSION='1.0.18'
   - LIBMEMCACHED_VERSION='1.0.8'
 
