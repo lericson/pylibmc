@@ -2,9 +2,7 @@ dist: xenial
 language: python
 
 python:
-  - 2.6
   - 2.7
-  - 3.3
   - 3.4
   - 3.5
   - 3.6
@@ -13,9 +11,7 @@ python:
 env:
   # Would be great to test 0.53 but there's no Ubuntu Trusty PPA that has it.
   #- LIBMEMCACHED_VERSION='0.53'
-  - LIBMEMCACHED_VERSION='1.0.18-4'
   - LIBMEMCACHED_VERSION='1.0.18'
-  - LIBMEMCACHED_VERSION='1.0.8'
 
 notifications:
   irc:
@@ -25,10 +21,9 @@ notifications:
     on_failure: change
 
 before_install:
-  # Default Travis CI libmemcached is 1.0.8 (Ubuntu Trusty). Need PPAs for
+  # Default Travis CI libmemcached is 1.0.18 (Ubuntu Xenial). Need PPAs for
   # other versions.
   #- sh -c "if [ $LIBMEMCACHED_VERSION = '0.53' ] ; then sudo add-apt-repository ppa:???/libmemcached -y; fi"
-  - sh -c "if [ $LIBMEMCACHED_VERSION = '1.0.18' ] ; then sudo add-apt-repository ppa:ondrej/php -y; fi"
   - sudo apt-get update -qq
   - sudo apt-get install memcached
   - sudo service memcached start
