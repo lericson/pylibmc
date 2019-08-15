@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 from __future__ import print_function
 
 import datetime
-import sys
 
 from nose.tools import eq_, ok_
 
@@ -170,14 +169,14 @@ class RefcountTests(PylibmcTestCase):
     def test_get_invalid_key(self):
         bc = make_test_client(binary=True)
         key = object()
-        initial_refcount = sys.getrefcount(key)
+        initial_refcount = get_refcounts([key])
         raised = False
         try:
             bc.get(key)
         except TypeError:
             raised = True
         assert raised
-        eq_(sys.getrefcount(key), initial_refcount)
+        eq_(get_refcounts([key]), initial_refcount)
 
     def test_cas(self):
         k = "testkey"
