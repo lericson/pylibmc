@@ -148,6 +148,8 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
     PyObject *behaviors = NULL;
     memcached_return rc;
 
+    self->pickle_protocol = -1;
+
     static char *kws[] = { "servers", "binary", "username", "password",
                            "behaviors", NULL };
 
@@ -215,8 +217,6 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
         goto error;
     }
     self->native_deserialization = (uint8_t) native_deserialization;
-
-    self->pickle_protocol = -1;
 
     while ((c_srv = PyIter_Next(srvs_it)) != NULL) {
         unsigned char stype;
