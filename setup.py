@@ -95,9 +95,11 @@ if cmd == "gen-setup":
         s.write(line + "\n")
     sys.exit(0)
 
-with open("README.rst", "U", encoding="utf-8") as r:
+mode = "r" if sys.version_info >= (3, 3) else "U"
+
+with open("README.rst", mode, encoding="utf-8") as r:
     readme_text = r.read()
-with open("src/pylibmc-version.h", "U", encoding="utf-8") as r:
+with open("src/pylibmc-version.h", mode, encoding="utf-8") as r:
     version = r.read().strip().split("\"")[1]
 
 setup(
