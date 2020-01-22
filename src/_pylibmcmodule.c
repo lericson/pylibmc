@@ -55,7 +55,6 @@
 #define PyInt_Check PyLong_Check
 #endif
 
-#if PY_MAJOR_VERSION >= 3
 #define MOD_ERROR_VAL NULL
 #define MOD_SUCCESS_VAL(val) val
 #define MOD_INIT(name) PyMODINIT_FUNC PyInit_##name(void)
@@ -63,25 +62,6 @@
     static struct PyModuleDef moduledef = {                 \
         PyModuleDef_HEAD_INIT, name, doc, -1, methods, };   \
     ob = PyModule_Create(&moduledef);
-#else
-#define MOD_ERROR_VAL
-#define MOD_SUCCESS_VAL(val)
-#define MOD_INIT(name) void init##name(void)
-#define MOD_DEF(ob, name, doc, methods)         \
-    ob = Py_InitModule3(name, methods, doc);
-#define PyBytes_AS_STRING PyString_AS_STRING
-#define PyBytes_AsStringAndSize PyString_AsStringAndSize
-#define PyBytes_Check PyString_Check
-#define PyBytes_Concat PyString_Concat
-#define PyBytes_FromFormat PyString_FromFormat
-#define PyBytes_FromString PyString_FromString
-#define PyBytes_FromStringAndSize PyString_FromStringAndSize
-#define PyBytes_GET_SIZE PyString_GET_SIZE
-#define PyBytes_Size PyString_Size
-#define PyLong_AS_LONG PyInt_AS_LONG
-#define _PyBytes_Resize _PyString_Resize
-#define PyObject_Bytes PyObject_Str
-#endif
 
 /* Cache the values of {cP,p}ickle.{load,dump}s */
 static PyObject *_PylibMC_pickle_loads = NULL;
@@ -603,11 +583,7 @@ static PyObject *_PylibMC_parse_memcached_value(PylibMC_Client *self,
     if (self->native_deserialization) {
         retval = _PylibMC_deserialize_native(self, NULL, value, size, flags);
     } else {
-#if PY_MAJOR_VERSION >= 3
         retval = PyObject_CallMethod((PyObject *)self, "deserialize", "y#I", value, size, (unsigned int) flags);
-#else
-        retval = PyObject_CallMethod((PyObject *)self, "deserialize", "s#I", value, size, (unsigned int) flags);
-#endif
     }
 
 #if USE_ZLIB
@@ -1208,17 +1184,10 @@ static int _PylibMC_serialize_user(PylibMC_Client *self, PyObject *value_obj, Py
     if (PyTuple_Check(serval_and_flags)) {
         PyObject *flags_obj = PyTuple_GetItem(serval_and_flags, 1);
         if (flags_obj != NULL) {
-#if PY_MAJOR_VERSION >= 3
             if (PyLong_Check(flags_obj)) {
                 *flags = (uint32_t) PyLong_AsLong(flags_obj);
                 *dest = PyTuple_GetItem(serval_and_flags, 0);
             }
-#else
-            if (PyInt_Check(flags_obj)) {
-                *flags = (uint32_t) PyInt_AsLong(flags_obj);
-                *dest = PyTuple_GetItem(serval_and_flags, 0);
-            }
-#endif
         }
     }
 
@@ -1260,24 +1229,11 @@ static int _PylibMC_serialize_native(PylibMC_Client *self, PyObject *value_obj, 
     } else if (PyBool_Check(value_obj)) {
         store_flags |= PYLIBMC_FLAG_INTEGER;
         store_val = PyBytes_FromStringAndSize(&"01"[value_obj == Py_True], 1);
-#if PY_MAJOR_VERSION >= 3
     } else if (PyLong_Check(value_obj)) {
         store_flags |= PYLIBMC_FLAG_LONG;
         PyObject *tmp = PyObject_Str(value_obj);
         store_val = PyUnicode_AsEncodedString(tmp, "ascii", "strict");
         Py_DECREF(tmp);
-#else
-    } else if (PyInt_Check(value_obj)) {
-        store_flags |= PYLIBMC_FLAG_INTEGER;
-        PyObject* tmp = PyNumber_Int(value_obj);
-        store_val = PyObject_Bytes(tmp);
-        Py_DECREF(tmp);
-    } else if (PyLong_Check(value_obj)) {
-        store_flags |= PYLIBMC_FLAG_LONG;
-        PyObject* tmp = PyNumber_Long(value_obj);
-        store_val = PyObject_Bytes(tmp);
-        Py_DECREF(tmp);
-#endif
     } else if (value_obj != NULL) {
         /* we have no idea what it is, so we'll store it pickled */
         Py_INCREF(value_obj);
@@ -2494,11 +2450,7 @@ static PyObject *_PylibMC_GetPickles(const char *attname) {
 }
 
 static PyObject *_PylibMC_Unpickle(PylibMC_Client *self, const char *buff, Py_ssize_t size) {
-#if PY_MAJOR_VERSION >= 3
         return PyObject_CallFunction(_PylibMC_pickle_loads, "y#", buff, size);
-#else
-        return PyObject_CallFunction(_PylibMC_pickle_loads, "s#", buff, size);
-#endif
 }
 
 static PyObject *_PylibMC_Unpickle_Bytes(PylibMC_Client *self, PyObject *val) {

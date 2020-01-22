@@ -2,10 +2,6 @@ import os
 import sys
 from distutils.core import setup, Extension
 
-# Need an 'open' function that supports the 'encoding' argument:
-if sys.version_info[0] < 3:
-    from codecs import open
-
 ## Command-line argument parsing
 
 # --with-zlib: use zlib for compressing and decompressing
@@ -21,10 +17,12 @@ defs = []
 incdirs = []
 libdirs = []
 
+
 def append_env(L, e):
     v = os.environ.get(e)
     if v and os.path.exists(v):
         L.append(v)
+
 
 append_env(pkgdirs, "LIBMEMCACHED")
 append_env(pkgdirs, "ZLIB")

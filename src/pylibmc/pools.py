@@ -2,16 +2,12 @@
 
 from __future__ import with_statement
 from contextlib import contextmanager
+from queue import Queue
 
 try:
     import threading
 except ImportError:
     import dummy_threading as threading
-
-try:
-    from Queue import Queue
-except ImportError:
-    from queue import Queue
 
 class ClientPool(Queue):
     """Client pooling helper.

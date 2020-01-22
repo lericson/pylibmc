@@ -1,8 +1,8 @@
 import datetime
 import json
-import sys
+import pickle
 
-from nose.tools import eq_, ok_
+from nose.tools import eq_
 
 import pylibmc
 import _pylibmc
@@ -10,37 +10,20 @@ from pylibmc.test import make_test_client
 from tests import PylibmcTestCase
 from tests import get_refcounts
 
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
-
-def long_(val):
-    try:
-        return long(val)
-    except NameError:
-        # this happens under Python 3
-        return val
 
 f_none = 0
 f_pickle, f_int, f_long, f_zlib, f_text = (1 << i for i in range(5))
+
 
 class SerializationMethodTests(PylibmcTestCase):
     """Coverage tests for serialize and deserialize."""
 
     def test_integers(self):
         c = make_test_client(binary=True)
-        if sys.version_info[0] == 3:
-            eq_(c.serialize(1), (b'1', f_long))
-            eq_(c.serialize(2**64), (b'18446744073709551616', f_long))
-        else:
-            eq_(c.serialize(1), (b'1', f_int))
-            eq_(c.serialize(2**64), (b'18446744073709551616', f_long))
-
-            eq_(c.deserialize(b'1', f_int), 1)
-
+        eq_(c.serialize(1), (b'1', f_long))
+        eq_(c.serialize(2**64), (b'18446744073709551616', f_long))
         eq_(c.deserialize(b'18446744073709551616', f_long), 2**64)
-        eq_(c.deserialize(b'1', f_long), long_(1))
+        eq_(c.deserialize(b'1', f_long), 1)
 
     def test_nonintegers(self):
         # tuples (python_value, (expected_bytestring, expected_flags))
@@ -139,7 +122,7 @@ class SerializationTests(PylibmcTestCase):
             def deserialize(self, bytes_, flags):
                 return SENTINEL
 
-        refcountables = [1, long_(1), SENTINEL, DUMMY, KEY, VALUE]
+        refcountables = [1, SENTINEL, DUMMY, KEY, VALUE]
         c = make_test_client(MyClient)
         initial_refcounts = get_refcounts(refcountables)
 
