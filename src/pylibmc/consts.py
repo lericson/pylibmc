@@ -30,13 +30,13 @@ for name in dir(_pylibmc):
 
 class BehaviorDict(dict):
     def __init__(self, client, *args, **kwds):
-        super(BehaviorDict, self).__init__(*args, **kwds)
+        super().__init__(*args, **kwds)
         self.client = client
 
     def __setitem__(self, name, value):
-        super(BehaviorDict, self).__setitem__(name, value)
+        super().__setitem__(name, value)
         self.client.set_behaviors({name: value})
 
     def update(self, d):
-        super(BehaviorDict, self).update(d)
+        super().update(d)
         self.client.set_behaviors(d.copy())

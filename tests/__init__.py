@@ -1,5 +1,4 @@
 """Tests. They want YOU!!"""
-from __future__ import print_function
 
 import gc
 import sys

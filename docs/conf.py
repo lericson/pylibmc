@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # pylibmc documentation build configuration file, created by
 # sphinx-quickstart on Mon Jun 13 13:53:22 2011.
@@ -18,9 +17,9 @@ pylibmc_dir = os.environ.get("PYLIBMC_DIR")
 if not pylibmc_dir:
     raise RuntimeError("please set PYLIBMC_DIR")
 elif not os.path.exists(pylibmc_dir):
-    raise RuntimeError("PYLIBMC_DIR %r does not exist" % (pylibmc_dir,))
+    raise RuntimeError("PYLIBMC_DIR {!r} does not exist".format(pylibmc_dir))
 elif not os.path.isdir(pylibmc_dir):
-    raise RuntimeError("PYLIBMC_DIR %r is not a directory" % (pylibmc_dir,))
+    raise RuntimeError("PYLIBMC_DIR {!r} is not a directory".format(pylibmc_dir))
 else:
     sys.path.insert(0, pylibmc_dir)
 
@@ -54,7 +53,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'pylibmc'
-copyright = u'2018, Ludvig Ericson'
+copyright = '2018, Ludvig Ericson'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -194,8 +193,8 @@ htmlhelp_basename = 'pylibmcdoc'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'pylibmc.tex', u'pylibmc Documentation',
-   u'Ludvig Ericson', 'manual'),
+  ('index', 'pylibmc.tex', 'pylibmc Documentation',
+   'Ludvig Ericson', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -227,6 +226,6 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'pylibmc', u'pylibmc Documentation',
-     [u'Ludvig Ericson'], 1)
+    ('index', 'pylibmc', 'pylibmc Documentation',
+     ['Ludvig Ericson'], 1)
 ]

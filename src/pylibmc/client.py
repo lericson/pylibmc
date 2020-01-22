@@ -111,7 +111,7 @@ def _behaviors_numeric(behaviors):
     unknown = set(behaviors).difference(_all_behaviors_set)
     if unknown:
         names = ", ".join(map(str, sorted(unknown)))
-        raise ValueError("unknown behavior names: %s" % (names,))
+        raise ValueError("unknown behavior names: {}".format(names))
 
     if behaviors.get("hash") is not None:
         behaviors["hash"] = hashers[behaviors["hash"]]
@@ -139,18 +139,18 @@ class Client(_pylibmc.client):
         """
         self.binary = binary
         self.addresses = list(servers)
-        super(Client, self).__init__(servers=translate_server_specs(servers),
+        super().__init__(servers=translate_server_specs(servers),
                                      binary=binary,
                                      username=username, password=password,
                                      behaviors=_behaviors_numeric(behaviors))
 
     def __repr__(self):
-        return "%s(%r, binary=%r)" % (self.__class__.__name__,
+        return "{}({!r}, binary={!r})".format(self.__class__.__name__,
                                       self.addresses, self.binary)
 
     def __str__(self):
         addrs = ", ".join(map(str, self.addresses))
-        return "<%s for %s, binary=%r>" % (self.__class__.__name__,
+        return "<{} for {}, binary={!r}>".format(self.__class__.__name__,
                                            addrs, self.binary)
 
     # {{{ Mapping interface
@@ -163,7 +163,7 @@ class Client(_pylibmc.client):
 
     def __setitem__(self, key, value):
         if not self.set(key, value):
-            raise KeyError("failed setting %r" % (key,))
+            raise KeyError("failed setting {!r}".format(key))
 
     def __delitem__(self, key):
         if not self.delete(key):
@@ -180,7 +180,7 @@ class Client(_pylibmc.client):
         Reverses the integer constants for `hash` and `distribution` into more
         understandable string values. See *set_behaviors* for info.
         """
-        return BehaviorDict(self, _behaviors_symbolic(super(Client, self).get_behaviors()))
+        return BehaviorDict(self, _behaviors_symbolic(super().get_behaviors()))
 
     def set_behaviors(self, behaviors):
         """Sets the behaviors on the underlying C client instance.
@@ -194,7 +194,7 @@ class Client(_pylibmc.client):
 
         Translates old underscored behavior names to new ones for API leniency.
         """
-        return super(Client, self).set_behaviors(_behaviors_numeric(behaviors))
+        return super().set_behaviors(_behaviors_numeric(behaviors))
 
     behaviors = property(get_behaviors, set_behaviors)
     @property
@@ -203,7 +203,7 @@ class Client(_pylibmc.client):
     # }}}
 
     def clone(self):
-        obj = super(Client, self).clone()
+        obj = super().clone()
         obj.addresses = list(self.addresses)
         obj.binary = self.binary
         return obj

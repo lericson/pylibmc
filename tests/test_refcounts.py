@@ -1,6 +1,3 @@
-from __future__ import unicode_literals
-from __future__ import print_function
-
 import datetime
 
 from nose.tools import eq_, ok_
@@ -80,7 +77,7 @@ class RefcountTests(PylibmcTestCase):
         bc = make_test_client(binary=True)
         keys = ["third", b"fourth"]
         value = "another_value"
-        kv = dict((k, value) for k in keys)
+        kv = {k: value for k in keys}
         refcountables = [keys] + [value]
         initial_refcounts = get_refcounts(refcountables)
         bc.set_multi(kv)

@@ -83,7 +83,7 @@ class ThreadMappedPool(dict):
     """
 
     def __new__(cls, master):
-        return super(ThreadMappedPool, cls).__new__(cls)
+        return super().__new__(cls)
 
     def __init__(self, master):
         self.master = master

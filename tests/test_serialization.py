@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-
-from __future__ import unicode_literals
-from __future__ import print_function
-
 import datetime
 import json
 import sys
@@ -58,8 +53,8 @@ class SerializationMethodTests(PylibmcTestCase):
             (b'\xb5\xb1\xbf\xed\xa9\xc2{8', (b'\xb5\xb1\xbf\xed\xa9\xc2{8', f_none)),
             (b'', (b'', f_none)),
             # unicode objects
-            (u'åäö', (u'åäö'.encode('utf-8'), f_text)),
-            (u'', (b'', f_text)),
+            ('åäö', ('åäö'.encode(), f_text)),
+            ('', (b'', f_text)),
             # objects
             (datetime.date(2015, 12, 28), (pickle.dumps(datetime.date(2015, 12, 28),
                                                         protocol=-1), f_pickle)),
@@ -80,13 +75,13 @@ class SerializationTests(PylibmcTestCase):
 
             def deserialize(self, bytes_, flags):
                 try:
-                    return super(MyClient, self).deserialize(bytes_, flags)
+                    return super().deserialize(bytes_, flags)
                 except Exception as error:
                     self.ignored.append(error)
                     raise pylibmc.CacheMiss
 
         global MyObject # Needed by the pickling system.
-        class MyObject(object):
+        class MyObject:
             def __getstate__(self):
                 return dict(a=1)
             def __eq__(self, other):
