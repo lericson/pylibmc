@@ -1698,8 +1698,8 @@ memcached_return pylibmc_memcached_fetch_multi(memcached_st *mc, pylibmc_mget_re
      * non-MEMCACHED_SUCCESS and *err_func* will point to a useful error
      * function name.
      *
-     * FIXME *results* is expected to be able to hold one more result than
-     * there are keys asked for, because of an implementation detail.
+     * *results* is expected to be able to hold one more result than there are
+     * keys asked for, because of an implementation detail.
      */
 
     memcached_return rc;
@@ -1711,10 +1711,6 @@ memcached_return pylibmc_memcached_fetch_multi(memcached_st *mc, pylibmc_mget_re
         *req.err_func = "memcached_mget";
         return rc;
     }
-
-    /* Allocate as much as could possibly be needed, and an extra because of
-     * how libmemcached signals EOF. */
-    *req.results = PyMem_New(memcached_result_st, req.nkeys + 1);
 
     /* Note that nresults will not be off by one with this because the loops
      * runs a half pass after the last key has been fetched, thus bumping the
@@ -1741,11 +1737,7 @@ memcached_return pylibmc_memcached_fetch_multi(memcached_st *mc, pylibmc_mget_re
             do {
                 memcached_result_free(*req.results + *req.nresults);
             } while ((*req.nresults)--);
-
-            PyMem_Free(*req.results);
-            *req.results = NULL;
             *req.nresults = 0;
-
             return rc;
         }
     }
@@ -1861,7 +1853,6 @@ static PyObject *PylibMC_Client_get_multi(
      * the data at once isn't needed. (Should probably look into if it's even
      * worth it.)
      */
-    Py_BEGIN_ALLOW_THREADS;
 
     req.keys = keys;
     req.nkeys = (ssize_t) nkeys;
@@ -1869,8 +1860,10 @@ static PyObject *PylibMC_Client_get_multi(
     req.results = &results;
     req.nresults = &nresults;
     req.err_func = &err_func;
-    rc = pylibmc_memcached_fetch_multi(self->mc, req);
+    req.results = PyMem_New(memcached_result_st, req.nkeys + 1);
 
+    Py_BEGIN_ALLOW_THREADS;
+    rc = pylibmc_memcached_fetch_multi(self->mc, req);
     Py_END_ALLOW_THREADS;
 
     if (rc != MEMCACHED_SUCCESS) {
@@ -1933,6 +1926,7 @@ earlybird:
     _PylibMC_cleanup_str_key_mapping(key_str_map);
 
 memory_cleanup:
+    PyMem_Free(req.results);
     PyMem_Free(key_lens);
     PyMem_Free(keys);
     PyMem_Free(key_objs);
