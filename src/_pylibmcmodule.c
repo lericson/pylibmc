@@ -537,9 +537,6 @@ cleanup:
     return NULL;
 }
 
-static void _PylibMC_cleanup_str_key_mapping(PyObject *key_str_map) {
-    Py_XDECREF(key_str_map);
-}
 /* }}} */
 
 static PyObject *_PylibMC_parse_memcached_value(PylibMC_Client *self,
@@ -1032,7 +1029,7 @@ cleanup:
         PyMem_Free(serialized);
     }
     Py_XDECREF(key_prefix);
-    _PylibMC_cleanup_str_key_mapping(key_str_map);
+    Py_XDECREF(key_str_map);
 
     return failed;
 }
@@ -1687,88 +1684,69 @@ static bool _PylibMC_IncrDecr(PylibMC_Client *self,
 }
 /* }}} */
 
-memcached_return pylibmc_memcached_fetch_multi(memcached_st *mc, pylibmc_mget_req req) {
-    /**
-     * Completely GIL-free multi getter
-     *
-     * Takes a set of keys given by *keys*, and stuffs the results into heap
-     * memory returned by *results*.
-     *
-     * If an error occured during retrieval, this function returns
-     * non-MEMCACHED_SUCCESS and *err_func* will point to a useful error
-     * function name.
-     *
-     * FIXME *results* is expected to be able to hold one more result than
-     * there are keys asked for, because of an implementation detail.
-     */
+static pylibmc_mget_res _fetch_multi(memcached_st *mc,
+                                     pylibmc_mget_req req) {
+    /* Completely GIL-free multi getter */
+    pylibmc_mget_res res = { 0 };
 
-    memcached_return rc;
-    *req.err_func = NULL;
+    res.rc = memcached_mget(mc, (const char **)req.keys, req.key_lens, req.nkeys);
 
-    rc = memcached_mget(mc, (const char **)req.keys, req.key_lens, req.nkeys);
-
-    if (rc != MEMCACHED_SUCCESS) {
-        *req.err_func = "memcached_mget";
-        return rc;
+    if (res.rc != MEMCACHED_SUCCESS) {
+        res.err_func = "memcached_mget";
+        return res;
     }
 
-    /* Allocate as much as could possibly be needed, and an extra because of
-     * how libmemcached signals EOF. */
-    *req.results = PyMem_New(memcached_result_st, req.nkeys + 1);
+    /* Allocate the results array, with room for libmemcached's sentinel. */
+    res.results = PyMem_RawNew(memcached_result_st, req.nkeys + 1);
 
     /* Note that nresults will not be off by one with this because the loops
      * runs a half pass after the last key has been fetched, thus bumping the
      * count once. */
-    for (*req.nresults = 0; ; (*req.nresults)++) {
-        memcached_result_st *res = memcached_result_create(mc, *req.results + *req.nresults);
+    for (res.nresults = 0; ; res.nresults++) {
+        memcached_result_st *result = memcached_result_create(mc, &res.results[res.nresults]);
 
-        /* if loop spins out of control, this fails */
-        assert(req.nkeys >= (*req.nresults));
+        assert(res.nresults <= req.nkeys);
 
-        res = memcached_fetch_result(mc, res, &rc);
+        result = memcached_fetch_result(mc, result, &res.rc);
 
-        if (res == NULL || rc == MEMCACHED_END) {
+        if (result == NULL || res.rc == MEMCACHED_END) {
             /* This is how libmecached signals EOF. */
             break;
-        } else if (rc == MEMCACHED_BAD_KEY_PROVIDED
-                || rc == MEMCACHED_NO_KEY_PROVIDED) {
+        } else if (res.rc == MEMCACHED_BAD_KEY_PROVIDED
+                || res.rc == MEMCACHED_NO_KEY_PROVIDED) {
             continue;
-        } else if (rc != MEMCACHED_SUCCESS) {
+        } else if (res.rc != MEMCACHED_SUCCESS) {
             memcached_quit(mc);  /* Reset fetch state */
-            *req.err_func = "memcached_fetch";
-
-            /* Clean-up procedure */
-            do {
-                memcached_result_free(*req.results + *req.nresults);
-            } while ((*req.nresults)--);
-
-            PyMem_Free(*req.results);
-            *req.results = NULL;
-            *req.nresults = 0;
-
-            return rc;
+            res.err_func = "memcached_fetch";
+            _free_multi_result(res);
         }
     }
 
-    return MEMCACHED_SUCCESS;
+    res.rc = MEMCACHED_SUCCESS;
+    return res;
 }
 
+static void _free_multi_result(pylibmc_mget_res res) {
+    if (res.results == NULL)
+        return;
+    for (Py_ssize_t i = 0; i < res.nresults; i++) {
+        memcached_result_free(&res.results[i]);
+    }
+    PyMem_RawDel(res.results);
+}
 
 static PyObject *PylibMC_Client_get_multi(
         PylibMC_Client *self, PyObject *args, PyObject *kwds) {
     PyObject *key_seq, **key_objs, **orig_key_objs, *retval = NULL;
     char **keys, *prefix = NULL;
-    char *err_func = NULL;
-    memcached_result_st *res, *results = NULL;
     Py_ssize_t prefix_len = 0;
     Py_ssize_t i;
     PyObject *key_str_map = NULL;
     PyObject *temp_key_obj;
     size_t *key_lens;
     Py_ssize_t nkeys = 0, orig_nkeys = 0;
-    Py_ssize_t nresults = 0;
-    memcached_return rc;
     pylibmc_mget_req req;
+    pylibmc_mget_res res = { 0 };
 
     static char *kws[] = { "keys", "key_prefix", NULL };
 
@@ -1812,7 +1790,7 @@ static PyObject *PylibMC_Client_get_multi(
             goto earlybird;
         }
 
-        /* normalization created an owned reference to ckey */
+        /* Normalization created an owned reference to ckey */
 
         PyBytes_AsStringAndSize(ckey, &key, &key_len);
 
@@ -1824,7 +1802,7 @@ static PyObject *PylibMC_Client_get_multi(
             continue;
         }
 
-        /* determine rkey, the prefixed ckey */
+        /* Determine rkey, the prefixed ckey */
         if (prefix != NULL) {
             rkey = PyBytes_FromStringAndSize(prefix, prefix_len);
             PyBytes_Concat(&rkey, ckey);
@@ -1855,40 +1833,29 @@ static PyObject *PylibMC_Client_get_multi(
         goto earlybird;
     }
 
-    /* TODO Make an iterator interface for getting each key separately.
-     *
-     * This would help large retrievals, as a single dictionary containing all
-     * the data at once isn't needed. (Should probably look into if it's even
-     * worth it.)
-     */
-    Py_BEGIN_ALLOW_THREADS;
-
     req.keys = keys;
     req.nkeys = (ssize_t) nkeys;
     req.key_lens = key_lens;
-    req.results = &results;
-    req.nresults = &nresults;
-    req.err_func = &err_func;
-    rc = pylibmc_memcached_fetch_multi(self->mc, req);
 
+    Py_BEGIN_ALLOW_THREADS;
+    res = _fetch_multi(self->mc, req);
     Py_END_ALLOW_THREADS;
 
-    if (rc != MEMCACHED_SUCCESS) {
-        PylibMC_ErrFromMemcached(self, err_func, rc);
+    if (res.rc != MEMCACHED_SUCCESS) {
+        PylibMC_ErrFromMemcached(self, res.err_func, res.rc);
         goto earlybird;
     }
 
     retval = PyDict_New();
 
-    for (i = 0; i < nresults; i++) {
+    for (i = 0; i < res.nresults; i++) {
         PyObject *val, *key_obj;
+        memcached_result_st *result = &(res.results[i]);
         int rc;
 
-        res = results + i;
-
         /* Long-winded, but this way we can handle NUL-bytes in keys. */
-        key_obj = PyBytes_FromStringAndSize(memcached_result_key_value(res) + prefix_len,
-                                             memcached_result_key_length(res) - prefix_len);
+        key_obj = PyBytes_FromStringAndSize(memcached_result_key_value(result) + prefix_len,
+                                             memcached_result_key_length(result) - prefix_len);
         if (key_obj == NULL)
             goto loopcleanup;
 
@@ -1901,7 +1868,7 @@ static PyObject *PylibMC_Client_get_multi(
         }
 
         /* Parse out value */
-        val = _PylibMC_parse_memcached_result(self, res);
+        val = _PylibMC_parse_memcached_result(self, result);
         if (_PylibMC_cache_miss_simulated(val)) {
             Py_DECREF(key_obj);
             continue;
@@ -1930,23 +1897,15 @@ earlybird:
         Py_DECREF(orig_key_objs[i]);
     for (i = 0; i < nkeys; i++)
         Py_DECREF(key_objs[i]);
-    _PylibMC_cleanup_str_key_mapping(key_str_map);
+    Py_XDECREF(key_str_map);
 
 memory_cleanup:
+    PyMem_Free(key_objs);
     PyMem_Free(key_lens);
     PyMem_Free(keys);
-    PyMem_Free(key_objs);
     PyMem_Free(orig_key_objs);
+    _free_multi_result(res);
 
-    if (results != NULL) {
-        for (i = 0; i < nresults && results != NULL; i++) {
-            memcached_result_free(results + i);
-        }
-        PyMem_Free(results);
-    }
-
-    /* Not INCREFing because the only two outcomes are NULL and a new dict.
-     * We're the owner of that dict already, so. */
     return retval;
 }
 
