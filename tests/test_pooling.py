@@ -4,7 +4,6 @@ except ImportError:
     import Queue as queue
 
 import pylibmc
-from nose.tools import eq_, ok_
 from tests import PylibmcTestCase
 
 class PoolTestCase(PylibmcTestCase):
@@ -15,9 +14,9 @@ class ClientPoolTests(PoolTestCase):
         a_str = "a"
         p = pylibmc.ClientPool(self.mc, 2)
         with p.reserve() as smc:
-            ok_(smc)
-            ok_(smc.set(a_str, 1))
-            eq_(smc[a_str], 1)
+            self.assertTrue(smc)
+            self.assertTrue(smc.set(a_str, 1))
+            self.assertEqual(smc[a_str], 1)
 
     def test_exhaust(self):
         p = pylibmc.ClientPool(self.mc, 2)
@@ -30,6 +29,6 @@ class ThreadMappedPoolTests(PoolTestCase):
         a_str = "a"
         p = pylibmc.ThreadMappedPool(self.mc)
         with p.reserve() as smc:
-            ok_(smc)
-            ok_(smc.set(a_str, 1))
-            eq_(smc[a_str], 1)
+            self.assertTrue(smc)
+            self.assertTrue(smc.set(a_str, 1))
+            self.assertEqual(smc[a_str], 1)

@@ -7,8 +7,6 @@ import datetime
 import json
 import sys
 
-from nose.tools import eq_, ok_
-
 import pylibmc
 import _pylibmc
 from pylibmc.test import make_test_client
@@ -36,16 +34,16 @@ class SerializationMethodTests(PylibmcTestCase):
     def test_integers(self):
         c = make_test_client(binary=True)
         if sys.version_info[0] == 3:
-            eq_(c.serialize(1), (b'1', f_long))
-            eq_(c.serialize(2**64), (b'18446744073709551616', f_long))
+            self.assertEqual(c.serialize(1), (b'1', f_long))
+            self.assertEqual(c.serialize(2**64), (b'18446744073709551616', f_long))
         else:
-            eq_(c.serialize(1), (b'1', f_int))
-            eq_(c.serialize(2**64), (b'18446744073709551616', f_long))
+            self.assertEqual(c.serialize(1), (b'1', f_int))
+            self.assertEqual(c.serialize(2**64), (b'18446744073709551616', f_long))
 
-            eq_(c.deserialize(b'1', f_int), 1)
+            self.assertEqual(c.deserialize(b'1', f_int), 1)
 
-        eq_(c.deserialize(b'18446744073709551616', f_long), 2**64)
-        eq_(c.deserialize(b'1', f_long), long_(1))
+        self.assertEqual(c.deserialize(b'18446744073709551616', f_long), 2**64)
+        self.assertEqual(c.deserialize(b'1', f_long), long_(1))
 
     def test_nonintegers(self):
         # tuples (python_value, (expected_bytestring, expected_flags))
@@ -67,8 +65,8 @@ class SerializationMethodTests(PylibmcTestCase):
 
         c = make_test_client(binary=True)
         for value, serialized_value in SERIALIZATION_TEST_VALUES:
-            eq_(c.serialize(value), serialized_value)
-            eq_(c.deserialize(*serialized_value), value)
+            self.assertEqual(c.serialize(value), serialized_value)
+            self.assertEqual(c.deserialize(*serialized_value), value)
 
 
 class SerializationTests(PylibmcTestCase):
@@ -95,7 +93,7 @@ class SerializationTests(PylibmcTestCase):
                 assert d['a'] == 1
 
         c = make_test_client(MyClient, behaviors={'cas': True})
-        eq_(c.get('notathing'), None)
+        self.assertEqual(c.get('notathing'), None)
 
         refcountables = ['foo', 'myobj', 'noneobj', 'myobj2', 'cachemiss']
         initial_refcounts = get_refcounts(refcountables)
@@ -106,27 +104,27 @@ class SerializationTests(PylibmcTestCase):
         c['myobj2'] = MyObject()
 
         # Show that everything is initially regular.
-        eq_(c.get('myobj'), MyObject())
-        eq_(get_refcounts(refcountables), initial_refcounts)
-        eq_(c.get_multi(['foo', 'myobj', 'noneobj', 'cachemiss']),
+        self.assertEqual(c.get('myobj'), MyObject())
+        self.assertEqual(get_refcounts(refcountables), initial_refcounts)
+        self.assertEqual(c.get_multi(['foo', 'myobj', 'noneobj', 'cachemiss']),
                 dict(foo='foo', myobj=MyObject(), noneobj=None))
-        eq_(get_refcounts(refcountables), initial_refcounts)
-        eq_(c.gets('myobj2')[0], MyObject())
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        self.assertEqual(get_refcounts(refcountables), initial_refcounts)
+        self.assertEqual(c.gets('myobj2')[0], MyObject())
+        self.assertEqual(get_refcounts(refcountables), initial_refcounts)
 
         # Show that the subclass can transform unpickling issues into a cache miss.
         del MyObject # Break unpickling
 
-        eq_(c.get('myobj'), None)
-        eq_(get_refcounts(refcountables), initial_refcounts)
-        eq_(c.get_multi(['foo', 'myobj', 'noneobj', 'cachemiss']),
+        self.assertEqual(c.get('myobj'), None)
+        self.assertEqual(get_refcounts(refcountables), initial_refcounts)
+        self.assertEqual(c.get_multi(['foo', 'myobj', 'noneobj', 'cachemiss']),
                 dict(foo='foo', noneobj=None))
-        eq_(get_refcounts(refcountables), initial_refcounts)
-        eq_(c.gets('myobj2'), (None, None))
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        self.assertEqual(get_refcounts(refcountables), initial_refcounts)
+        self.assertEqual(c.gets('myobj2'), (None, None))
+        self.assertEqual(get_refcounts(refcountables), initial_refcounts)
 
         # The ignored errors are "AttributeError: test.test_client has no MyObject"
-        eq_(len(MyClient.ignored), 3)
+        self.assertEqual(len(MyClient.ignored), 3)
         assert all(isinstance(error, AttributeError) for error in MyClient.ignored)
 
     def test_refcounts(self):
@@ -149,13 +147,13 @@ class SerializationTests(PylibmcTestCase):
         initial_refcounts = get_refcounts(refcountables)
 
         c.set(KEY, VALUE)
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        self.assertEqual(get_refcounts(refcountables), initial_refcounts)
         assert c.get(KEY) is SENTINEL
-        eq_(get_refcounts(refcountables), initial_refcounts)
-        eq_(c.get_multi([KEY]), {KEY: SENTINEL})
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        self.assertEqual(get_refcounts(refcountables), initial_refcounts)
+        self.assertEqual(c.get_multi([KEY]), {KEY: SENTINEL})
+        self.assertEqual(get_refcounts(refcountables), initial_refcounts)
         c.set_multi({KEY: True})
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        self.assertEqual(get_refcounts(refcountables), initial_refcounts)
 
     def test_override_serialize(self):
         class MyClient(pylibmc.Client):
@@ -169,7 +167,7 @@ class SerializationTests(PylibmcTestCase):
         c = make_test_client(MyClient)
         c['foo'] = (1, 2, 3, 4)
         # json turns tuples into lists:
-        eq_(c['foo'], [1, 2, 3, 4])
+        self.assertEqual(c['foo'], [1, 2, 3, 4])
 
         raised = False
         try:
@@ -206,7 +204,7 @@ class SerializationTests(PylibmcTestCase):
         c = make_test_client(MyClient)
         initial_refcounts = get_refcounts(refcountables)
         self._assert_set_raises(c, KEY, VALUE)
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        self.assertEqual(get_refcounts(refcountables), initial_refcounts)
 
     def test_invalid_flags_returned_2(self):
         DUMMY = "ab"
@@ -222,11 +220,11 @@ class SerializationTests(PylibmcTestCase):
         initial_refcounts = get_refcounts(refcountables)
 
         self._assert_set_raises(c, KEY, VALUE)
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        self.assertEqual(get_refcounts(refcountables), initial_refcounts)
 
         try:
             c.set_multi({KEY: DUMMY})
         except ValueError:
             raised = True
         assert raised
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        self.assertEqual(get_refcounts(refcountables), initial_refcounts)

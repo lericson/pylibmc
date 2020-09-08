@@ -4,7 +4,6 @@
 # These are ported from cmemcached to ensure compatibility.
 
 import pylibmc
-from nose.tools import eq_
 from tests import PylibmcTestCase
 
 a           = "a"
@@ -20,9 +19,9 @@ hello_world = "hello world"
 class TestCmemcached(PylibmcTestCase):
     def testSetAndGet(self):
         self.mc.set(num12345, 12345)
-        eq_(self.mc.get(num12345), 12345)
+        self.assertEqual(self.mc.get(num12345), 12345)
         self.mc.set(str12345, n12345)
-        eq_(self.mc.get(str12345), n12345)
+        self.assertEqual(self.mc.get(str12345), n12345)
 
     def testDelete(self):
         self.mc.set(str12345, n12345)
@@ -42,7 +41,7 @@ class TestCmemcached(PylibmcTestCase):
         self.mc.set("b", "valueB")
         self.mc.set("c", "valueC")
         result = self.mc.get_multi(["a", "b", "c", "", "hello world"])
-        eq_(result, {'a': 'valueA', 'b': 'valueB', 'c': 'valueC'})
+        self.assertEqual(result, {'a': 'valueA', 'b': 'valueB', 'c': 'valueC'})
 
     def testBigGetMulti(self):
         count = 10 ** 4
@@ -56,7 +55,7 @@ class TestCmemcached(PylibmcTestCase):
             d[key] = value
             self.mc.set(key, value)
         result = self.mc.get_multi(keys)
-        eq_(result, d)
+        self.assertEqual(result, d)
 
     def testFunnyDelete(self):
         s = ""
@@ -66,10 +65,10 @@ class TestCmemcached(PylibmcTestCase):
         self.mc.delete(a)
         self.mc.set(a, I_)
         assert self.mc.append(a, Do)
-        eq_(self.mc.get(a), I_Do)
+        self.assertEqual(self.mc.get(a), I_Do)
 
     def testPrepend(self):
         self.mc.delete(a)
         self.mc.set(a, Do)
         assert self.mc.prepend(a, I_)
-        eq_(self.mc.get(a), I_Do)
+        self.assertEqual(self.mc.get(a), I_Do)
