@@ -21,4 +21,5 @@ cleanup() {
 trap cleanup EXIT
 "${@}"
 cleanup
+trap - EXIT
 wait $pid

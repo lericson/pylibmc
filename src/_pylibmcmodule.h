@@ -52,6 +52,16 @@
 typedef ssize_t Py_ssize_t;
 #endif
 
+/* Python 3.4 and up use PyMem_New/PyMem_Del to refer to the Python memory
+ * allocator which requires the GIL. These are our GIL free alternatives. */
+#if PY_VERSION_HEX >= 0x03040000
+#  define PyMem_RawNew(type, nelem) ((type *)PyMem_RawMalloc((nelem)*sizeof(type)))
+#  define PyMem_RawDel(ptr) PyMem_RawFree(ptr)
+#else
+#  define PyMem_RawNew PyMem_New
+#  define PyMem_RawDel(ptr) PyMem_Del
+#endif
+
 /* Server types. */
 #define PYLIBMC_SERVER_TCP   (1 << 0)
 #define PYLIBMC_SERVER_UDP   (1 << 1)
@@ -89,8 +99,6 @@ typedef memcached_return (*_PylibMC_SetCommand)(memcached_st *, const char *,
 typedef memcached_return (*_PylibMC_IncrCommand)(memcached_st *,
         const char *, size_t, unsigned int, uint64_t*);
 
-static PyObject *_exc_by_rc(memcached_return);
-
 typedef struct {
   char *key;
   Py_ssize_t key_len;
@@ -113,11 +121,14 @@ typedef struct {
   char **keys;
   Py_ssize_t nkeys;
   size_t *key_lens;
-  memcached_result_st **results;
-  Py_ssize_t *nresults;
-  char **err_func;
-  PyObject *transform;
 } pylibmc_mget_req;
+
+typedef struct {
+  memcached_return rc;
+  char *err_func;
+  memcached_result_st *results;
+  Py_ssize_t nresults;
+} pylibmc_mget_res;
 
 typedef struct {
   char* key;
@@ -134,6 +145,10 @@ typedef struct {
   memcached_stat_st *stats;
   int index;
 } _PylibMC_StatsContext;
+
+static PyObject *_exc_by_rc(memcached_return);
+static void _free_multi_result(pylibmc_mget_res);
+static pylibmc_mget_res _fetch_multi(memcached_st *, pylibmc_mget_req);
 
 /* {{{ Exceptions */
 static PyObject *PylibMCExc_Error;
