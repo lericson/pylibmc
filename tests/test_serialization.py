@@ -1,13 +1,8 @@
-# -*- coding: utf-8 -*-
-
-from __future__ import unicode_literals
-from __future__ import print_function
-
 import datetime
 import json
-import sys
+import pickle
 
-from nose.tools import eq_, ok_
+from nose.tools import eq_
 
 import pylibmc
 import _pylibmc
@@ -15,37 +10,20 @@ from pylibmc.test import make_test_client
 from tests import PylibmcTestCase
 from tests import get_refcounts
 
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
-
-def long_(val):
-    try:
-        return long(val)
-    except NameError:
-        # this happens under Python 3
-        return val
 
 f_none = 0
 f_pickle, f_int, f_long, f_zlib, f_text = (1 << i for i in range(5))
+
 
 class SerializationMethodTests(PylibmcTestCase):
     """Coverage tests for serialize and deserialize."""
 
     def test_integers(self):
         c = make_test_client(binary=True)
-        if sys.version_info[0] == 3:
-            eq_(c.serialize(1), (b'1', f_long))
-            eq_(c.serialize(2**64), (b'18446744073709551616', f_long))
-        else:
-            eq_(c.serialize(1), (b'1', f_int))
-            eq_(c.serialize(2**64), (b'18446744073709551616', f_long))
-
-            eq_(c.deserialize(b'1', f_int), 1)
-
+        eq_(c.serialize(1), (b'1', f_long))
+        eq_(c.serialize(2**64), (b'18446744073709551616', f_long))
         eq_(c.deserialize(b'18446744073709551616', f_long), 2**64)
-        eq_(c.deserialize(b'1', f_long), long_(1))
+        eq_(c.deserialize(b'1', f_long), 1)
 
     def test_nonintegers(self):
         # tuples (python_value, (expected_bytestring, expected_flags))
@@ -58,8 +36,8 @@ class SerializationMethodTests(PylibmcTestCase):
             (b'\xb5\xb1\xbf\xed\xa9\xc2{8', (b'\xb5\xb1\xbf\xed\xa9\xc2{8', f_none)),
             (b'', (b'', f_none)),
             # unicode objects
-            (u'åäö', (u'åäö'.encode('utf-8'), f_text)),
-            (u'', (b'', f_text)),
+            ('åäö', ('åäö'.encode(), f_text)),
+            ('', (b'', f_text)),
             # objects
             (datetime.date(2015, 12, 28), (pickle.dumps(datetime.date(2015, 12, 28),
                                                         protocol=-1), f_pickle)),
@@ -80,13 +58,13 @@ class SerializationTests(PylibmcTestCase):
 
             def deserialize(self, bytes_, flags):
                 try:
-                    return super(MyClient, self).deserialize(bytes_, flags)
+                    return super().deserialize(bytes_, flags)
                 except Exception as error:
                     self.ignored.append(error)
                     raise pylibmc.CacheMiss
 
         global MyObject # Needed by the pickling system.
-        class MyObject(object):
+        class MyObject:
             def __getstate__(self):
                 return dict(a=1)
             def __eq__(self, other):
@@ -144,7 +122,7 @@ class SerializationTests(PylibmcTestCase):
             def deserialize(self, bytes_, flags):
                 return SENTINEL
 
-        refcountables = [1, long_(1), SENTINEL, DUMMY, KEY, VALUE]
+        refcountables = [1, SENTINEL, DUMMY, KEY, VALUE]
         c = make_test_client(MyClient)
         initial_refcounts = get_refcounts(refcountables)
 

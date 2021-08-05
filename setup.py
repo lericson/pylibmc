@@ -1,11 +1,6 @@
-from __future__ import print_function
 import os
 import sys
 from distutils.core import setup, Extension
-
-# Need an 'open' function that supports the 'encoding' argument:
-if sys.version_info[0] < 3:
-    from codecs import open
 
 ## Command-line argument parsing
 
@@ -22,10 +17,12 @@ defs = []
 incdirs = []
 libdirs = []
 
+
 def append_env(L, e):
     v = os.environ.get(e)
     if v and os.path.exists(v):
         L.append(v)
+
 
 append_env(pkgdirs, "LIBMEMCACHED")
 append_env(pkgdirs, "ZLIB")
@@ -103,28 +100,23 @@ with open("src/pylibmc-version.h", encoding="utf-8") as r:
 setup(
     name="pylibmc",
     version=version,
-    url="http://sendapatch.se/projects/pylibmc/",
+    url="https://sendapatch.se/projects/pylibmc/",
     author="Ludvig Ericson",
     author_email="ludvig@lericson.se",
-    license="3-clause BSD <http://www.opensource.org/licenses/bsd-license.php>",
+    license="3-clause BSD <https://opensource.org/licenses/bsd-license.php>",
     description="Quick and small memcached client for Python",
     long_description=readme_text,
     ext_modules=[pylibmc_ext],
     package_dir={'': 'src'},
     packages=['pylibmc'],
+    python_requires='>=3.6',
     classifiers=[
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.2',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3 :: Only',
     ],
 )

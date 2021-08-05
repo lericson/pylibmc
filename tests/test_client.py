@@ -1,5 +1,4 @@
 import functools
-import sys
 import time
 import pylibmc
 import _pylibmc
@@ -8,7 +7,6 @@ from tests import PylibmcTestCase
 from nose import SkipTest
 from nose.tools import eq_, ok_
 
-PY3 = sys.version_info[0] >= 3
 
 def requires_memcached_touch(test):
     @functools.wraps(test)
@@ -18,6 +16,7 @@ def requires_memcached_touch(test):
         raise SkipTest
 
     return wrapper
+
 
 class ClientTests(PylibmcTestCase):
     def test_zerokey(self):

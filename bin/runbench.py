@@ -1,8 +1,6 @@
 #!/usr/bin/env python
-# encoding: utf-8
 """Run benchmarks with build/lib.* in sys.path"""
 
-from __future__ import print_function, unicode_literals
 
 import sys
 import math
@@ -27,7 +25,7 @@ def build_lib_dirname():
     return build_cmd.build_lib
 
 
-class Stopwatch(object):
+class Stopwatch:
     "A stopwatch that never stops"
 
     def __init__(self):
@@ -36,7 +34,7 @@ class Stopwatch(object):
 
     def __unicode__(self):
         mean, diff = self.interval()
-        return u"%.3g ± %.3g secs" % (mean, diff)
+        return f"{mean:.3g} ± {diff:.3g} secs"
 
     def mean(self):
         return sum(self.laps) / len(self.laps)
@@ -103,9 +101,9 @@ def bench_incr_decr(mc, key):
 
 
 def multi_pairs(n, *keys):
-    d = dict((b'%s%d' % (k, i), b'data%s%d' % (k, i))
-             for i in range(n)
-             for k in keys)
+    d = {b'%s%d' % (k, i): b'data%s%d' % (k, i)
+         for i in range(n)
+         for k in keys}
     return (d.keys(), d)
 
 
@@ -144,7 +142,7 @@ participants = [
 ]
 
 
-class Workout(object):
+class Workout:
     """Do you even lift?"""
 
     # Confidence level in plot
@@ -170,14 +168,14 @@ class Workout(object):
             while sw.total() < self.bench_time:
                 with sw.timing():
                     f(mc, *args, **kwargs)
-            logger.info(u'%s: %s', participant.name, sw)
+            logger.info('%s: %s', participant.name, sw)
             yield sw
 
     def print_stats(self, file=sys.stdout):
         for i, timings in enumerate(self.timings):
             print(self.benchmarks[i].name, file=file)
             for participant, timing in zip(self.participants, timings):
-                print(' - {}: {}'.format(participant.name, timing), file=file)
+                print(f' - {participant.name}: {timing}', file=file)
 
     def plot(self, filename):
         from matplotlib import pyplot as plt
@@ -238,7 +236,7 @@ def main(args=sys.argv[1:]):
 
     if args:
         fs = (bench, dump, plot)
-        f = dict((f.__name__, f) for f in fs)[args[0]]
+        f = {f.__name__: f for f in fs}[args[0]]
         f(*args[1:])
     else:
         bench()

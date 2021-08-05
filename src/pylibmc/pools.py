@@ -1,17 +1,12 @@
 """Pooling"""
 
-from __future__ import with_statement
 from contextlib import contextmanager
+from queue import Queue
 
 try:
     import threading
 except ImportError:
     import dummy_threading as threading
-
-try:
-    from Queue import Queue
-except ImportError:
-    from queue import Queue
 
 class ClientPool(Queue):
     """Client pooling helper.
@@ -83,7 +78,7 @@ class ThreadMappedPool(dict):
     """
 
     def __new__(cls, master):
-        return super(ThreadMappedPool, cls).__new__(cls)
+        return super().__new__(cls)
 
     def __init__(self, master):
         self.master = master
