@@ -140,18 +140,18 @@ class Client(_pylibmc.client):
         self.binary = binary
         self.addresses = list(servers)
         super().__init__(servers=translate_server_specs(servers),
-                                     binary=binary,
-                                     username=username, password=password,
-                                     behaviors=_behaviors_numeric(behaviors))
+                         binary=binary,
+                         username=username, password=password,
+                         behaviors=_behaviors_numeric(behaviors))
 
     def __repr__(self):
         return "{}({!r}, binary={!r})".format(self.__class__.__name__,
-                                      self.addresses, self.binary)
+                                              self.addresses, self.binary)
 
     def __str__(self):
         addrs = ", ".join(map(str, self.addresses))
         return "<{} for {}, binary={!r}>".format(self.__class__.__name__,
-                                           addrs, self.binary)
+                                                 addrs, self.binary)
 
     # {{{ Mapping interface
     def __getitem__(self, key):

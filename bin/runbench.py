@@ -102,8 +102,8 @@ def bench_incr_decr(mc, key):
 
 def multi_pairs(n, *keys):
     d = {b'%s%d' % (k, i): b'data%s%d' % (k, i)
-             for i in range(n)
-             for k in keys}
+         for i in range(n)
+         for k in keys}
     return (d.keys(), d)
 
 
