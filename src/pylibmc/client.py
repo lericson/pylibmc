@@ -111,7 +111,7 @@ def _behaviors_numeric(behaviors):
     unknown = set(behaviors).difference(_all_behaviors_set)
     if unknown:
         names = ", ".join(map(str, sorted(unknown)))
-        raise ValueError("unknown behavior names: {}".format(names))
+        raise ValueError(f"unknown behavior names: {names}")
 
     if behaviors.get("hash") is not None:
         behaviors["hash"] = hashers[behaviors["hash"]]
@@ -163,7 +163,7 @@ class Client(_pylibmc.client):
 
     def __setitem__(self, key, value):
         if not self.set(key, value):
-            raise KeyError("failed setting {!r}".format(key))
+            raise KeyError(f"failed setting {key!r}")
 
     def __delitem__(self, key):
         if not self.delete(key):

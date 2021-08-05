@@ -34,7 +34,7 @@ def get_version(addr):
         vstr = b"VERSION "
         rnstr = b"\r\n"
         if not version.startswith(vstr) or not version.endswith(rnstr):
-            raise ValueError("unexpected version return: {!r}".format(version))
+            raise ValueError(f"unexpected version return: {version!r}")
         else:
             version = version[8:-2]
         return version

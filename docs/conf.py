@@ -17,9 +17,9 @@ pylibmc_dir = os.environ.get("PYLIBMC_DIR")
 if not pylibmc_dir:
     raise RuntimeError("please set PYLIBMC_DIR")
 elif not os.path.exists(pylibmc_dir):
-    raise RuntimeError("PYLIBMC_DIR {!r} does not exist".format(pylibmc_dir))
+    raise RuntimeError(f"PYLIBMC_DIR {pylibmc_dir!r} does not exist")
 elif not os.path.isdir(pylibmc_dir):
-    raise RuntimeError("PYLIBMC_DIR {!r} is not a directory".format(pylibmc_dir))
+    raise RuntimeError(f"PYLIBMC_DIR {pylibmc_dir!r} is not a directory")
 else:
     sys.path.insert(0, pylibmc_dir)
 

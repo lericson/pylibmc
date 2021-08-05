@@ -34,7 +34,7 @@ class Stopwatch:
 
     def __unicode__(self):
         mean, diff = self.interval()
-        return "{:.3g} ± {:.3g} secs".format(mean, diff)
+        return f"{mean:.3g} ± {diff:.3g} secs"
 
     def mean(self):
         return sum(self.laps) / len(self.laps)
@@ -175,7 +175,7 @@ class Workout:
         for i, timings in enumerate(self.timings):
             print(self.benchmarks[i].name, file=file)
             for participant, timing in zip(self.participants, timings):
-                print(' - {}: {}'.format(participant.name, timing), file=file)
+                print(f' - {participant.name}: {timing}', file=file)
 
     def plot(self, filename):
         from matplotlib import pyplot as plt

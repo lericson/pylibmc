@@ -14,7 +14,7 @@ def _elasticache_config_get(address, key):
     host, port = address.split(':')
     port = int(port)
     sock.connect((host, port))
-    sock.send(('config get {}\r\n'.format(key)).encode('ascii'))
+    sock.send((f'config get {key}\r\n').encode('ascii'))
     state = 'wait-nl-header'
     nbytes = 0
     buff = b''
@@ -47,7 +47,7 @@ def _parse_elasticache_config(cfg):
     ver, nodes = cfg.split(b'\n')
     ver, nodes = int(ver), [n.decode('ascii').split('|') for n in nodes.split()]
     # NOTE Should probably verify ver == 12, but why not try anyways
-    return ['{}:{}'.format(addr or cname, port) for (cname, addr, port) in nodes]
+    return [f'{addr or cname}:{port}' for (cname, addr, port) in nodes]
 
 def elasticache(address='127.0.0.1:11211', config_key=b'cluster',
                 mc_key='AmazonElastiCache:cluster'):
