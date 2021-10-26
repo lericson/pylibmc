@@ -28,10 +28,10 @@ def hack_sys_path():
     if hasattr(_pylibmc, "__file__"):
         logger.info("loaded _pylibmc from %s", _pylibmc.__file__)
         if not _pylibmc.__file__.startswith(lib_dirn):
-            logger.warn("double-check the source path")
-            logger.warn("tests are not running on the dev build!")
+            logger.warning("double-check the source path")
+            logger.warning("tests are not running on the dev build!")
     else:
-        logger.warn("static _pylibmc: %s", _pylibmc)
+        logger.warning("static _pylibmc: %s", _pylibmc)
 
 class PylibmcPlugin(Plugin):
     name = "info"
