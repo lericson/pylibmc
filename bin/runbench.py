@@ -76,18 +76,18 @@ def benchmark_method(f):
 @benchmark_method
 def bench_get_set(mc, key, data):
     if not mc.set(key, data, min_compress_len=4001):
-        logger.warn('set(%r, ...) fail', key)
+        logger.warning('set(%r, ...) fail', key)
     if mc.get(key) != data:
-        logger.warn('get(%r) fail', key)
+        logger.warning('get(%r) fail', key)
 
 
 @benchmark_method
 def bench_get_set_multi(mc, keys, pairs):
     fails = mc.set_multi(pairs)
     if fails:
-        logger.warn('set_multi(%r) fail', fails)
+        logger.warning('set_multi(%r) fail', fails)
     if len(mc.get_multi(keys)) != len(pairs):
-        logger.warn('get_multi() incomplete')
+        logger.warning('get_multi() incomplete')
 
 
 @benchmark_method
@@ -97,7 +97,7 @@ def bench_incr_decr(mc, key):
     mc.incr(key, 2)
     mc.decr(key, 10)
     if mc.get(key) != 0:
-        logger.warn('key not zero')
+        logger.warning('key not zero')
 
 
 def multi_pairs(n, *keys):
