@@ -45,7 +45,7 @@ class TestCmemcached(PylibmcTestCase):
         eq_(result, {'a': 'valueA', 'b': 'valueB', 'c': 'valueC'})
 
     def testBigGetMulti(self):
-        count = 10 ** 4
+        count = 10 ** 3
         # Python 2: .encode() is a no-op on these byte strings since they
         # only contain bytes that can be implicitly decoded as ASCII.
         keys = ['key%d' % i for i in range(count)]

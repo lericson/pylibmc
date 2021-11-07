@@ -1,0 +1,52 @@
+name: CI
+on:
+  push:
+    branches:
+      - "*"
+  pull_request:
+    branches:
+      - master
+jobs:
+  test:
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.6", "3.7", "3.8", "3.9", "pypy3"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    name: "${{ matrix.os }} Python: ${{ matrix.python-version }}"
+    env:
+      LIBMEMCACHED_VERSION: '1.0.18'
+    services:
+      memcached:
+        image: memcached:1.6.12
+        ports:
+          - 11211:11211
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        pip install nose
+        sudo apt-get update -qq
+        sudo apt-get install libmemcached-dev
+        apt-cache show libmemcached-dev
+    - name: memcached stats
+      run: echo "stats settings" | netcat localhost 11211 -w 3
+    - name: Install package
+      run: python setup.py install
+    - name: Set LIBMEMCACHED_VERSION
+      run: echo LIBMEMCACHED_VERSION="$(python -c 'import pylibmc; print(pylibmc.libmemcached_version)')" >> $GITHUB_ENV
+    - name: Log versions
+      run: |
+        python --version
+        pip --version
+        echo "LIBMEMCACHED_VERSION=${LIBMEMCACHED_VERSION}"
+    - name: Run test
+      run: python bin/runtests.py -v tests --with-doctest
