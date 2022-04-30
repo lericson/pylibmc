@@ -35,4 +35,5 @@ Using ``pip`` you can pass install options as follows::
 Using Homebrew (MacOSX) you can install from PyPI via::
 
     brew install libmemcached
-    pip install pylibmc --install-option="--with-libmemcached=/usr/local/Cellar/libmemcached"
+    export CPPFLAGS="-I/opt/homebrew/include"
+    pip install pylibmc
