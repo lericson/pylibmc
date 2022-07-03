@@ -292,7 +292,7 @@ static int _PylibMC_Deflate(char *value, Py_ssize_t value_len,
     /* FIXME Failures are entirely silent. */
     int rc;
 
-    /* n.b.: this is called wiile *not* holding the GIL, and must not
+    /* n.b.: this is called while *not* holding the GIL, and must not
        contain Python-API code */
 
     ssize_t out_sz;

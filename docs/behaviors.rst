@@ -220,7 +220,7 @@ Most people desire the classical "I don't really care" type of failover
 support: if a server goes down, just use another one. This case is supported,
 but not by default. As explained above, the default distribution mechanism is
 not very smart, and libmemcached doesn't support any meaningful failover for
-it. If a server goes down, it stays down, and all of its alloted keys will
+it. If a server goes down, it stays down, and all of its allotted keys will
 simply fail. The recommended failover behaviors is for that reason::
 
     mc.behaviors['ketama'] = True
