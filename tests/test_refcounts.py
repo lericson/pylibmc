@@ -1,7 +1,5 @@
 import datetime
 
-from nose.tools import eq_, ok_
-
 import pylibmc
 import _pylibmc
 from pylibmc.test import make_test_client
@@ -30,9 +28,9 @@ class RefcountTests(PylibmcTestCase):
         refcountables = [key, val]
         initial_refcounts = get_refcounts(refcountables)
         bc.set(key, val)
-        eq_(get_refcounts(refcountables), initial_refcounts)
-        eq_(bc.get(key), val)
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
+        assert bc.get(key) == val
+        assert get_refcounts(refcountables) == initial_refcounts
 
     def test_get_complex_type(self):
         self._test_get("refcountest", datetime.datetime.fromtimestamp(0))
@@ -51,16 +49,16 @@ class RefcountTests(PylibmcTestCase):
         refcountables = [key, val, default]
         initial_refcounts = get_refcounts(refcountables)
         bc.set(key, val)
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         assert bc.get(key) == val
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         assert bc.get(key, default) == val
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.delete(key)
         assert bc.get(key) is None
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         assert bc.get(key, default) is default
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
 
     def test_get_multi(self):
         bc = make_test_client(binary=True)
@@ -69,9 +67,9 @@ class RefcountTests(PylibmcTestCase):
         refcountables = keys + [value]
         initial_refcounts = get_refcounts(refcountables)
         bc.set(keys[0], value)
-        eq_(get_refcounts(refcountables), initial_refcounts)
-        eq_(bc.get_multi(keys), {keys[0]: value})
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
+        assert bc.get_multi(keys) == {keys[0]: value}
+        assert get_refcounts(refcountables) == initial_refcounts
 
     def test_get_multi_bytes_and_unicode(self):
         bc = make_test_client(binary=True)
@@ -81,9 +79,9 @@ class RefcountTests(PylibmcTestCase):
         refcountables = [keys] + [value]
         initial_refcounts = get_refcounts(refcountables)
         bc.set_multi(kv)
-        eq_(get_refcounts(refcountables), initial_refcounts)
-        eq_(bc.get_multi(keys)[keys[0]], value)
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
+        assert bc.get_multi(keys)[keys[0]] == value
+        assert get_refcounts(refcountables) == initial_refcounts
 
     def test_delete(self):
         bc = make_test_client(binary=True)
@@ -93,17 +91,17 @@ class RefcountTests(PylibmcTestCase):
         initial_refcounts = get_refcounts(refcountables)
 
         bc.set(keys[0], values[0])
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.set(keys[1], values[1])
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.delete(keys[0])
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.delete(keys[1])
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.delete(keys[0])
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.delete(keys[1])
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
 
     def test_incr(self):
         bc = make_test_client(binary=True)
@@ -112,13 +110,13 @@ class RefcountTests(PylibmcTestCase):
         initial_refcounts = get_refcounts(refcountables)
 
         bc.set(keys[0], 1)
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.incr(keys[0])
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.set(keys[1], 5)
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.incr(keys[1])
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
 
     def test_set_and_delete_multi(self):
         bc = make_test_client(binary=True)
@@ -128,17 +126,17 @@ class RefcountTests(PylibmcTestCase):
         initial_refcounts = get_refcounts(refcountables)
 
         bc.set_multi(dict(zip(keys, values)))
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.delete_multi([keys[0]])
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.delete_multi([keys[1]])
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.set_multi(dict(zip(keys, values)))
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.delete_multi(keys)
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.delete_multi(keys)
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
 
     def test_prefixes(self):
         bc = make_test_client(binary=True)
@@ -149,19 +147,19 @@ class RefcountTests(PylibmcTestCase):
         initial_refcounts = get_refcounts(refcountables)
 
         bc.set_multi(dict(zip(keys, values)), key_prefix=prefix)
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.get_multi(keys, key_prefix=prefix)
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.delete_multi([keys[0]], key_prefix=prefix)
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.delete_multi([keys[1]], key_prefix=prefix)
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.set_multi(dict(zip(keys, values)), key_prefix=prefix)
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.delete_multi(keys, key_prefix=prefix)
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
         bc.delete_multi(keys, key_prefix=prefix)
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert get_refcounts(refcountables) == initial_refcounts
 
     def test_get_invalid_key(self):
         bc = make_test_client(binary=True)
@@ -173,7 +171,7 @@ class RefcountTests(PylibmcTestCase):
         except TypeError:
             raised = True
         assert raised
-        eq_(get_refcounts([key]), initial_refcount)
+        assert get_refcounts([key]) == initial_refcount
 
     def test_cas(self):
         k = "testkey"
@@ -182,12 +180,12 @@ class RefcountTests(PylibmcTestCase):
         refcountables = [k, val]
         initial_refcounts = get_refcounts(refcountables)
 
-        ok_(mc.set(k, 0))
-        eq_(get_refcounts(refcountables), initial_refcounts)
+        assert mc.set(k, 0)
+        assert get_refcounts(refcountables) == initial_refcounts
         while True:
             rv, cas = mc.gets(k)
-            eq_(get_refcounts(refcountables), initial_refcounts)
-            ok_(mc.cas(k, rv + 1, cas))
-            eq_(get_refcounts(refcountables), initial_refcounts)
+            assert get_refcounts(refcountables) == initial_refcounts
+            assert mc.cas(k, rv + 1, cas)
+            assert get_refcounts(refcountables) == initial_refcounts
             if rv == 10:
                 break

@@ -11,6 +11,7 @@ usage() {
 
 [ "$#" -lt 1 ] && usage >&2
 
+echo "$0: running command with throwaway memcached instance" >&2
 memcached $MEMCACHED_ARGS &
 pid=$!
 cleanup() {
