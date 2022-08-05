@@ -1,11 +1,8 @@
 name: CI
 on:
-  push:
-    branches:
-      - "*"
-  pull_request:
-    branches:
-      - master
+  - push
+  - pull_request
+
 jobs:
   test:
     timeout-minutes: 10
