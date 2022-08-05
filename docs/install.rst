@@ -25,14 +25,15 @@ So for example, if one were to use MacPorts to install libmemcached, your
 libmemcached would end up in ``/opt/local``, hence
 ``--with-libmemcached=/opt/local``.
 
-From PyPI
----------
+Using ``pip`` you achieve the same thing as follows::
 
-Using ``pip`` you can pass install options as follows::
+    pip install pylibmc --install-option="--with-libmemcached=/opt/local"
 
-    pip install pylibmc --install-option="--with-libmemcached=/usr/local/"
+Note that `/usr/local` is typically on the library search path. If it is not,
+you'd probably want to fix that instead.
 
-Using Homebrew (MacOSX) you can install from PyPI via::
+Homebrew and MacOS
+------------------
 
     brew install libmemcached
-    pip install pylibmc --install-option="--with-libmemcached=/usr/local/Cellar/libmemcached"
+    pip install pylibmc
