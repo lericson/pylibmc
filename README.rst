@@ -4,8 +4,8 @@ See `the documentation at sendapatch.se/projects/pylibmc/`__ for more informatio
 
 __ http://sendapatch.se/projects/pylibmc/
 
-.. image:: https://travis-ci.org/lericson/pylibmc.png?branch=master
-   :target: https://travis-ci.org/lericson/pylibmc
+.. image:: https://github.com/lericson/pylibmc/actions/workflows/ci.yml/badge.svg
+   :target: https://github.com/lericson/pylibmc/actions/workflows/ci.yml
 
 New in version 1.6.0
 ====================
