@@ -101,6 +101,9 @@ setup(
     name="pylibmc",
     version=version,
     url="https://sendapatch.se/projects/pylibmc/",
+    project_urls={
+        "Source": "https://github.com/lericson/pylibmc",
+    },
     author="Ludvig Ericson",
     author_email="ludvig@lericson.se",
     license="3-clause BSD <https://opensource.org/licenses/bsd-license.php>",
