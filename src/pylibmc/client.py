@@ -36,7 +36,7 @@ def _unpack_addr(spec, port=None, weight=1):
     else:
         addr = spec
 
-    if isinstance(port, str) and ":" in port:
+    if isinstance(port, (str, unicode)) and ":" in port:
         (port, weight) = port.split(":", 1)
     return (addr, port, weight)
 
