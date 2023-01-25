@@ -112,7 +112,7 @@ setup(
     ext_modules=[pylibmc_ext],
     package_dir={'': 'src'},
     packages=['pylibmc'],
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     classifiers=[
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
