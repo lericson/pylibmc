@@ -1,6 +1,6 @@
 import os
 import sys
-from distutils.core import setup, Extension
+from setuptools import setup, Extension
 
 ## Command-line argument parsing
 
