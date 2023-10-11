@@ -18,8 +18,8 @@ Participant = namedtuple('Participant', 'name connect')
 
 
 def build_lib_dirname():
-    from distutils.dist import Distribution
-    from distutils.command.build import build
+    from setuptools import Distribution
+    from setuptools.command import build
     build_cmd = build(Distribution({"ext_modules": True}))
     build_cmd.finalize_options()
     return build_cmd.build_lib
