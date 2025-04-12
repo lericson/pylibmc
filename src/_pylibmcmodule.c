@@ -2082,7 +2082,7 @@ static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *self,
     char *key;
 
     for (b = PylibMC_behaviors; b->name != NULL; b++) {
-        if (!PyMapping_HasKeyString(behaviors, b->name)) {
+        if (behaviors == Py_None || !PyMapping_HasKeyString(behaviors, b->name)) {
             continue;
         } else if ((py_v = PyMapping_GetItemString(behaviors, b->name)) == NULL) {
             goto error;
@@ -2112,7 +2112,7 @@ static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *self,
     }
 
     for (b = PylibMC_callbacks; b->name != NULL; b++) {
-        if (!PyMapping_HasKeyString(behaviors, b->name)) {
+        if (behaviors == Py_None || !PyMapping_HasKeyString(behaviors, b->name)) {
             continue;
         } else if ((py_v = PyMapping_GetItemString(behaviors, b->name)) == NULL) {
             goto error;
