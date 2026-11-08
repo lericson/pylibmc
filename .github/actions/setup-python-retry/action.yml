@@ -1,10 +1,11 @@
-name: Set up Python, retrying once
+name: Set up Python, cached and retrying
 description: >
   actions/setup-python downloads interpreters that are not preinstalled on the
   runner image (older CPython versions) from a GitHub release asset, and that
-  download sometimes fails with HTTP 504. The action retries a few times
-  within seconds, which is not long enough to ride out an outage, so wait and
-  try the whole step once more.
+  download sometimes fails with HTTP 504. Avoid it when we can: cache the
+  interpreter in the runner tool cache, which setup-python checks before
+  downloading anything. When the cache is cold, wait and retry the step once
+  (its own retries span only a few seconds).
 
 inputs:
   python-version:
@@ -14,6 +15,27 @@ inputs:
 runs:
   using: composite
   steps:
+    # Only CPython versions the image does not already ship are worth caching;
+    # caching a preinstalled interpreter would just copy hundreds of MB.
+    - name: Check whether Python ${{ inputs.python-version }} must be downloaded
+      id: probe
+      shell: bash
+      env:
+        VERSION: ${{ inputs.python-version }}
+      run: |
+        if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+$ ]] \
+            && ! ls -d /opt/hostedtoolcache/Python/"$VERSION".* >/dev/null 2>&1; then
+          echo "cacheable=true" >> "$GITHUB_OUTPUT"
+        fi
+        # The prebuilt interpreters are per Ubuntu release, so key on it.
+        echo "os=$(. /etc/os-release && echo "${ID}-${VERSION_ID}")" >> "$GITHUB_OUTPUT"
+    - name: Cache the Python ${{ inputs.python-version }} interpreter
+      if: ${{ steps.probe.outputs.cacheable == 'true' }}
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+      with:
+        # The version directory holds both the install and its .complete marker.
+        path: /opt/hostedtoolcache/Python/${{ inputs.python-version }}.*
+        key: setup-python-v1-${{ steps.probe.outputs.os }}-${{ runner.arch }}-${{ inputs.python-version }}
     - id: first
       uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
       continue-on-error: true
@@ -22,8 +44,10 @@ runs:
     - name: Wait before retrying Python setup
       if: ${{ steps.first.outcome == 'failure' }}
       shell: bash
+      env:
+        VERSION: ${{ inputs.python-version }}
       run: |
-        echo "::warning::setup-python failed for ${{ inputs.python-version }}, retrying in 90s"
+        echo "::warning::setup-python failed for $VERSION, retrying in 90s"
         sleep 90
     - name: Retry Python setup
       if: ${{ steps.first.outcome == 'failure' }}
