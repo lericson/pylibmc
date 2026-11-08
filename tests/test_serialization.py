@@ -24,12 +24,19 @@ class SerializationMethodTests(PylibmcTestCase):
         assert c.deserialize(b'18446744073709551616', f_long) == 2**64
         assert c.deserialize(b'1', f_long) == 1
 
+    def test_bools_stored_by_older_versions_read_as_ints(self):
+        # Before 1.8.0 a bool was stored as the integer 1 or 0.
+        c = make_test_client(binary=True)
+        for stored, value in ((b'1', 1), (b'0', 0)):
+            got = c.deserialize(stored, f_int)
+            assert got == value and type(got) is int
+
     def test_nonintegers(self):
         # tuples (python_value, (expected_bytestring, expected_flags))
         SERIALIZATION_TEST_VALUES = [
-            # booleans are just ints
-            (True, (b'1', f_int)),
-            (False, (b'0', f_int)),
+            # booleans are pickled, as python-memcached does it
+            (True, (pickle.dumps(True, protocol=-1), f_pickle)),
+            (False, (pickle.dumps(False, protocol=-1), f_pickle)),
             # bytestrings
             (b'asdf', (b'asdf', f_none)),
             (b'\xb5\xb1\xbf\xed\xa9\xc2{8', (b'\xb5\xb1\xbf\xed\xa9\xc2{8', f_none)),

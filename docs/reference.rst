@@ -76,12 +76,12 @@
                    expire a key more than 30 days from now, pass
                    ``int(time.time()) + seconds``.
 
-                   Negative values are not meaningful, and the two protocols
-                   disagree about them: with the text protocol (the default)
-                   the key is expired immediately, with the binary protocol
-                   (``binary=True``) it is stored and does not expire. This
-                   is observed behavior, not a guarantee, and it may change;
-                   do not rely on it. Use :meth:`delete` to remove a key.
+                   A negative value raises :exc:`ValueError`, as does one that
+                   does not fit in 32 bits. (Before 1.8.0 a negative value
+                   was silently turned into a huge one, and the text protocol
+                   then expired the key immediately while the binary protocol
+                   stored it without expiry.) Use :meth:`delete` to remove a
+                   key.
 
                    The same rules apply to every method below that takes
                    *time*.
@@ -179,8 +179,8 @@
 
       If *time* is given, it specifies the number of seconds until *key* will
       expire. Default behavior is to never expire (equivalent of specifying
-      ``0``). Times over 30 days are absolute timestamps and negative times are
-      not meaningful, see :meth:`set`.
+      ``0``). Times over 30 days are absolute timestamps and negative times raise
+      :exc:`ValueError`, see :meth:`set`.
 
    .. Deleting
 
@@ -208,10 +208,8 @@
       :param key: Key to touch
       :param time: Number of seconds until the key expires.
 
-      Times over 30 days are absolute Unix timestamps, see :meth:`set`. With
-      libmemcached 1.0.x and the text protocol, a negative *time* raises
-      :exc:`pylibmc.AllocationError` (libmemcached refuses to write the
-      command); with libmemcached 1.1.x it expires the key immediately.
+      Times over 30 days are absolute Unix timestamps, and a negative *time*
+      raises :exc:`ValueError`; see :meth:`set`.
 
       Returns ``True`` if the key was successfully touched. ``False``
       if the key did not exist (so touching is not possible.)
@@ -245,8 +243,9 @@
 
       Serialize a Python value to bytes *bytestring* and an integer *flag* field
       for storage in memcached. The default implementation has special cases
-      for bytes, ints/longs, and bools, and falls back to pickle for all other
-      objects. Override this method to use a custom serialization format, or
+      for bytes, text and ints/longs, and falls back to pickle for all other
+      objects, bools included (so ``True`` comes back as ``True``, as with
+      ``python-memcached``). Override this method to use a custom serialization format, or
       otherwise modify the behavior.
 
       *flag* is exposed by the memcached protocol. It adds flexibility
