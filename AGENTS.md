@@ -207,9 +207,14 @@ maintainer's explicit go-ahead.
    Thank, by name or handle, the people whose code was merged, whose fork or
    fix supplied an idea we used, and the collaborators who helped. Filing an
    issue is not something to thank anyone for in the release notes; that would
-   turn the notes into a list. Do it in two places: the `docs/changelog.rst`
-   entry (earlier releases do this) and the GitHub release notes. Use the name
-   someone uses themselves and don't guess pronouns.
+   turn the notes into a list. Do it in three places: the `docs/changelog.rst`
+   entry (earlier releases do this), the GitHub release notes, and
+   `docs/coders.rst` ("The List of Honored People", alphabetical by surname),
+   where everyone whose code or ideas were used gets an entry if they don't
+   have one. Entries carry the email address the person
+   commits with (it is already public in the git history); leave it out if they
+   ask. Use the name someone uses themselves and don't
+   guess pronouns.
 4. **Write the change log.** `docs/changelog.rst`, "New in version X":
    user-visible changes first, then fixes, then platform changes. Document what
    pylibmc changed or now exposes, which libmemcached versions we support, and
