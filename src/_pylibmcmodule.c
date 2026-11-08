@@ -728,9 +728,8 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *args) {
             &val_size, &flags, &error);
     Py_END_ALLOW_THREADS;
 
-    Py_DECREF(key);
-
     if (error == MEMCACHED_SUCCESS) {
+        Py_DECREF(key);
         /* note that mc_val can and is NULL for zero-length values. */
         PyObject *r = _PylibMC_parse_memcached_value(self, mc_val, val_size, flags);
 
@@ -747,13 +746,17 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *args) {
     }
 
     if (error == MEMCACHED_NOTFOUND) {
+        Py_DECREF(key);
         Py_INCREF(default_value);
         return default_value;
     }
 
-    return PylibMC_ErrFromMemcachedWithKey(self, "memcached_get", error,
-                                           PyBytes_AS_STRING(key),
-                                           PyBytes_GET_SIZE(key));
+    /* The key is still needed for the message, so release it afterwards. */
+    PylibMC_ErrFromMemcachedWithKey(self, "memcached_get", error,
+                                    PyBytes_AS_STRING(key),
+                                    PyBytes_GET_SIZE(key));
+    Py_DECREF(key);
+    return NULL;
 }
 
 static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
@@ -2441,15 +2444,25 @@ static void _set_error(memcached_st *mc, memcached_return error, char *lead) {
 #endif
     } else {
         PyObject *exc = _exc_by_rc(error);
+        const char *text = memcached_strerror(mc, error);
+        const char *detail = NULL;
+        if (text == NULL)
+            text = "unknown error";
 #if LIBMEMCACHED_VERSION_HEX >= 0x00049000
-        if (memcached_last_error(mc) != MEMCACHED_SUCCESS) {
-            PyErr_Format(exc, "%s: %.200s", lead, memcached_last_error_message(mc));
-        } else {
-            PyErr_SetString(exc, lead);
-        }
-#else
-        PyErr_Format(exc, "%s: %.200s", lead, memcached_strerror(mc, error));
+        if (memcached_last_error(mc) != MEMCACHED_SUCCESS)
+            detail = memcached_last_error_message(mc);
 #endif
+        /* libmemcached's own detail message (when it has one) names the host
+         * and normally includes the generic text; make sure the generic text
+         * is always there so that the number is never the only clue. */
+        if (detail != NULL && detail[0] != '\0') {
+            if (strstr(detail, text) != NULL)
+                PyErr_Format(exc, "%s: %.200s", lead, detail);
+            else
+                PyErr_Format(exc, "%s: %.100s (%.200s)", lead, text, detail);
+        } else {
+            PyErr_Format(exc, "%s: %.200s", lead, text);
+        }
     }
 }
 

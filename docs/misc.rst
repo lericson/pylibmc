@@ -19,9 +19,12 @@ On a similar note, :mod:`pylibmc` won't raise a ``ValueError`` if one uses
 ``Client.inc`` on a non-existent key, instead a :attr:`pylibmc.NotFound`
 exception is raised.
 
-Negative timeouts are treated the same way as zero timeouts are in
-:mod:`pylibmc`. ``python-memcached`` treats this as immediate expiry, returning
-success while not setting any value. This might raise exceptions in the future.
+Negative expiry times (the *time* argument) are not treated like zero, and the
+result depends on the protocol: with the default text protocol the key is
+expired immediately (the call returns success, but a later ``get`` finds
+nothing). With the binary protocol the key is stored and does not expire. This inconsistency is known and may
+change in the future; see :meth:`pylibmc.Client.set` for the details, including
+how times over 30 days are interpreted.
 
 The most notable difference is the hashing. See 
 :ref:`the hashing docs <hashing-and-python-memcached>`
@@ -55,6 +58,73 @@ Should you for some reason need the actual error code returned from
 ``libmemcached``, simply sneak a peak at the ``retcode`` attribute.
 
 If you're interested in exactly what maps to what, see ``_pylibmcmodule.h``.
+
+.. _error-codes:
+
+Error codes
+-----------
+
+An exception raised for a libmemcached error has a message of the form
+``error N from FUNCTION(KEY): TEXT``, for example::
+
+    error 3 from memcached_get(somekey): (0x...) CONNECTION FAILURE,  host: 127.0.0.1:11211 -> ...
+
+``N`` is libmemcached's numeric return code, ``FUNCTION`` is the libmemcached
+function that failed, ``(KEY)`` is present for single-key operations, and
+``TEXT`` is what libmemcached's ``memcached_strerror`` says about the code
+(``CONNECTION FAILURE`` above), followed by or replaced with libmemcached's more
+specific description (such as the host involved) when it has one. The exact
+wording of the specific description depends on the libmemcached version.
+
+The number is also available as the ``retcode`` attribute of the exception
+class, so ``pylibmc.ConnectionError.retcode == 3``. The module-level list
+``pylibmc.exceptions`` holds ``(name, class)`` pairs for all exception classes.
+``pylibmc.Error`` and ``pylibmc.CacheMiss`` have no ``retcode``, and a
+libmemcached error without an exception class of its own (``MEMCACHED_ERRNO``,
+for instance, whose message carries the C library's ``strerror`` text) is raised
+as a plain :exc:`pylibmc.Error`. ``TooBig`` is raised with an empty message.
+
+.. warning:: The numbers belong to libmemcached, not to :mod:`pylibmc`. They
+             are not guaranteed to be the same between libmemcached versions,
+             so match on exception classes rather than numbers. When a number
+             in an old log needs decoding, look it up in the
+             ``libmemcached/return.h`` header of the version that produced it.
+
+The table below was generated from ``pylibmc.exceptions`` and
+``memcached_strerror`` on libmemcached 1.0.18 and 1.1.4; the two were identical
+for every row. Other versions were not checked.
+
+============================  ====  =============================================================
+Exception                     Code  libmemcached text
+============================  ====  =============================================================
+``Failure``                   1     FAILURE
+``HostLookupError``           2     getaddrinfo() or getnameinfo() HOSTNAME LOOKUP FAILURE
+``ConnectionError``           3     CONNECTION FAILURE
+``ConnectionBindError``       4     CONNECTION BIND FAILURE
+``WriteError``                5     WRITE FAILURE
+``ReadError``                 6     READ FAILURE
+``UnknownReadFailure``        7     UNKNOWN READ FAILURE
+``ProtocolError``             8     PROTOCOL ERROR
+``ClientError``               9     CLIENT ERROR
+``ServerError``               10    SERVER ERROR
+``SocketCreateError``         11    ERROR was returned by server
+``DataExists``                12    CONNECTION DATA EXISTS
+``DataDoesNotExist``          13    CONNECTION DATA DOES NOT EXIST
+``NotFound``                  16    NOT FOUND
+``AllocationError``           17    MEMORY ALLOCATION FAILURE
+``SomeErrors``                19    SOME ERRORS WERE REPORTED
+``NoServers``                 20    NO SERVERS DEFINED
+``UnixSocketError``           27    COULD NOT OPEN UNIX SOCKET
+``NotSupportedError``         28    ACTION NOT SUPPORTED
+``FetchNotFinished``          30    FETCH WAS NOT COMPLETED
+``Timeout``                   31    A TIMEOUT OCCURRED
+``BadKeyProvided``            33    A BAD KEY WAS PROVIDED/CHARACTERS OUT OF RANGE
+``InvalidHostProtocolError``  34    THE HOST TRANSPORT PROTOCOL DOES NOT MATCH THAT OF THE CLIENT
+``ServerDead``                35    SERVER IS MARKED DEAD
+``ServerDown``                47    SERVER HAS FAILED AND IS DISABLED UNTIL TIMED RETRY
+``TooBig``                    37    ITEM TOO BIG
+``UnknownStatKey``            36    ENCOUNTERED AN UNKNOWN STAT KEY
+============================  ====  =============================================================
 
 .. exception:: pylibmc.Timeout
 
