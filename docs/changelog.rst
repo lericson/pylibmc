@@ -70,6 +70,11 @@ Documentation:
   binary protocol; both are now documented, as are ``tcp_keepalive`` and
   ``_poll_timeout`` (#115, #273, #56).
 
+Thanks to Christian Clauss, David Szotten, Nikolas Nyby, Miro Hrončok and Bryan
+C. Mills for their contributions since 1.6.3, and to @mxamin, whose fork
+supplied several of the ideas behind the build and test changes in this
+release.
+
 New in version 1.6.0
 --------------------
 
