@@ -81,11 +81,44 @@ libmemcached behavior constants.
    Setting this behavior will test if the keys for validity before sending to
    memcached.
 
+.. _tcp_keepalive:
+
+``"tcp_keepalive"``
+   Setting this behavior to ``1`` asks libmemcached to enable the
+   ``SO_KEEPALIVE`` socket option on its connections, so that the operating
+   system periodically probes idle connections. This is worth turning on if a
+   NAT gateway, firewall, proxy or container network sits between client and
+   server and silently drops connections that have been idle for a while,
+   which otherwise shows up as errors on the first request after a quiet
+   period. How often probes are sent is up to the operating system's TCP
+   keepalive settings, not to :mod:`pylibmc`. Like ``"tcp_nodelay"`` this only
+   makes sense for TCP connections. The default is off.
+
 .. _connect_timeout:
 
 ``"connect_timeout"``
-   In non-blocking mode, this specifies the timeout of socket connection
-   in milliseconds.
+   The timeout, in milliseconds, for connecting a socket to a server. The
+   default is 4000. It bounds the connect in both blocking and non-blocking
+   mode (the libmemcached documentation says non-blocking only, but a
+   blocking-mode client was observed to give up after this time as well).
+
+.. _poll_timeout:
+
+``"_poll_timeout"``
+   The time, in milliseconds, that libmemcached waits (in ``poll()``) for a
+   socket to become ready to read or write, when waiting for a reply from the
+   server for example. The default is 5000. If it runs out, the operation fails
+   with :exc:`pylibmc.Timeout` on libmemcached 1.1.x, while on libmemcached
+   1.0.x ``get`` just reports a miss (see :exc:`pylibmc.Timeout`).
+
+   It is this wait that limits how long a request to an unresponsive server
+   takes: a server that accepts the connection but never answers makes ``get``
+   take about ``"_poll_timeout"`` milliseconds, and ``"receive_timeout"`` and
+   ``"send_timeout"`` (which are in *microseconds*, and apply to the socket
+   itself) did not shorten that wait in testing, so lower ``"_poll_timeout"`` to
+   fail faster. Connection setup is limited by ``"connect_timeout"`` instead.
+   Note the leading underscore: this is the name in
+   ``pylibmc.all_behaviors``.
 
 .. _receive_timeout:
 
