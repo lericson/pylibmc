@@ -17,6 +17,12 @@ Changes that can break existing code:
   ``python-memcached``, still see the integer. Booleans stored by earlier
   versions are integers and still read back as integers.
 
+Fixes:
+
+- ``incr_multi`` and ``decr_multi`` leaked a reference to every key on every
+  call. A key that is rejected (for example one that is too long) no longer
+  leaks in ``get``, ``gets``, ``get_multi`` and ``delete_multi``.
+
 New in version 1.7.0
 --------------------
 
