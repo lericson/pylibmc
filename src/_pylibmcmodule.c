@@ -998,10 +998,17 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
         PyObject *group, _PylibMC_SetCommand f,
         _PylibMC_SetByKeyCommand fbk, char *fname, PyObject *args,
         PyObject *kwds) {
-    /* function called by the set/add/etc commands */
+    /* function called by the set/add/etc commands. A NULL f means cas, which
+       takes one more argument and goes through the same serialization and
+       compression as the others. */
     static char *kws[] = { "key", "val", "time",
                            "min_compress_len", "compress_level",
                            NULL };
+    static char *cas_kws[] = { "key", "val", "cas", "time",
+                               "min_compress_len", "compress_level",
+                               NULL };
+    const bool is_cas = (f == NULL);
+    uint64_t cas = 0;
     const char *key_raw;
     PyObject *key;
     Py_ssize_t keylen;
@@ -1019,10 +1026,20 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
      * to UTF-8 byte strings for use as keys, and this seems to be
      * the only sensible thing to do when the user attempts this
      */
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#O|LIi", kws,
-                                     &key_raw, &keylen, &value,
-                                     &time_arg, &min_compress, &compress_level)
-        || !_PylibMC_time_arg(time_arg, &time)) {
+    if (is_cas) {
+        if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#OK|LIi", cas_kws,
+                                         &key_raw, &keylen, &value, &cas,
+                                         &time_arg, &min_compress,
+                                         &compress_level)) {
+            return NULL;
+        }
+    } else if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#O|LIi", kws,
+                                            &key_raw, &keylen, &value,
+                                            &time_arg, &min_compress,
+                                            &compress_level)) {
+        return NULL;
+    }
+    if (!_PylibMC_time_arg(time_arg, &time)) {
       return NULL;
     }
 
@@ -1040,7 +1057,11 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
     }
 #endif
 
-
+    if (is_cas && !memcached_behavior_get(self->mc,
+                                          MEMCACHED_BEHAVIOR_SUPPORT_CAS)) {
+      PyErr_SetString(PyExc_ValueError, "cas without cas behavior");
+      return NULL;
+    }
 
     /*
     Kind of clumsy to convert to a char* and then to a Python
@@ -1057,7 +1078,8 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
 
     success = _PylibMC_RunSetCommand(self, group, f, fbk, fname,
                                      &serialized, 1,
-                                     min_compress, compress_level);
+                                     min_compress, compress_level,
+                                     is_cas ? &cas : NULL);
 
 cleanup:
     _PylibMC_FreeMset(&serialized);
@@ -1150,7 +1172,7 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
 
     allsuccess = _PylibMC_RunSetCommand(self, group, f, fbk, fname,
                                         serialized, nkeys,
-                                        min_compress, compress_level);
+                                        min_compress, compress_level, NULL);
 
     if (PyErr_Occurred() != NULL) {
         goto cleanup;
@@ -1187,81 +1209,6 @@ cleanup:
     Py_XDECREF(key_str_map);
 
     return failed;
-}
-
-static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *self,
-        PyObject *group, PyObject *args, PyObject *kwds) {
-    /* function called by the set/add/etc commands */
-    static char *kws[] = { "key", "val", "cas", "time", NULL };
-    PyObject *ret = NULL;
-    const char *key_raw;
-    Py_ssize_t key_len;
-    PyObject *key;
-    PyObject *value;
-    uint64_t cas = 0;
-    unsigned int time = 0; /* this will be turned into a time_t */
-    long long time_arg = 0;
-    bool success = false;
-    memcached_return rc;
-    pylibmc_mset mset = { NULL };
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#OL|L", kws,
-                                     &key_raw, &key_len, &value, &cas,
-                                     &time_arg)
-        || !_PylibMC_time_arg(time_arg, &time)) {
-      return NULL;
-    }
-
-    if (!memcached_behavior_get(self->mc, MEMCACHED_BEHAVIOR_SUPPORT_CAS)) {
-      PyErr_SetString(PyExc_ValueError, "cas without cas behavior");
-      return NULL;
-    }
-
-    key = PyBytes_FromStringAndSize(key_raw, key_len);
-
-    /* TODO: because it's RunSetCommand that does the zlib
-       compression, cas can't currently use compressed values. */
-    success = _PylibMC_SerializeValue(self, key, NULL, value, time, &mset);
-
-    if (!success || PyErr_Occurred() != NULL) {
-        goto cleanup;
-    }
-
-    Py_BEGIN_ALLOW_THREADS;
-    if (group == NULL) {
-        rc = memcached_cas(self->mc,
-                           mset.key, mset.key_len,
-                           mset.value, mset.value_len,
-                           mset.time, mset.flags, cas);
-    } else {
-        rc = memcached_cas_by_key(self->mc,
-                                  GROUP_KEY(group), GROUP_KEY_LEN(group),
-                                  mset.key, mset.key_len,
-                                  mset.value, mset.value_len,
-                                  mset.time, mset.flags, cas);
-    }
-    Py_END_ALLOW_THREADS;
-
-    switch(rc) {
-        case MEMCACHED_SUCCESS:
-        case MEMCACHED_BUFFERED:
-            Py_INCREF(Py_True);
-            ret = Py_True;
-            break;
-        case MEMCACHED_DATA_EXISTS:
-            Py_INCREF(Py_False);
-            ret = Py_False;
-            break;
-        default:
-            PylibMC_ErrFromMemcachedWithKey(self, "memcached_cas", rc,
-                                            mset.key, mset.key_len);
-    }
-
-cleanup:
-    _PylibMC_FreeMset(&mset);
-    Py_DECREF(key);
-
-    return ret;
 }
 
 static void _PylibMC_FreeMset(pylibmc_mset *mset) {
@@ -1455,7 +1402,10 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self, PyObject *group,
                                    _PylibMC_SetByKeyCommand fbk, char *fname,
                                    pylibmc_mset* msets, Py_ssize_t nkeys,
                                    Py_ssize_t min_compress,
-                                   int compress_level) {
+                                   int compress_level,
+                                   const uint64_t *cas) {
+    /* If cas is not NULL, do a compare-and-swap with that value instead of
+       calling f. */
     memcached_st *mc = self->mc;
     memcached_return rc = MEMCACHED_SUCCESS;
     bool softerrors = false,
@@ -1490,7 +1440,18 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self, PyObject *group,
         }
 #endif
 
-        if (mset->key_len == 0) {
+        if (cas != NULL) {
+            if (group == NULL) {
+                rc = memcached_cas(mc, mset->key, mset->key_len,
+                                   value, value_len, mset->time, flags, *cas);
+            } else {
+                rc = memcached_cas_by_key(mc,
+                                          GROUP_KEY(group), GROUP_KEY_LEN(group),
+                                          mset->key, mset->key_len,
+                                          value, value_len, mset->time, flags,
+                                          *cas);
+            }
+        } else if (mset->key_len == 0) {
             rc = MEMCACHED_NOTSTORED;
         } else {
             if (group == NULL) {
@@ -1586,7 +1547,8 @@ static PyObject *PylibMC_Client_append(PylibMC_Client *self, PyObject *args,
 
 static PyObject *PylibMC_Client_cas(PylibMC_Client *self, PyObject *args,
         PyObject *kwds) {
-  WITH_MASTER_KEY(1, _PylibMC_RunCasCommand(self, group, args, rest));
+  WITH_MASTER_KEY(1, _PylibMC_RunSetCommandSingle(
+          self, group, NULL, NULL, "memcached_cas", args, rest));
 }
 
 static PyObject *PylibMC_Client_delete(PylibMC_Client *self, PyObject *args,
