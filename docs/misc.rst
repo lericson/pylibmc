@@ -19,12 +19,10 @@ On a similar note, :mod:`pylibmc` won't raise a ``ValueError`` if one uses
 ``Client.inc`` on a non-existent key, instead a :attr:`pylibmc.NotFound`
 exception is raised.
 
-Negative expiry times (the *time* argument) are not treated like zero, and the
-result depends on the protocol: with the default text protocol the key is
-expired immediately (the call returns success, but a later ``get`` finds
-nothing). With the binary protocol the key is stored and does not expire. This inconsistency is known and may
-change in the future; see :meth:`pylibmc.Client.set` for the details, including
-how times over 30 days are interpreted.
+A negative expiry time (the *time* argument) raises :exc:`ValueError`, where
+``python-memcached`` treats it as an immediate expiry. See
+:meth:`pylibmc.Client.set` for the details, including how times over 30 days
+are interpreted.
 
 The most notable difference is the hashing. See 
 :ref:`the hashing docs <hashing-and-python-memcached>`

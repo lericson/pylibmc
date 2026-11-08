@@ -1,6 +1,17 @@
 Change Log
 ==========
 
+New in version 1.8.0
+--------------------
+
+Changes that can break existing code:
+
+- A negative expiry time now raises ``ValueError``, as does one that does not
+  fit in 32 bits, in ``set``, ``add``, ``replace``, ``append``, ``prepend``,
+  ``cas``, ``touch`` and the ``*_multi`` variants (#202). It used to be turned
+  silently into a huge number: the text protocol then expired the key at once
+  and the binary protocol stored it without expiry.
+
 New in version 1.7.0
 --------------------
 
