@@ -4,7 +4,9 @@ including ``get_multi``, ``set_multi`` and the other ``*_multi`` methods (and
 their ``key_prefix``), ``in`` and ``client[key]``, before anything is sent.
 Rejected are the bytes ``0x00`` to ``0x20`` (NUL, tab, CR, LF, space and the
 other control characters) and ``0x7f``; non-ASCII bytes such as UTF-8 are still
-fine. Such keys used to reach the server: a space or newline made later replies
+fine. This is the memcached text protocol's rule (keys carry no whitespace or
+control characters) and the same one ``python-memcached`` enforces on every
+key. Such keys used to reach the server: a space or newline made later replies
 go to the wrong call on the same client, and a key with ``\r\n`` could inject
 commands such as ``flush_all``; a key with a tab, a control character or a NUL
 was stored but could not be read back. If you relied on that, stop using such
