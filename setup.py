@@ -153,6 +153,7 @@ setup(
     license="3-clause BSD <https://opensource.org/licenses/bsd-license.php>",
     description="Quick and small memcached client for Python",
     long_description=readme_text,
+    long_description_content_type="text/x-rst",
     ext_modules=[pylibmc_ext],
     cmdclass={'build_ext': build_ext},
     package_dir={'': 'src'},
