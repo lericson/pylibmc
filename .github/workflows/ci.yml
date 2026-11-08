@@ -112,12 +112,13 @@ jobs:
       env:
         PYLIBMC_TEST_SASL_SERVER: 127.0.0.1:11311
         PYLIBMC_TEST_SASL_USER: testuser
-        PYLIBMC_TEST_SASL_PASSWORD: wrong-on-purpose
+        PYLIBMC_TEST_SASL_PASSWORD: secretpw
+        PYLIBMC_TEST_SASL_REQUIRED: "1"
       run: |
         .github/scripts/sasl-server.sh start 11311 plain
         python -m pytest tests/test_sasl_login.py -v -rA | tee sasl-login.log
         .github/scripts/sasl-server.sh stop 11311
         # Prove the tests ran, rather than skipped.
-        test "$(grep -c ' PASSED' sasl-login.log)" -ge 6
+        test "$(grep -c ' PASSED' sasl-login.log)" -ge 7
         # (a bare "! grep" would not trip errexit)
         if grep -e SKIPPED -e ' FAILED' sasl-login.log; then exit 1; fi
