@@ -123,6 +123,11 @@ libmemcached behavior constants.
    If set, a server will be removed from the server list after this many
    operations on it in a row have failed. See the section on Failover_.
 
+   .. note::
+      With libmemcached 1.1.x this is a plain on/off alias of ``"auto_eject"``;
+      the value is not used as a failure count (reading it back gives ``0`` or
+      ``1``). Set ``"failure_limit"`` as well to control the number of failures.
+
 .. _failure_limit:
 
 ``"failure_limit"`` : deprecated

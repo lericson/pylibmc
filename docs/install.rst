@@ -6,7 +6,9 @@ Requirements
 ============
 
 * Python 3.7+
-* libmemcached 1.0.8 or later (latest tested is 1.0.18)
+* libmemcached 1.0.8 or later (tested with 1.0.18 and 1.1.4; 1.1.x is the
+  maintained `awesomized/libmemcached <https://github.com/awesomized/libmemcached>`_
+  fork, which builds with CMake)
 * zlib (required for compression support)
 * libsasl2 (required for authentication support)
 
