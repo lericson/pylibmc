@@ -759,8 +759,6 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
     *keys = PyBytes_AS_STRING(arg);
     *keylengths = (size_t)PyBytes_GET_SIZE(arg);
 
-    Py_DECREF(arg);
-
     Py_BEGIN_ALLOW_THREADS;
 
     rc = memcached_mget(self->mc, keys, keylengths, 1);
@@ -768,6 +766,8 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
         res = memcached_fetch_result(self->mc, res, &rc);
 
     Py_END_ALLOW_THREADS;
+
+    Py_DECREF(arg);
 
     int miss = 0;
     int fail = 0;
@@ -1666,7 +1666,10 @@ static pylibmc_mget_res _fetch_multi(memcached_st *mc,
         result = memcached_fetch_result(mc, result, &res.rc);
 
         if (result == NULL || res.rc == MEMCACHED_END) {
-            /* This is how libmecached signals EOF. */
+            /* memcached_fetch_result returns NULL once all servers are
+             * exhausted.  res.rc distinguishes normal completion
+             * (MEMCACHED_END, MEMCACHED_NOTFOUND) from errors
+             * (e.g. MEMCACHED_CONNECTION_FAILURE). */
             break;
         } else if (res.rc == MEMCACHED_BAD_KEY_PROVIDED
                 || res.rc == MEMCACHED_NO_KEY_PROVIDED) {
@@ -1678,7 +1681,6 @@ static pylibmc_mget_res _fetch_multi(memcached_st *mc,
         }
     }
 
-    res.rc = MEMCACHED_SUCCESS;
     return res;
 }
 
@@ -1797,7 +1799,12 @@ static PyObject *PylibMC_Client_get_multi(
     res = _fetch_multi(self->mc, req);
     Py_END_ALLOW_THREADS;
 
-    if (res.rc != MEMCACHED_SUCCESS) {
+    /* _fetch_multi returns the rc from the final memcached_fetch_result
+     * call.  Per the libmemcached docs, that function sets rc to END on
+     * successful conclusion, or NOTFOUND if no keys matched — both are
+     * normal outcomes for get_multi.  Any other code (e.g.
+     * CONNECTION_FAILURE) is an actual error. */
+    if (res.rc != MEMCACHED_END && res.rc != MEMCACHED_NOTFOUND) {
         PylibMC_ErrFromMemcached(self, res.err_func, res.rc);
         goto earlybird;
     }
@@ -2463,14 +2470,6 @@ static int _key_normalized_obj(PyObject **key) {
     key_str = PyBytes_AS_STRING(retval);
     key_sz = PyBytes_GET_SIZE(retval);
     rc = _key_normalized_str(&key_str, &key_sz);
-    if (rc == 2) {
-        retval = PyBytes_FromStringAndSize(key_str, key_sz);
-        if (retval != NULL) {
-            rc = 1;
-        } else {
-            rc = 0;
-        }
-    }
 
 END:
     if (retval != orig_key) {
@@ -2488,9 +2487,7 @@ END:
 }
 
 /**
- * Normalize memcached key.
- *
- * Returns 0 if invalid, 1 if already normalized, and 2 if mutated.
+ * Validate a memcached key.  Returns 0 if invalid, 1 if valid.
  */
 static int _key_normalized_str(char **str, Py_ssize_t *size) {
     /* libmemcached pads max_key_size with one byte for null termination */

@@ -9,3 +9,6 @@ tmp
 MANIFEST
 sendapatch.se
 *.swp
+.venv
+src/pylibmc.egg-info
+src/_pylibmc*.so
