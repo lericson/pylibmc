@@ -29,10 +29,6 @@ slashed the time investment to near zero, hoo-rah. The biggest change is that we
 now build against libmemcached 1.1.4 for the wheels. Also the LLM found many
 memory safety problems, and likely many yet more to come.
 
-See the `change log`__ for the details.
-
-__ http://sendapatch.se/projects/pylibmc/changelog.html
-
 New in version 1.6.0
 ====================
 
@@ -48,21 +44,6 @@ We have also introduced a `pickle_protocol` behavior to enable seamless
 interoperability between Python 2.x and 3.x. Also, this release introduces a
 ManyLinux wheel, making installation a breeze on ManyLinux systems (which I
 suppose is many linuxes.)
-
-New in version 1.5.0
-====================
-
-This release fixes critical memory leaks in common code paths introduced in
-1.4.2. Also fixes a critical bug in a corner of the zlib inflation code, where
-prior memory errors would trigger a double free. Thank you to everybody
-involved in the making of this release, and especially `Eau de Web`__, without
-their contributions, this release and the bug fixes it contains wouldn't have
-been so expedient.
-
-__ http://www.eaudeweb.ro/
-
-.. comment: 1.5.x should have been an extension to 1.4.x, therefore it's best
-   to keep the 1.4.x release announcement below.
 
 New in version 1.4.0
 ====================
