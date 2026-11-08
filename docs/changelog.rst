@@ -58,6 +58,9 @@ Build and platforms:
 
 Fixes:
 
+- ``Client.clone()`` raises ``MemoryError`` instead of returning an unusable
+  client when libmemcached cannot clone, and a clone of a client with SASL
+  credentials is tested to authenticate, as are the pools' clones.
 - Fixed a use-after-free in ``gets`` with a ``str`` key, which could look up
   the wrong key (#300).
 - ``get_multi`` raises on a connection failure after the request was sent,
