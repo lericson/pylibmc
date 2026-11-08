@@ -4,12 +4,6 @@ Change Log
 New in version 1.8.0
 --------------------
 
-New:
-
-- ``cas`` takes ``min_compress_len`` and ``compress_level`` and compresses
-  exactly like ``set`` (#285). ``cas`` and the other set commands now share one
-  code path for serializing and compressing values.
-
 Changes that can break existing code:
 
 - A negative expiry time now raises ``ValueError``, as does one that does not
