@@ -1,7 +1,16 @@
 name: CI
 on:
-  - push
-  - pull_request
+  # Pushes to pull request branches are covered by pull_request; running on
+  # both ran every job twice per commit.
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # A newer push to a PR supersedes the run in flight; never cancel master.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
