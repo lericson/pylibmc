@@ -32,6 +32,10 @@ Example, ``changes.d/202.breaking.rst``::
     A negative expiry time now raises ``ValueError`` in ``set`` and friends.
     It used to be turned silently into a huge number.
 
+Patch releases (``X.Y.Z`` with ``Z`` above 0) may only carry ``fix``,
+``build`` and ``docs`` fragments: ``check --version X.Y.Z`` (run by the release
+workflow) and ``build X.Y.Z`` refuse ``breaking`` and ``new`` ones.
+
 ``bin/changelog check`` validates the names and contents; CI runs it. A PR
 that touches ``src/``, ``setup.py`` or ``.github/`` without a fragment fails
 CI, unless its description has a line saying ``no-changelog``.

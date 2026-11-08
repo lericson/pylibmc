@@ -239,7 +239,11 @@ maintainer's explicit go-ahead.
    which one the wheels contain. Do not describe changes inside libmemcached
    itself (new behaviour, renamed settings): that is their work and their
    release notes. State anything that can break an existing pylibmc user
-   (changed exceptions or defaults, dropped platforms). Check that the docs build (see step 9; it is not part of CI).
+   (changed exceptions or defaults, dropped platforms). Patch releases
+   (`1.7.1`) follow semver: they may only carry `fix`, `build` and `docs`
+   fragments, and `bin/changelog build` and `check --version X.Y.Z` refuse
+   `breaking` and `new` ones for them (everyday CI runs plain `check`, which
+   applies no version rule). Check that the docs build (see step 9; it is not part of CI).
    `README.rst` is the project description PyPI shows, and files on PyPI cannot
    be edited afterwards: its top must announce *this* release before you tag.
 5. **Make the release commit and sign a tag.** `master` always says `x.y.z-dev`:
@@ -257,7 +261,9 @@ maintainer's explicit go-ahead.
    ```
    The tagged commit stays off `master`. The wheels and the sdist take their
    version from the header, not the tag, so `cd.yml` fails at once if the two
-   differ. Signing needs the maintainer's key; an agent prepares the commit and
+   differ; it also runs `bin/changelog check --version <version>`, so a patch
+   version tag fails if `changes.d/` holds `breaking` or `new` fragments.
+   Signing needs the maintainer's key; an agent prepares the commit and
    the exact commands, and does not push the tag unless asked to.
 6. **Dry-run the pipeline.** `gh workflow run cd.yml --ref master` builds all
    the wheels and the sdist and skips the release job. Download the artifacts,
