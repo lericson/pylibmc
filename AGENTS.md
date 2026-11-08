@@ -216,7 +216,8 @@ maintainer's explicit go-ahead.
    ask. Use the name someone uses themselves and don't
    guess pronouns.
 4. **Write the change log.** `docs/changelog.rst`, "New in version X":
-   user-visible changes first, then fixes, then platform changes. Document what
+   only feature releases (`1.8.0`) get an entry; patch releases (`1.7.1`) do
+   not. User-visible changes first, then fixes, then platform changes. Document what
    pylibmc changed or now exposes, which libmemcached versions we support, and
    which one the wheels contain. Do not describe changes inside libmemcached
    itself (new behaviour, renamed settings): that is their work and their
