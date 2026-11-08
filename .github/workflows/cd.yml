@@ -44,12 +44,17 @@ jobs:
     name: Build wheel for ${{ matrix.os }}
     needs: check_version
     runs-on: ${{ matrix.os }}
-    # Linux aarch64 is built and tested under QEMU emulation, which is slow.
-    timeout-minutes: 120
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        include:
+          # Linux is split by architecture so that aarch64 builds and tests run
+          # natively on an ARM runner. Under QEMU emulation they took about 17
+          # of the 21 minutes the whole Linux job needed.
+          - {os: ubuntu-latest, linux_archs: x86_64}
+          - {os: ubuntu-24.04-arm, linux_archs: aarch64}
+          - {os: macos-latest}
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
@@ -57,10 +62,6 @@ jobs:
         uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
         with:
           python-version: 3.13
-
-      - name: Set up QEMU
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130  # v3.7.0
 
       - name: Install cibuildwheel
         run: |
@@ -102,7 +103,7 @@ jobs:
           # cibuildwheel cannot test it, so it would ship unverified.
           CIBW_SKIP: "*-musllinux* pp* cp314t-* cp38-macosx_arm64"
           CIBW_ARCHS_MACOS: "x86_64 arm64"
-          CIBW_ARCHS_LINUX: "x86_64 aarch64"
+          CIBW_ARCHS_LINUX: ${{ matrix.linux_archs }}
           # manylinux_2_28 (AlmaLinux 8, glibc 2.28) is the cibuildwheel 3
           # default; manylinux2014 (CentOS 7) is end-of-life and its toolchain
           # is too old for libmemcached 1.1.4 (C++11, modern cmake/bison).
