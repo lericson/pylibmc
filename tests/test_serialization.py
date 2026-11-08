@@ -1,6 +1,7 @@
 import datetime
 import json
 import pickle
+import uuid
 
 import pylibmc
 import _pylibmc
@@ -169,9 +170,9 @@ class SerializationTests(PylibmcTestCase):
     def test_invalid_flags_returned(self):
         # test that nothing bad (memory leaks, segfaults) happens
         # when subclasses implement `deserialize` incorrectly
-        DUMMY = b"dummy"
+        DUMMY = uuid.uuid4().hex.encode()
         BAD_FLAGS = object()
-        KEY = 'foo'
+        KEY = uuid.uuid4().hex
         VALUE = object()
         refcountables = [KEY, DUMMY, VALUE, BAD_FLAGS]
 
@@ -185,9 +186,13 @@ class SerializationTests(PylibmcTestCase):
         assert get_refcounts(refcountables) == initial_refcounts
 
     def test_invalid_flags_returned_2(self):
-        DUMMY = "ab"
-        KEY = "key"
-        VALUE = 123456
+        # Fresh objects, not literals: interned strings and cached constants
+        # are referenced from all over the interpreter and the test runner,
+        # so their reference counts can change for reasons unrelated to
+        # pylibmc (this test once failed on "key" going from 233 to 232).
+        DUMMY = uuid.uuid4().hex
+        KEY = uuid.uuid4().hex
+        VALUE = int(uuid.uuid4().int % 10**9) + 1000
         refcountables = [DUMMY, KEY, VALUE]
 
         class MyClient(pylibmc.Client):
@@ -205,6 +210,27 @@ class SerializationTests(PylibmcTestCase):
         except ValueError:
             raised = True
         assert raised
+        assert get_refcounts(refcountables) == initial_refcounts
+
+    def test_invalid_flags_returned_does_not_drift(self):
+        # A single before/after comparison cannot tell a leak from noise in
+        # the count. Repeating the failing calls makes a per-call leak or
+        # over-decref grow with the number of calls.
+        DUMMY = uuid.uuid4().hex
+        KEY = uuid.uuid4().hex
+        VALUE = int(uuid.uuid4().int % 10**9) + 1000
+        refcountables = [DUMMY, KEY, VALUE]
+
+        class MyClient(pylibmc.Client):
+            def serialize(self, value):
+                return DUMMY
+
+        c = make_test_client(MyClient)
+        initial_refcounts = get_refcounts(refcountables)
+        for _ in range(1000):
+            self._assert_set_raises(c, KEY, VALUE)
+            with self.assertRaises(ValueError):
+                c.set_multi({KEY: DUMMY})
         assert get_refcounts(refcountables) == initial_refcounts
 
 
