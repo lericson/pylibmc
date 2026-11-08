@@ -98,10 +98,13 @@ jobs:
 
       - name: Build wheels
         env:
-          # musllinux, PyPy and free-threaded CPython (untested) are skipped.
+          # musllinux and free-threaded CPython (untested) are skipped. PyPy is
+          # opt-in in cibuildwheel 3, which offers PyPy 3.11 only; CI tests
+          # pypy3.11, so those wheels are covered. The wheel tests run on it too.
+          CIBW_ENABLE: pypy
           # cp314t: free-threaded builds are not tested. cp38-macosx_arm64:
           # cibuildwheel cannot test it, so it would ship unverified.
-          CIBW_SKIP: "*-musllinux* pp* cp314t-* cp38-macosx_arm64"
+          CIBW_SKIP: "*-musllinux* cp314t-* cp38-macosx_arm64"
           CIBW_ARCHS_MACOS: "x86_64 arm64"
           CIBW_ARCHS_LINUX: ${{ matrix.linux_archs }}
           # manylinux_2_28 (AlmaLinux 8, glibc 2.28) is the cibuildwheel 3
