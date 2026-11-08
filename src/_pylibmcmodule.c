@@ -951,6 +951,7 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
 
     serialized = PyMem_New(pylibmc_mset, nkeys);
     if (serialized == NULL) {
+        PyErr_NoMemory();
         goto cleanup;
     }
 
@@ -978,7 +979,7 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
     }
 
     if ((failed = PyList_New(0)) == NULL)
-        return PyErr_NoMemory();
+        goto cleanup;
 
     for (idx = 0; !allsuccess && idx < nkeys; idx++) {
         PyObject *key_obj;
@@ -1513,18 +1514,26 @@ static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self,
 
     if (key_prefix_raw != NULL) {
         key_prefix = PyBytes_FromStringAndSize(key_prefix_raw, key_prefix_len);
+        if (key_prefix == NULL)
+            return NULL;
 
-        if (key_prefix != NULL && PyBytes_Size(key_prefix) == 0)
+        if (PyBytes_Size(key_prefix) == 0) {
+            Py_DECREF(key_prefix);
             key_prefix = NULL;
+        }
     }
 
     keys_tmp = PyList_New(nkeys);
-    if (keys_tmp == NULL)
+    if (keys_tmp == NULL) {
+        Py_XDECREF(key_prefix);
         return NULL;
+    }
 
     incrs = PyMem_New(pylibmc_incr, nkeys);
-    if (incrs == NULL)
+    if (incrs == NULL) {
+        PyErr_NoMemory();
         goto cleanup;
+    }
 
     iterator = PyObject_GetIter(keys);
     if (iterator == NULL)
@@ -2020,11 +2029,16 @@ static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
         return NULL;
     }
 
-    if (prefix_raw != NULL)
+    if (prefix_raw != NULL) {
         prefix = PyBytes_FromStringAndSize(prefix_raw, prefix_len);
+        if (prefix == NULL)
+            return NULL;
+    }
 
-    if ((delete = PyObject_GetAttrString((PyObject *)self, "delete")) == NULL)
+    if ((delete = PyObject_GetAttrString((PyObject *)self, "delete")) == NULL) {
+        Py_XDECREF(prefix);
         return NULL;
+    }
 
     retval = _PylibMC_DoMulti(keys, delete, prefix, NULL);
 
@@ -2169,8 +2183,10 @@ _PylibMC_AddServerCallback(memcached_st *mc,
         return MEMCACHED_FAILURE;
 
     stat_keys = memcached_stat_get_keys(mc, stat, &rc);
-    if (rc != MEMCACHED_SUCCESS)
+    if (rc != MEMCACHED_SUCCESS) {
+        Py_DECREF(val);
         return rc;
+    }
 
     for (curr_key = stat_keys; *curr_key; curr_key++) {
         PyObject *curr_value;
@@ -2564,6 +2580,16 @@ static int _check_libmemcached_version(void) {
     }
 }
 
+/* Append the tuple (name, obj) to list. PyList_Append does not steal, so the
+ * temporary tuple has to be released here. */
+static void _append_name_obj(PyObject *list, const char *name, PyObject *obj) {
+    PyObject *item = Py_BuildValue("sO", name, obj);
+    if (item == NULL)
+        return;
+    PyList_Append(list, item);
+    Py_DECREF(item);
+}
+
 static void _make_excs(PyObject *module) {
     PyObject *exc_objs;
     PylibMC_McErr *err;
@@ -2575,19 +2601,21 @@ static void _make_excs(PyObject *module) {
             "pylibmc.CacheMiss", PylibMCExc_Error, NULL);
 
     exc_objs = PyList_New(0);
-    PyList_Append(exc_objs,
-                  Py_BuildValue("sO", "Error", (PyObject *)PylibMCExc_Error));
-    PyList_Append(exc_objs,
-                  Py_BuildValue("sO", "CacheMiss", (PyObject *)PylibMCExc_CacheMiss));
+    _append_name_obj(exc_objs, "Error", (PyObject *)PylibMCExc_Error);
+    _append_name_obj(exc_objs, "CacheMiss", (PyObject *)PylibMCExc_CacheMiss);
 
     for (err = PylibMCExc_mc_errs; err->name != NULL; err++) {
         char excnam[64];
+        PyObject *retcode;
         snprintf(excnam, 64, "pylibmc.%s", err->name);
         err->exc = PyErr_NewException(excnam, PylibMCExc_Error, NULL);
-        PyObject_SetAttrString(err->exc, "retcode", PyLong_FromLong(err->rc));
+        retcode = PyLong_FromLong(err->rc);
+        if (retcode != NULL) {
+            PyObject_SetAttrString(err->exc, "retcode", retcode);
+            Py_DECREF(retcode);
+        }
         PyModule_AddObject(module, err->name, (PyObject *)err->exc);
-        PyList_Append(exc_objs,
-                      Py_BuildValue("sO", err->name, (PyObject *)err->exc));
+        _append_name_obj(exc_objs, err->name, (PyObject *)err->exc);
     }
 
     PyModule_AddObject(module, "Error",
@@ -2608,6 +2636,15 @@ static void _make_excs(PyObject *module) {
                        (PyObject *)PylibMCExc_Error);
 
     PyModule_AddObject(module, "exceptions", exc_objs);
+}
+
+/* Append the str for name to list, releasing the temporary. */
+static void _append_str(PyObject *list, const char *name) {
+    PyObject *s = PyUnicode_FromString(name);
+    if (s == NULL)
+        return;
+    PyList_Append(list, s);
+    Py_DECREF(s);
 }
 
 static void _make_behavior_consts(PyObject *mod) {
@@ -2631,7 +2668,7 @@ static void _make_behavior_consts(PyObject *mod) {
     for (b = PylibMC_callbacks; b->name != NULL; b++) {
         sprintf(name, "callback_%s", b->name);
         PyModule_AddIntConstant(mod, name, b->flag);
-        PyList_Append(names, PyUnicode_FromString(b->name));
+        _append_str(names, b->name);
     }
 
     PyModule_AddObject(mod, "all_callbacks", names);
@@ -2639,7 +2676,7 @@ static void _make_behavior_consts(PyObject *mod) {
     names = PyList_New(0);
 
     for (b = PylibMC_behaviors; b->name != NULL; b++) {
-        PyList_Append(names, PyUnicode_FromString(b->name));
+        _append_str(names, b->name);
     }
 
     PyModule_AddObject(mod, "all_behaviors", names);
