@@ -2581,6 +2581,29 @@ static int _init_sasl(void) {
     return true;
 }
 
+/* Record the version of the libmemcached actually loaded, and warn if its
+ * major.minor differs from the headers we were compiled against (that happens
+ * when the linker picked up a different libmemcached than the headers). */
+static int _check_libmemcached_runtime(PyObject *module) {
+    const char *rt = memcached_lib_version();
+    const char *hdr = LIBMEMCACHED_VERSION_STRING;
+    size_t n = 0;
+    int dots = 0;
+
+    if (rt == NULL)
+        return true;
+    PyModule_AddStringConstant(module, "libmemcached_runtime_version", rt);
+    while (hdr[n] != '\0' && (hdr[n] != '.' || ++dots < 2))
+        n++;
+    if (strncmp(rt, hdr, n) != 0 || (rt[n] != '.' && rt[n] != '\0')) {
+        if (PyErr_WarnFormat(PyExc_RuntimeWarning, 1,
+                "pylibmc was compiled against libmemcached %s headers but "
+                "loaded libmemcached %s", hdr, rt) < 0)
+            return false;
+    }
+    return true;
+}
+
 static int _check_libmemcached_version(void) {
     uint8_t maj, min;
     char *ver, *dot, *tmp;
@@ -2758,6 +2781,8 @@ by using comma-separation. Good luck with that.\n", PylibMC_functions);
             "libmemcached_version", LIBMEMCACHED_VERSION_STRING);
     PyModule_AddIntConstant(module,
             "libmemcached_version_hex", LIBMEMCACHED_VERSION_HEX);
+    if (!_check_libmemcached_runtime(module))
+        return MOD_ERROR_VAL;
 
 #if LIBMEMCACHED_WITH_SASL_SUPPORT
     PyModule_ADD_REF(module, "support_sasl", Py_True);
