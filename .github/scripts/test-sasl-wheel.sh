@@ -39,13 +39,6 @@ for f in "$site"/sasl2/*.so; do
     echo "$(basename "$f"): $(readelf -d "$f" | grep -E 'NEEDED|RPATH|RUNPATH' | sed 's/.*\[\(.*\)\]/\1/' | tr '\n' ' ')"
 done
 
-$SUDO mkdir -p /etc/sasl2
-rm -f /tmp/memcached-sasldb2
-echo secretpw | saslpasswd2 -a memcached -c -p -f /tmp/memcached-sasldb2 testuser
-chmod 644 /tmp/memcached-sasldb2
-user_args=()
-if [ "$(id -u)" = 0 ]; then user_args=(-u root); fi
-
 status=0
 # server-side mech_list name : plugin file the client must load
 for pair in plain:libplain.so login:liblogin.so cram-md5:libcrammd5.so \
@@ -54,17 +47,11 @@ for pair in plain:libplain.so login:liblogin.so cram-md5:libcrammd5.so \
     plugin=${pair##*:}
     echo
     echo "=== mechanism $mech (client must load $plugin from the wheel)"
-    printf 'mech_list: %s\nlog_level: 5\nsasldb_path: /tmp/memcached-sasldb2\n' "$mech" |
-        $SUDO tee /etc/sasl2/memcached.conf >/dev/null
-    memcached -S -B binary -l 127.0.0.1 -p 11211 ${user_args[@]+"${user_args[@]}"} \
-        >/tmp/memcached.log 2>&1 &
-    mpid=$!
-    for _ in $(seq 1 40); do nc -z 127.0.0.1 11211 && break; sleep 0.25; done
+    "$HERE/sasl-server.sh" start 11211 "$mech"
     if ! $PY "$HERE/sasl-login-check.py" "$plugin"; then
         echo "MECHANISM $mech FAILED"
         status=1
     fi
-    kill "$mpid" 2>/dev/null || true
-    wait "$mpid" 2>/dev/null || true
+    "$HERE/sasl-server.sh" stop 11211
 done
 exit "$status"

@@ -100,3 +100,23 @@ jobs:
         echo "LIBMEMCACHED_VERSION=${LIBMEMCACHED_VERSION}"
     - name: Run test
       run: python bin/runtests.py -v tests --with-doctest
+    # A real memcached that requires SASL, on its own port. Runs on the
+    # newest Python of each libmemcached family (1.0.18 and 1.1.4), against
+    # the package installed above.
+    - name: Install a SASL memcached
+      if: ${{ matrix.python-version == '3.14' }}
+      run: |
+        sudo apt-get install -y -qq memcached sasl2-bin libsasl2-modules netcat-openbsd
+    - name: SASL login against a real server (libmemcached ${{ matrix.libmemcached }})
+      if: ${{ matrix.python-version == '3.14' }}
+      env:
+        PYLIBMC_TEST_SASL_SERVER: 127.0.0.1:11311
+        PYLIBMC_TEST_SASL_USER: testuser
+        PYLIBMC_TEST_SASL_PASSWORD: wrong-on-purpose
+      run: |
+        .github/scripts/sasl-server.sh start 11311 plain
+        python -m pytest tests/test_sasl_login.py -v -rA | tee sasl-login.log
+        .github/scripts/sasl-server.sh stop 11311
+        # Prove the tests ran, rather than skipped.
+        test "$(grep -c ' PASSED' sasl-login.log)" -ge 6
+        ! grep -q -e SKIPPED -e ' FAILED' sasl-login.log

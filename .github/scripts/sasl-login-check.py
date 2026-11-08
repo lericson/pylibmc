@@ -1,40 +1,43 @@
-"""Three SASL logins against memcached on 127.0.0.1:11211, which requires SASL.
+"""SASL login checks against memcached on 127.0.0.1:11211, which requires SASL.
 
 Usage: sasl-login-check.py [PLUGIN_FILE]
 
-Exits non-zero unless: no credentials are refused, a wrong password is refused,
-and the correct login works. With PLUGIN_FILE (say libplain.so) it also demands
-that this plugin was loaded from the wheel's own pylibmc/sasl2 directory, and
-that exactly one libsasl2 is mapped into the process.
+Runs tests/test_sasl_login.py (the one copy of the login checks: no
+credentials refused, wrong password refused, correct login works, clones and
+pools authenticate) against the server that sasl-server.sh started, and exits
+non-zero unless they all pass and none is skipped. With PLUGIN_FILE (say
+libplain.so) it also demands that this plugin was loaded from the wheel's own
+pylibmc/sasl2 directory, and that exactly one libsasl2 is mapped into the
+process.
+
+Needs only unittest, not pytest, so it runs in a bare wheel venv.
 """
+import os
 import sys
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+TESTS = os.path.join(HERE, "..", "..", "tests")
+
+os.environ.setdefault("PYLIBMC_TEST_SASL_SERVER", "127.0.0.1:11211")
+os.environ.setdefault("PYLIBMC_TEST_SASL_USER", "testuser")
+os.environ.setdefault("PYLIBMC_TEST_SASL_PASSWORD", "secretpw")
+os.environ["PYLIBMC_TEST_SASL_REQUIRED"] = "1"
 
 import pylibmc
 
 PLUGIN = sys.argv[1] if len(sys.argv) > 1 else None
 failures = []
 
-
-def attempt(label, should_work, **kw):
-    try:
-        c = pylibmc.Client(["127.0.0.1:11211"], binary=True, **kw)
-        c.set("sasl-check", "ok")
-        got = c.get("sasl-check")
-        outcome = "worked (%r)" % (got,)
-        worked = got == "ok"
-    except Exception as e:
-        outcome = "refused: %s: %s" % (type(e).__name__, e)
-        worked = False
-    verdict = "ok" if worked == should_work else "WRONG"
-    print("RESULT %-30s -> %s [%s]" % (label, outcome, verdict))
-    if worked != should_work:
-        failures.append(label)
-
-
 print(pylibmc.build_info())
-attempt("no credentials", False)
-attempt("wrong password", False, username="testuser", password="nope")
-attempt("correct credentials", True, username="testuser", password="secretpw")
+suite = unittest.defaultTestLoader.discover(
+    TESTS, pattern="test_sasl_login.py", top_level_dir=TESTS)
+result = unittest.TextTestRunner(verbosity=2).run(suite)
+if not result.wasSuccessful():
+    failures.append("the login tests failed")
+if result.skipped or result.testsRun < 7:
+    failures.append("login tests were skipped or missing (ran %d)"
+                    % result.testsRun)
 
 with open("/proc/self/maps") as f:
     maps = {line.split()[-1] for line in f if "sasl" in line}
@@ -50,4 +53,4 @@ if PLUGIN is not None:
 if failures:
     print("FAILED:", "; ".join(failures))
     sys.exit(1)
-print("all three logins behaved")
+print("all SASL login checks passed")
