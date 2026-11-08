@@ -2180,8 +2180,10 @@ _PylibMC_AddServerCallback(memcached_st *mc,
         return MEMCACHED_FAILURE;
 
     stat_keys = memcached_stat_get_keys(mc, stat, &rc);
-    if (rc != MEMCACHED_SUCCESS)
+    if (rc != MEMCACHED_SUCCESS) {
+        Py_DECREF(val);
         return rc;
+    }
 
     for (curr_key = stat_keys; *curr_key; curr_key++) {
         PyObject *curr_value;
