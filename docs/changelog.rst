@@ -4,6 +4,12 @@ Change Log
 New in version 1.7.0
 --------------------
 
+After a hiatus, we are back. A big welcome to @mxamin as a collaborator,
+hopefully this will prevent further hiata down the line. Also, LLMs have
+slashed the time investment to near zero, hoo-rah. The biggest change is that we
+now build against libmemcached 1.1.4 for the wheels. Also the LLM found many
+memory safety problems, and likely many yet more to come.
+
 New:
 
 - New exception ``pylibmc.Timeout`` (a subclass of ``pylibmc.Error``, with
