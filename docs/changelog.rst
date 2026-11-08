@@ -4,17 +4,43 @@ Change Log
 New in version 1.7.0
 --------------------
 
-- Support for libmemcached 1.1.x (the awesomized/libmemcached fork).
-- ``LIBMEMCACHED`` / ``--with-libmemcached`` now really link the requested
-  library, even when the interpreter's link flags name another one first.
-  Importing pylibmc warns if the loaded libmemcached differs in major.minor
-  from the headers it was built against; see
-  ``_pylibmc.libmemcached_runtime_version``.
-- New exception ``pylibmc.Timeout`` (``MEMCACHED_TIMEOUT``, a subclass of
-  ``pylibmc.Error``). libmemcached 1.1.x raises it for ``get`` timeouts where
-  1.0.x returned a miss.
-- ``remove_failed=N`` means "failure limit N" on libmemcached 1.1.x as well,
-  as on 1.0.x, where upstream turned it into an on/off alias of ``auto_eject``.
+New:
+
+- New exception ``pylibmc.Timeout`` (a subclass of ``pylibmc.Error``, with
+  ``retcode`` 31) for libmemcached's ``MEMCACHED_TIMEOUT``.
+- ``_pylibmc.libmemcached_runtime_version`` reports the version of the
+  libmemcached library that is actually loaded. Importing pylibmc emits a
+  ``RuntimeWarning`` if its major.minor differs from the libmemcached the
+  extension was compiled against.
+- ``remove_failed=N`` means a failure limit of ``N`` with every supported
+  libmemcached.
+
+Build and platforms:
+
+- Python 3.12, 3.13 and 3.14 are supported. Python 3.7 is no longer supported:
+  pylibmc requires Python 3.8 or newer.
+- Building with ``LIBMEMCACHED`` or ``--with-libmemcached`` now links the
+  library you named, even when the interpreter's own link flags mention another
+  libmemcached first. The build prints which library it picked.
+- The source distribution includes the doctests and the test runner.
+
+Fixes:
+
+- Fixed a use-after-free in ``gets`` with a ``str`` key, which could look up
+  the wrong key (#300).
+- ``get_multi`` raises on a connection failure after the request was sent,
+  instead of returning partial results (#301).
+- Zero-length values no longer abort assert-enabled builds, and a subclass that
+  overrides ``deserialize()`` receives ``b""`` for them instead of ``None``
+  (#291).
+- ``deserialize()`` raises ``TypeError`` for non-bytes input with the integer
+  flags instead of reading invalid memory.
+- Fixed reference leaks in ``incr_multi``, ``delete_multi``, ``set_multi``,
+  ``get_stats`` and at import time (#307 to #312).
+- ``set_multi`` and ``incr_multi`` raise ``MemoryError`` when an allocation
+  fails; previously they returned without setting an exception.
+- Python 3.13 no longer prints ``Exception ignored in PyMapping_HasKeyString()``
+  when a client is created without behaviors (#297).
 
 New in version 1.6.0
 --------------------
