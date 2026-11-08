@@ -20,6 +20,10 @@ New:
   extension was compiled against.
 - ``remove_failed=N`` means a failure limit of ``N`` with every supported
   libmemcached.
+- Error messages now include libmemcached's description of the error, for
+  example ``error 3 from memcached_get(somekey): CONNECTION FAILURE``. The
+  exception classes and ``retcode`` are unchanged, but code that matches the
+  exact text of a message needs updating (#296).
 
 Build and platforms:
 
@@ -32,6 +36,9 @@ Build and platforms:
   library you named, even when the interpreter's own link flags mention another
   libmemcached first. The build prints which library it picked.
 - The source distribution includes the doctests and the test runner.
+- Every wheel is installed and tested by the release pipeline. No wheel is
+  built for CPython 3.8 on macOS arm64, which could not be tested; CPython 3.8
+  to 3.14 are built everywhere else.
 
 Fixes:
 
@@ -45,11 +52,28 @@ Fixes:
 - ``deserialize()`` raises ``TypeError`` for non-bytes input with the integer
   flags instead of reading invalid memory.
 - Fixed reference leaks in ``incr_multi``, ``delete_multi``, ``set_multi``,
-  ``get_stats`` and at import time (#307 to #312).
+  ``get_stats``, ``get``, ``gets`` and at import time (#307 to #312).
+- Fixed a use-after-free in ``get``: when it reported an error for a ``str``
+  key, the key in the message was read from freed memory.
+- With the ``buffer_requests`` behavior, ``set``, ``set_multi``, ``delete``,
+  ``delete_multi``, ``touch`` and ``cas`` no longer raise ``error 32`` when
+  libmemcached only queued the request (#180).
 - ``set_multi`` and ``incr_multi`` raise ``MemoryError`` when an allocation
   fails; previously they returned without setting an exception.
 - Python 3.13 no longer prints ``Exception ignored in PyMapping_HasKeyString()``
   when a client is created without behaviors (#297).
+
+Documentation:
+
+- New "Error codes" section. Expiry times over 30 days are absolute Unix
+  timestamps, and negative times behave differently with the text and the
+  binary protocol; both are now documented, as are ``tcp_keepalive`` and
+  ``_poll_timeout`` (#115, #273, #56).
+
+Thanks to Christian Clauss, David Szotten, Nikolas Nyby, Miro Hrončok and Bryan
+C. Mills for their contributions since 1.6.3, and to @mxamin, whose fork
+supplied several of the ideas behind the build and test changes in this
+release.
 
 New in version 1.6.0
 --------------------
