@@ -196,7 +196,7 @@
 
       .. seealso:: :meth:`get`, :meth:`cas`
 
-   .. method:: cas(key, value, cas[, time=0, master_key=None]) -> swapped
+   .. method:: cas(key, value, cas[, time=0, min_compress_len=0, compress_level=-1, master_key=None]) -> swapped
 
       Set *key* to *value* if *key* CAS token is *cas*.
 
@@ -204,11 +204,21 @@
       :param value: Value to set
       :param cas: Compare-and-swap token from :meth:`gets`
       :param time: Time until expiry
+      :param min_compress_len: Minimum length before compression is triggered
+      :param compress_level: zlib compression level, 0 to 9, or -1 for the
+                             default
 
       If *time* is given, it specifies the number of seconds until *key* will
       expire. Default behavior is to never expire (equivalent of specifying
       ``0``). Times over 30 days are absolute timestamps and negative times raise
       :exc:`ValueError`, see :meth:`set`.
+
+      *min_compress_len* and *compress_level* work exactly as they do for
+      :meth:`set`, and a compressed value is read back by any client the same
+      way. (Before 1.8.0, ``cas`` could not compress and did not take them.)
+
+      Returns ``False`` if the token no longer matches, that is, if the key was
+      written by someone else after :meth:`gets`.
 
    .. Deleting
 
