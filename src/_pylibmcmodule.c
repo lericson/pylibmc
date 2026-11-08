@@ -978,7 +978,7 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
     }
 
     if ((failed = PyList_New(0)) == NULL)
-        return PyErr_NoMemory();
+        goto cleanup;
 
     for (idx = 0; !allsuccess && idx < nkeys; idx++) {
         PyObject *key_obj;
