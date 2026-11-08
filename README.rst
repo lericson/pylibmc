@@ -66,7 +66,7 @@ Maintainer
 
 - Website: `sendapatch.se/ <http://sendapatch.se/>`_
 - Github: `github.com/lericson <http://github.com/lericson>`_
-- IRC: ``lericson`` in ``#sendapatch`` on ``chat.freenode.net``
+- IRC: ``lericson`` in ``#sendapatch`` on ``irc.libera.chat``
 - E-mail: ``ludvig`` at ``sendapatch.se``
 
 ------
