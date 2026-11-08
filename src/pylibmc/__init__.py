@@ -68,6 +68,35 @@ Further Reading
 See http://sendapatch.se/projects/pylibmc/
 """
 
+import os as _os
+
+
+def _point_sasl_at_bundled_plugins(environ=None, package_dir=None):
+    """Make libsasl2 find the SASL plugins shipped inside Linux wheels.
+
+    libsasl2 loads its mechanisms (PLAIN and so on) at runtime from a directory
+    compiled into it, which does not exist on most systems other than the one
+    the wheel was built on. The wheels carry the plugins in ``sasl2/`` next to
+    this file; libsasl2 reads ``SASL_PATH`` when it initialises, so set it
+    before anything can. Never override a ``SASL_PATH`` the user has set, and do
+    nothing when there is no such directory (source builds, macOS wheels).
+    Returns the directory that was set, or None.
+    """
+    if environ is None:
+        environ = _os.environ
+    if package_dir is None:
+        package_dir = _os.path.dirname(_os.path.abspath(__file__))
+    if "SASL_PATH" in environ:
+        return None
+    plugin_dir = _os.path.join(package_dir, "sasl2")
+    if not _os.path.isdir(plugin_dir):
+        return None
+    environ["SASL_PATH"] = plugin_dir
+    return plugin_dir
+
+
+_point_sasl_at_bundled_plugins()
+
 import _pylibmc
 from _pylibmc import *
 from _pylibmc import __version__

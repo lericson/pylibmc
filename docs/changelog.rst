@@ -22,6 +22,13 @@ Fixes:
 - ``incr_multi`` and ``decr_multi`` leaked a reference to every key on every
   call. A key that is rejected (for example one that is too long) no longer
   leaks in ``get``, ``gets``, ``get_multi`` and ``delete_multi``.
+- SASL authentication works with the Linux wheels on Debian, Ubuntu and other
+  systems whose SASL plugins are not where the bundled libsasl2 looks for them
+  (#289). It failed with "no mechanism available". The wheels now ship the
+  ``PLAIN``, ``LOGIN``, ``CRAM-MD5``, ``DIGEST-MD5`` and ``SCRAM-SHA-1``
+  plugins and point libsasl2 at them through ``SASL_PATH``, unless you have set
+  that yourself. The GSSAPI plugin is not included: if you use Kerberos, set
+  ``SASL_PATH`` to your system's plugin directory.
 
 New in version 1.7.0
 --------------------
