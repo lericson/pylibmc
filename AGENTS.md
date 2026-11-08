@@ -17,8 +17,9 @@ and GitHub.
 | `src/pylibmc-version.h` | The one source of the version number. `setup.py` and the C module both read it. |
 | `src/pylibmc/` | The Python package: `client.py`, `pools.py`, `consts.py`, `autoconf.py`, `test.py`. |
 | `tests/` | pytest tests plus `doctests.txt`. `tests/__init__.py` has `PylibmcTestCase` and `get_refcounts`. |
-| `docs/` | Sphinx docs. `docs/changelog.rst` is the user-facing change log. |
-| `bin/` | `runtests.py` (runs pytest, exits with its status), `with-memcached` (see the pitfalls below). |
+| `docs/` | Sphinx docs. `docs/changelog.rst` is the user-facing change log, written at release time from `changes.d/`. |
+| `changes.d/` | One change log fragment per change; see `changes.d/README.rst`. |
+| `bin/` | `runtests.py` (runs pytest, exits with its status), `with-memcached` (see the pitfalls below), `changelog` (checks fragments, builds the change log entry). |
 | `.github/` | Workflows (`ci.yml`, `cd.yml`), the `setup-python-retry` action, and helper scripts in `.github/scripts`. |
 
 ## Building and testing locally
@@ -127,6 +128,10 @@ kill %1
   and short; the body says why and what was verified. Non-code changes use a
   scope prefix (`ci:`, `tests:`). Link issues with `Fixes #N` in the PR
   description, one issue per line, so GitHub closes them on merge.
+- A PR that changes behaviour, the build or the docs adds a fragment file in
+  `changes.d/` and does not edit `docs/changelog.rst` (that is what made every
+  PR conflict). CI fails a PR that touches `src/`, `setup.py` or `.github/`
+  without one, unless its description has a line saying `no-changelog`.
 - Work an LLM helped with carries the `Co-Authored-By:` trailer your tooling
   provides. Credit ideas taken from other people or forks in the commit
   message ("Idea from <fork>").
@@ -215,9 +220,12 @@ maintainer's explicit go-ahead.
    commits with (it is already public in the git history); leave it out if they
    ask. Use the name someone uses themselves and don't
    guess pronouns.
-4. **Write the change log.** `docs/changelog.rst`, "New in version X":
-   only feature releases (`1.8.0`) get an entry; patch releases (`1.7.1`) do
-   not. User-visible changes first, then fixes, then platform changes. Document what
+4. **Write the change log.** Feature releases (`1.8.0`) get an entry; patch
+   releases (`1.7.1`) do not. Run `bin/changelog build X.Y.Z --write`: it puts
+   the fragments of `changes.d/` into `docs/changelog.rst` as "New in version
+   X.Y.Z" (merging with a section already there). Edit the result, and delete
+   the consumed fragments in the release commit. Order: user-visible changes
+   first, then fixes, then platform changes. Document what
    pylibmc changed or now exposes, which libmemcached versions we support, and
    which one the wheels contain. Do not describe changes inside libmemcached
    itself (new behaviour, renamed settings): that is their work and their
