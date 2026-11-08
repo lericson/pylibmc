@@ -211,8 +211,9 @@ maintainer's explicit go-ahead.
    entry (earlier releases do this), the GitHub release notes, and
    `docs/coders.rst` ("The List of Honored People", alphabetical by surname),
    where everyone whose code or ideas were used gets an entry if they don't
-   have one. Older entries carry an email address; add one only if that person
-   agrees to it being published. Use the name someone uses themselves and don't
+   have one. Entries carry the email address the person
+   commits with (it is already public in the git history); leave it out if they
+   ask. Use the name someone uses themselves and don't
    guess pronouns.
 4. **Write the change log.** `docs/changelog.rst`, "New in version X":
    user-visible changes first, then fixes, then platform changes. Document what
