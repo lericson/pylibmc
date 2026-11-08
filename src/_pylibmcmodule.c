@@ -607,7 +607,9 @@ static PyObject *_PyLong_FromStringAndSize(char *value, Py_ssize_t size, char **
     if ((tmp = malloc(size+1)) == NULL) {
         return PyErr_NoMemory();
     }
-    strncpy(tmp, value, size);
+    if (size > 0) {
+        memcpy(tmp, value, size);
+    }
     tmp[size] = '\0';
     retval = PyLong_FromString(tmp, pend, base);
     free(tmp);
@@ -633,6 +635,14 @@ static PyObject *_PylibMC_deserialize_native(PylibMC_Client *self, PyObject *val
         case PYLIBMC_FLAG_INTEGER:
         case PYLIBMC_FLAG_LONG:
             if (value) {
+                /* deserialize() is callable from Python with any object, and
+                   PyBytes_AS_STRING does no type checking. */
+                if (!PyBytes_Check(value)) {
+                    PyErr_Format(PyExc_TypeError,
+                                 "integer value must be bytes, not %.200s",
+                                 Py_TYPE(value)->tp_name);
+                    break;
+                }
                 retval = PyLong_FromString(PyBytes_AS_STRING(value), NULL, 10);
             } else {
                 retval = _PyLong_FromStringAndSize(value_str, value_size, NULL, 10);;
@@ -1696,6 +1706,11 @@ static pylibmc_mget_res _fetch_multi(memcached_st *mc,
             memcached_quit(mc);  /* Reset fetch state */
             res.err_func = "memcached_fetch";
             _free_multi_result(res);
+            /* The caller frees res.results too, and reports res.rc. Don't
+             * keep looping into the array we just freed. */
+            res.results = NULL;
+            res.nresults = 0;
+            return res;
         }
     }
 

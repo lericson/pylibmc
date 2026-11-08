@@ -206,3 +206,26 @@ class SerializationTests(PylibmcTestCase):
             raised = True
         assert raised
         assert get_refcounts(refcountables) == initial_refcounts
+
+
+class DeserializeArgumentTests(PylibmcTestCase):
+    """deserialize() is public API and must reject what it cannot decode."""
+
+    def test_integer_requires_bytes(self):
+        c = make_test_client()
+        for flags in (f_int, f_long):
+            self.assertEqual(c.deserialize(b'12', flags), 12)
+            for bad in (None, 12, '12', [b'12']):
+                with self.assertRaises(TypeError):
+                    c.deserialize(bad, flags)
+
+    def test_other_flags_do_not_crash(self):
+        c = make_test_client()
+        # The plain flag hands the object back untouched.
+        self.assertIsNone(c.deserialize(None, f_none))
+        # Which exception these raise is up to pickle and str decoding (PyPy's
+        # pickle raises EOFError where CPython's raises TypeError). All that
+        # matters here is that they fail cleanly instead of crashing.
+        for flags in (f_pickle, f_text):
+            with self.assertRaises(Exception):
+                c.deserialize(None, flags)
