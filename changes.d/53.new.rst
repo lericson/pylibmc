@@ -1,0 +1,9 @@
+Every data method (``get``, ``gets``, ``set``, ``add``, ``replace``,
+``append``, ``prepend``, ``cas``, ``delete``, ``touch``, ``incr``, ``decr`` and
+the ``*_multi`` methods) takes a keyword-only ``master_key=`` argument (#53,
+#176). When given, it is hashed instead of the item key to pick the server, so
+related keys can live on one server and a ``get_multi`` of them reaches only
+that server. The same item key stored under different master keys can live on
+different servers, so pass the same master key to read, change and delete an
+item as to write it. The default, ``master_key=None``, is the old behavior. See
+:ref:`master-keys`.
