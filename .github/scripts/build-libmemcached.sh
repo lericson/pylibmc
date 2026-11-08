@@ -58,7 +58,7 @@ trap 'rm -rf "$WORK"' EXIT
 # persistent HTTP 504 errors in CI.
 URL=https://codeload.github.com/awesomized/libmemcached/tar.gz/refs/tags/$VERSION
 echo "Downloading $URL"
-curl --fail --silent --show-error --location --retry 5 --retry-delay 5 --retry-all-errors --output "$WORK/src.tar.gz" "$URL"
+curl --fail --silent --show-error --location --retry 5 --retry-delay 5 --output "$WORK/src.tar.gz" "$URL"
 
 GOT=$(sha256 "$WORK/src.tar.gz")
 if [ "$GOT" != "$SHA256" ]; then
