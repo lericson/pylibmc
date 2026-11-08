@@ -28,6 +28,10 @@ The most notable difference is the hashing. See
 :ref:`the hashing docs <hashing-and-python-memcached>`
 for information and how to resolve the issue.
 
+``python-memcached`` pickles booleans, which pylibmc reads back as booleans.
+pylibmc stores them as the integer ``1`` or ``0`` with an extra flag that only
+it understands, so ``python-memcached`` reads them back as integers.
+
 When setting huge key values, i.e. around 1MB, will have :mod:`pylibmc`
 complain loudly whereas ``python-memcached`` simply ignores the error and
 returns.

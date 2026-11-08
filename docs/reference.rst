@@ -243,8 +243,10 @@
 
       Serialize a Python value to bytes *bytestring* and an integer *flag* field
       for storage in memcached. The default implementation has special cases
-      for bytes, ints/longs, and bools, and falls back to pickle for all other
-      objects. Override this method to use a custom serialization format, or
+      for bytes, text, ints/longs and bools, and falls back to pickle for all
+      other objects. A bool is stored as the integer ``1`` or ``0`` with an
+      extra flag (bit 31), so it comes back as a bool; a reader that does not
+      know the flag, such as ``python-memcached``, sees the integer. Override this method to use a custom serialization format, or
       otherwise modify the behavior.
 
       *flag* is exposed by the memcached protocol. It adds flexibility

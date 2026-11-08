@@ -79,8 +79,17 @@ enum PylibMC_Flags {
     PYLIBMC_FLAG_TEXT    = (1 << 4),
 };
 
+/* A bool is stored as the integer 1 or 0 (PYLIBMC_FLAG_INTEGER) with this bit
+ * on top. Readers that do not know the bit, such as older pylibmc and
+ * python-memcached, ignore it and see the integer. Bit 31 stays clear of
+ * python-memcached's flags (bits 0 to 4) and of bit 4, which pylibmc 1.5 used
+ * for bools and which has meant text since 1.6.0. Not in the enum above: it
+ * does not fit in an int. */
+#define PYLIBMC_FLAG_BOOL ((uint32_t)1 << 31)
+
 #define PYLIBMC_FLAG_TYPES (PYLIBMC_FLAG_PICKLE | PYLIBMC_FLAG_INTEGER | \
-                            PYLIBMC_FLAG_LONG | PYLIBMC_FLAG_TEXT)
+                            PYLIBMC_FLAG_LONG | PYLIBMC_FLAG_TEXT | \
+                            PYLIBMC_FLAG_BOOL)
 /* }}} */
 
 /* Behaviors that only affects pylibmc (i.e. not memached_set_behavior etc) */

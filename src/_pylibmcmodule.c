@@ -648,6 +648,33 @@ static PyObject *_PylibMC_deserialize_native(PylibMC_Client *self, PyObject *val
                 retval = _PyLong_FromStringAndSize(value_str, value_size, NULL, 10);;
             }
             break;
+        case PYLIBMC_FLAG_INTEGER | PYLIBMC_FLAG_BOOL: {
+            const char *s;
+            Py_ssize_t n;
+            if (value) {
+                if (!PyBytes_Check(value)) {
+                    PyErr_Format(PyExc_TypeError,
+                                 "boolean value must be bytes, not %.200s",
+                                 Py_TYPE(value)->tp_name);
+                    break;
+                }
+                s = PyBytes_AS_STRING(value);
+                n = PyBytes_GET_SIZE(value);
+            } else {
+                s = value_str;
+                n = value_size;
+            }
+            if (n == 1 && s[0] == '1') {
+                Py_INCREF(Py_True);
+                retval = Py_True;
+            } else if (n == 1 && s[0] == '0') {
+                Py_INCREF(Py_False);
+                retval = Py_False;
+            } else {
+                PyErr_SetString(PyExc_ValueError, "invalid boolean value");
+            }
+            break;
+        }
         case PYLIBMC_FLAG_TEXT:
             if (value) {
                 retval = PyUnicode_FromEncodedObject(value, "utf-8", "strict");
@@ -1275,7 +1302,8 @@ static int _PylibMC_serialize_native(PylibMC_Client *self, PyObject *value_obj, 
         store_flags = PYLIBMC_FLAG_TEXT;
         store_val = PyUnicode_AsUTF8String(value_obj);
     } else if (PyBool_Check(value_obj)) {
-        store_flags |= PYLIBMC_FLAG_INTEGER;
+        /* An integer with the bool flag on top, see PYLIBMC_FLAG_BOOL. */
+        store_flags |= PYLIBMC_FLAG_INTEGER | PYLIBMC_FLAG_BOOL;
         store_val = PyBytes_FromStringAndSize(&"01"[value_obj == Py_True], 1);
     } else if (PyLong_Check(value_obj)) {
         store_flags |= PYLIBMC_FLAG_LONG;

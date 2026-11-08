@@ -11,6 +11,11 @@ Changes that can break existing code:
   ``cas``, ``touch`` and the ``*_multi`` variants (#202). It used to be turned
   silently into a huge number: the text protocol then expired the key at once
   and the binary protocol stored it without expiry.
+- ``True`` and ``False`` now come back as booleans and not as ``1`` and ``0``
+  (#245). They are stored as the integer ``1`` or ``0`` with an extra flag
+  (bit 31), so readers that do not know the flag, such as older pylibmc and
+  ``python-memcached``, still see the integer. Booleans stored by earlier
+  versions are integers and still read back as integers.
 
 New in version 1.7.0
 --------------------
