@@ -718,6 +718,7 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *args) {
     if (!_key_normalized_obj(&key)) {
         return NULL;
     } else if (!PySequence_Length(key)) {
+        Py_DECREF(key);
         Py_INCREF(default_value);
         return default_value;
     }
@@ -769,8 +770,10 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
     if (!_key_normalized_obj(&arg)) {
         return NULL;
     } else if (!PySequence_Length(arg)) {
+        Py_DECREF(arg);
         return Py_BuildValue("(OO)", Py_None, Py_None);
     } else if (!memcached_behavior_get(self->mc, MEMCACHED_BEHAVIOR_SUPPORT_CAS)) {
+        Py_DECREF(arg);
         PyErr_SetString(PyExc_ValueError, "gets without cas behavior");
         return NULL;
     }
