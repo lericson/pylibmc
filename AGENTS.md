@@ -222,9 +222,23 @@ maintainer's explicit go-ahead.
    itself (new behaviour, renamed settings): that is their work and their
    release notes. State anything that can break an existing pylibmc user
    (changed exceptions or defaults, dropped platforms). Check that the docs build (see step 9; it is not part of CI).
-5. **Set the version.** Edit `src/pylibmc-version.h`; the tag is the same string
-   with no `v` (`1.7.0`; a release candidate is `1.7.0rc1`). Use an annotated
-   tag (`git tag -a`).
+5. **Make the release commit and sign a tag.** `master` always says `x.y.z-dev`:
+   no commit on `master` carries a release or release-candidate version. A
+   release is a signed tag on a commit that is *not* on `master`. Branch off
+   the commit you are releasing, set `src/pylibmc-version.h` to the release
+   version, commit that, and tag it, with the tag named exactly like the
+   version and no `v` (`1.7.0`, or `1.7.0rc1` for a release candidate):
+   ```sh
+   git switch -c release-1.7.0rc1 origin/master
+   # edit src/pylibmc-version.h: "1.7.0-dev" -> "1.7.0rc1"
+   git commit -am "Release 1.7.0rc1"
+   git tag -s 1.7.0rc1 -m "pylibmc 1.7.0rc1"
+   git push origin 1.7.0rc1        # the tag only: no branch, no pull request
+   ```
+   The tagged commit stays off `master`. The wheels and the sdist take their
+   version from the header, not the tag, so `cd.yml` fails at once if the two
+   differ. Signing needs the maintainer's key; an agent prepares the commit and
+   the exact commands, and does not push the tag unless asked to.
 6. **Dry-run the pipeline.** `gh workflow run cd.yml --ref master` builds all
    the wheels and the sdist and skips the release job. Download the artifacts,
    install each kind into a clean environment, and check
@@ -255,8 +269,9 @@ maintainer's explicit go-ahead.
    cutting, before it goes live.
 10. **After the release.** Install the published version in clean environments on
    macOS and Linux and run a smoke test. Comment on and close the issues it
-   fixes, saying which release has the fix. Move `pylibmc-version.h` to the next
-   `-dev`. Delete merged branches. Answer any open maintenance thread with what
+   fixes, saying which release has the fix. After a final release, move
+   `master`'s `pylibmc-version.h` to the next `-dev` version in a normal pull
+   request. Delete merged branches (the release branch was never pushed). Answer any open maintenance thread with what
    shipped.
 
 ## Working in parallel, with helpers and subagents

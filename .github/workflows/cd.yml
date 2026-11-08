@@ -12,8 +12,37 @@ permissions: {}
 
 jobs:
 
+  # The version of the wheels and the sdist comes from src/pylibmc-version.h,
+  # not from the tag, so a tag on a commit whose header says something else
+  # would publish wheels under the wrong version. Fail before building them.
+  check_version:
+    name: Check the tag matches the version in the source
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+      - name: Compare
+        env:
+          REF: ${{ github.ref }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(sed -n 's/^#define PYLIBMC_VERSION "\(.*\)"$/\1/p' src/pylibmc-version.h)
+          echo "src/pylibmc-version.h says: ${version}"
+          if [[ "${REF}" != refs/tags/* ]]; then
+            echo "Not a tag build (dry run): nothing to compare."
+          elif [[ -z "${version}" ]]; then
+            echo "::error::Could not read PYLIBMC_VERSION from src/pylibmc-version.h"
+            exit 1
+          elif [[ "${TAG}" != "${version}" ]]; then
+            echo "::error::Tag '${TAG}' does not match PYLIBMC_VERSION '${version}' in src/pylibmc-version.h. Tag a commit whose header says the version being released."
+            exit 1
+          else
+            echo "Tag ${TAG} matches the source version."
+          fi
+
   build_wheels:
     name: Build wheel for ${{ matrix.os }}
+    needs: check_version
     runs-on: ${{ matrix.os }}
     # Linux aarch64 is built and tested under QEMU emulation, which is slow.
     timeout-minutes: 120
@@ -135,6 +164,7 @@ jobs:
 
   build_sdist:
     name: Build source distribution
+    needs: check_version
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
