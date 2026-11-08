@@ -119,4 +119,5 @@ jobs:
         .github/scripts/sasl-server.sh stop 11311
         # Prove the tests ran, rather than skipped.
         test "$(grep -c ' PASSED' sasl-login.log)" -ge 6
-        ! grep -q -e SKIPPED -e ' FAILED' sasl-login.log
+        # (a bare "! grep" would not trip errexit)
+        if grep -e SKIPPED -e ' FAILED' sasl-login.log; then exit 1; fi
