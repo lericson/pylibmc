@@ -2026,11 +2026,16 @@ static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
         return NULL;
     }
 
-    if (prefix_raw != NULL)
+    if (prefix_raw != NULL) {
         prefix = PyBytes_FromStringAndSize(prefix_raw, prefix_len);
+        if (prefix == NULL)
+            return NULL;
+    }
 
-    if ((delete = PyObject_GetAttrString((PyObject *)self, "delete")) == NULL)
+    if ((delete = PyObject_GetAttrString((PyObject *)self, "delete")) == NULL) {
+        Py_XDECREF(prefix);
         return NULL;
+    }
 
     retval = _PylibMC_DoMulti(keys, delete, prefix, NULL);
 
