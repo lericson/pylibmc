@@ -3,13 +3,16 @@ on:
   - push
   - pull_request
 
+permissions:
+  contents: read
+
 jobs:
   test:
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "pypy3.9", "pypy3.10", "pypy3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "pypy3.9", "pypy3.10", "pypy3.11"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     name: "${{ matrix.os }} Python: ${{ matrix.python-version }}"
@@ -17,15 +20,15 @@ jobs:
       LIBMEMCACHED_VERSION: '1.0.18'
     services:
       memcached:
-        image: memcached:1.6.12
+        image: memcached:1.6.45
         ports:
           - 11211:11211
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
       with:
         fetch-depth: 0
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
@@ -37,7 +40,7 @@ jobs:
     - name: memcached stats
       run: echo "stats settings" | netcat localhost 11211 -w 3
     - name: Install package
-      run: python setup.py install
+      run: pip install .
     - name: Set LIBMEMCACHED_VERSION
       run: echo LIBMEMCACHED_VERSION="$(python -c 'import pylibmc; print(pylibmc.libmemcached_version)')" >> $GITHUB_ENV
     - name: Log versions

@@ -12,3 +12,7 @@ sendapatch.se
 .venv
 src/pylibmc.egg-info
 src/_pylibmc*.so
+__pycache__/
+.mypy_cache/
+*.egg-info/
+.vscode/
