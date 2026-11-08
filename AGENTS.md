@@ -285,9 +285,6 @@ maintainer's explicit go-ahead.
 Keep this list short and delete items when they are fixed.
 
 - `tox.ini` still lists the old interpreter set.
-- `docs/coders.rst` is missing contributors from before 1.6.3 (compare
-  `git log --no-merges --format=%an | sort -u` against it) and has two entries
-  out of alphabetical order.
 - The pipeline does not yet install each wheel and run the test suite against
   it (the intended smoke test, with memcached started in the build container);
   until it does, wheels are untested artifacts.
