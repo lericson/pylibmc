@@ -66,6 +66,26 @@
       expire. Default behavior is to never expire (equivalent of specifying
       ``0``).
 
+      .. warning:: The *time* argument is passed on to memcached as is, and
+                   memcached interprets it in two ways. A value up to and
+                   including 30 days (``60 * 60 * 24 * 30`` = 2592000 seconds)
+                   is a number of seconds from now. A larger value is taken
+                   as an absolute Unix timestamp. So ``time=30 * 86400 + 1`` is
+                   a moment in January 1970, and the key is already expired
+                   when it is stored (the call still returns ``True``). To
+                   expire a key more than 30 days from now, pass
+                   ``int(time.time()) + seconds``.
+
+                   Negative values are not meaningful, and the two protocols
+                   disagree about them: with the text protocol (the default)
+                   the key is expired immediately, with the binary protocol
+                   (``binary=True``) it is stored and does not expire. This
+                   is observed behavior, not a guarantee, and it may change;
+                   do not rely on it. Use :meth:`delete` to remove a key.
+
+                   The same rules apply to every method below that takes
+                   *time*.
+
       If *min_compress_len* is given, it specifies the maximum number of actual
       bytes stored in memcached before compression is used. Default behavior is
       to never compress (which is what ``0`` means). See :ref:`compression`.
@@ -77,7 +97,8 @@
 
    .. method:: set_multi(mapping[, time=0, key_prefix=None, min_compress_len, compress_level]) -> failed_keys
 
-      Set multiple keys as given by *mapping*.
+      Set multiple keys as given by *mapping*. *time* is the same as for
+      :meth:`set`, including the 30 day limit for relative times.
 
       If *key_prefix* is specified, each of the keys in *mapping* is prepended
       with this value.
@@ -87,13 +108,14 @@
 
    .. method:: add(key, value[, time, min_compress_len, compress_level]) -> success
 
-      Sets *key* if it does not exist.
+      Sets *key* if it does not exist. *time* is the same as for :meth:`set`.
 
       .. seealso:: :meth:`set`, :meth:`replace`
 
    .. method:: replace(key, value[, time, min_compress_len, compress_level]) -> success
 
-      Sets *key* only if it already exists.
+      Sets *key* only if it already exists. *time* is the same as for
+      :meth:`set`.
 
       .. seealso:: :meth:`set`, :meth:`add`
 
@@ -157,7 +179,8 @@
 
       If *time* is given, it specifies the number of seconds until *key* will
       expire. Default behavior is to never expire (equivalent of specifying
-      ``0``).
+      ``0``). Times over 30 days are absolute timestamps and negative times are
+      not meaningful, see :meth:`set`.
 
    .. Deleting
 
@@ -184,6 +207,11 @@
 
       :param key: Key to touch
       :param time: Number of seconds until the key expires.
+
+      Times over 30 days are absolute Unix timestamps, see :meth:`set`. With
+      libmemcached 1.0.x and the text protocol, a negative *time* raises
+      :exc:`pylibmc.AllocationError` (libmemcached refuses to write the
+      command); with libmemcached 1.1.x it expires the key immediately.
 
       Returns ``True`` if the key was successfully touched. ``False``
       if the key did not exist (so touching is not possible.)
