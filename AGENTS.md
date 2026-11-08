@@ -222,6 +222,8 @@ maintainer's explicit go-ahead.
    itself (new behaviour, renamed settings): that is their work and their
    release notes. State anything that can break an existing pylibmc user
    (changed exceptions or defaults, dropped platforms). Check that the docs build (see step 9; it is not part of CI).
+   `README.rst` is the project description PyPI shows, and files on PyPI cannot
+   be edited afterwards: its top must announce *this* release before you tag.
 5. **Make the release commit and sign a tag.** `master` always says `x.y.z-dev`:
    no commit on `master` carries a release or release-candidate version. A
    release is a signed tag on a commit that is *not* on `master`. Branch off
