@@ -19,7 +19,7 @@ and GitHub.
 | `tests/` | pytest tests plus `doctests.txt`. `tests/__init__.py` has `PylibmcTestCase` and `get_refcounts`. |
 | `docs/` | Sphinx docs. `docs/changelog.rst` is the user-facing change log. |
 | `bin/` | `runtests.py` (runs pytest, exits with its status), `with-memcached` (see the pitfalls below). |
-| `.github/` | Workflows (`ci.yml`, `cd.yml`) and the `setup-python-retry` action. |
+| `.github/` | Workflows (`ci.yml`, `cd.yml`), the `setup-python-retry` action, and helper scripts in `.github/scripts`. |
 
 ## Building and testing locally
 
@@ -215,10 +215,11 @@ maintainer's explicit go-ahead.
    pronouns.
 4. **Write the change log.** `docs/changelog.rst`, "New in version X":
    user-visible changes first, then fixes, then platform changes. Document what
-   pylibmc changed or now exposes; do not document changes inside libmemcached
-   itself, that is their work and their release notes. State anything that can
-   break an existing pylibmc user (changed exceptions or defaults, dropped
-   platforms). Check that the docs build (see step 9; it is not part of CI).
+   pylibmc changed or now exposes, which libmemcached versions we support, and
+   which one the wheels contain. Do not describe changes inside libmemcached
+   itself (new behaviour, renamed settings): that is their work and their
+   release notes. State anything that can break an existing pylibmc user
+   (changed exceptions or defaults, dropped platforms). Check that the docs build (see step 9; it is not part of CI).
 5. **Set the version.** Edit `src/pylibmc-version.h`; the tag is the same string
    with no `v` (`1.7.0`; a release candidate is `1.7.0rc1`). Use an annotated
    tag (`git tag -a`).
@@ -234,10 +235,9 @@ maintainer's explicit go-ahead.
    credentials, from the artifacts of the release (`cd.yml` does not upload to
    PyPI, by choice). Agents never upload. Uploads cannot be taken back: the
    files on PyPI for a version are final, so check the artifacts first.
-9. **Update the published docs.** The documentation lives on sendapatch.se
-   (`https://sendapatch.se/pylibmc/`; `README.rst` and `setup.py` still link
-   `https://sendapatch.se/projects/pylibmc/`, so keep both working or change
-   them together). The maintainer publishes it by hand; how the files get onto
+9. **Update the published docs.** The documentation lives at
+   `https://sendapatch.se/projects/pylibmc/` (the URL in `README.rst` and
+   `setup.py`). The maintainer publishes it by hand; how the files get onto
    that site is not recorded in this repository. Build them from an installed
    build of the release, because `docs/conf.py` imports the extension and
    refuses to run without `PYLIBMC_DIR`:
@@ -284,9 +284,6 @@ maintainer's explicit go-ahead.
 Keep this list short and delete items when they are fixed.
 
 - `tox.ini` still lists the old interpreter set.
-- CI's libmemcached coverage is whatever `ubuntu-latest` provides (1.1.4 today)
-  until the matrix gets an explicit axis for the 1.0.18 floor and for 1.1.x
-  built from source. Don't read a green CI as "works on 1.0.18" until then.
 - The pipeline does not yet install each wheel and run the test suite against
   it (the intended smoke test, with memcached started in the build container);
   until it does, wheels are untested artifacts.
