@@ -607,7 +607,9 @@ static PyObject *_PyLong_FromStringAndSize(char *value, Py_ssize_t size, char **
     if ((tmp = malloc(size+1)) == NULL) {
         return PyErr_NoMemory();
     }
-    strncpy(tmp, value, size);
+    if (size > 0) {
+        memcpy(tmp, value, size);
+    }
     tmp[size] = '\0';
     retval = PyLong_FromString(tmp, pend, base);
     free(tmp);
