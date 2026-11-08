@@ -15,6 +15,8 @@ jobs:
   build_wheels:
     name: Build wheel for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    # Linux aarch64 is built and tested under QEMU emulation, which is slow.
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -56,6 +58,14 @@ jobs:
           lipo -info "$PREFIX/lib/libmemcached.11.dylib"
           otool -l "$PREFIX/lib/libmemcached.11.dylib" | grep -A3 LC_BUILD_VERSION
 
+      # The wheel tests need a memcached server. The Linux containers get it
+      # from CIBW_BEFORE_TEST_LINUX below.
+      - name: Install memcached for wheel tests (macOS)
+        if: ${{ matrix.os == 'macos-latest' }}
+        run: |
+          command -v memcached || brew install memcached
+          memcached --version
+
       - name: Build wheels
         env:
           CIBW_SKIP: "*-musllinux* pp*"
@@ -73,6 +83,24 @@ jobs:
             pipx install cmake &&
             LIBMEMCACHED_VERSION=1.1.4 SASL=on JOBS=$(nproc)
             .github/scripts/build-libmemcached.sh /opt/libmemcached
+          # Every wheel is installed into a fresh virtualenv and the test suite
+          # is run against it from a temporary directory (never the source
+          # tree). test-wheel.sh starts memcached, waits for it, and fails if
+          # pylibmc was not imported from site-packages. Warnings from the
+          # import-time libmemcached version check are errors.
+          CIBW_TEST_REQUIRES: pytest
+          # LD_LIBRARY_PATH (from CIBW_ENVIRONMENT_LINUX) is unset for the tests
+          # so that they use the libmemcached bundled in the wheel rather than
+          # the one in /opt/libmemcached.
+          CIBW_TEST_COMMAND: >-
+            env -u LD_LIBRARY_PATH
+            bash {project}/.github/scripts/test-wheel.sh
+            -W error::RuntimeWarning
+            --doctest-modules --doctest-glob='*.txt'
+            {project}/tests
+          # AlmaLinux 8 ships memcached in AppStream. No nc there, so the
+          # script falls back to bash's /dev/tcp.
+          CIBW_BEFORE_TEST_LINUX: dnf install -y memcached
           # LD_LIBRARY_PATH lets auditwheel find (and bundle) libmemcached,
           # libhashkit and whatever else they need.
           CIBW_ENVIRONMENT_LINUX: >-
