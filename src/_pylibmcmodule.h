@@ -107,6 +107,12 @@ typedef memcached_return (*_PylibMC_SetCommand)(memcached_st *, const char *,
         size_t, const char *, size_t, time_t, uint32_t);
 typedef memcached_return (*_PylibMC_IncrCommand)(memcached_st *,
         const char *, size_t, unsigned int, uint64_t*);
+/* The same two, for the *_by_key functions, which take the group key first. */
+typedef memcached_return (*_PylibMC_SetByKeyCommand)(memcached_st *,
+        const char *, size_t, const char *, size_t, const char *, size_t,
+        time_t, uint32_t);
+typedef memcached_return (*_PylibMC_IncrByKeyCommand)(memcached_st *,
+        const char *, size_t, const char *, size_t, uint64_t, uint64_t*);
 
 typedef struct {
   char *key;
@@ -130,6 +136,9 @@ typedef struct {
   char **keys;
   Py_ssize_t nkeys;
   size_t *key_lens;
+  /* Group key to pick the server by, or NULL to hash each key itself. */
+  const char *group_key;
+  size_t group_key_len;
 } pylibmc_mget_req;
 
 typedef struct {
@@ -143,6 +152,7 @@ typedef struct {
   char* key;
   Py_ssize_t key_len;
   _PylibMC_IncrCommand incr_func;
+  _PylibMC_IncrByKeyCommand incr_by_key_func;
   unsigned int delta;
   uint64_t result;
 } pylibmc_incr;
@@ -319,17 +329,17 @@ static void PylibMC_ClientType_dealloc(PylibMC_Client *);
 static int PylibMC_Client_init(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_deserialize(PylibMC_Client *, PyObject *arg);
 static PyObject *PylibMC_Client_serialize(PylibMC_Client *, PyObject *val);
-static PyObject *PylibMC_Client_get(PylibMC_Client *, PyObject *arg);
-static PyObject *PylibMC_Client_gets(PylibMC_Client *, PyObject *arg);
+static PyObject *PylibMC_Client_get(PylibMC_Client *, PyObject *, PyObject *);
+static PyObject *PylibMC_Client_gets(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_set(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_replace(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_add(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_prepend(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_append(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_cas(PylibMC_Client *, PyObject *, PyObject *);
-static PyObject *PylibMC_Client_delete(PylibMC_Client *, PyObject *);
-static PyObject *PylibMC_Client_incr(PylibMC_Client *, PyObject *);
-static PyObject *PylibMC_Client_decr(PylibMC_Client *, PyObject *);
+static PyObject *PylibMC_Client_delete(PylibMC_Client *, PyObject *, PyObject *);
+static PyObject *PylibMC_Client_incr(PylibMC_Client *, PyObject *, PyObject *);
+static PyObject *PylibMC_Client_decr(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_incr_multi(PylibMC_Client*, PyObject*, PyObject*);
 static PyObject *PylibMC_Client_get_multi(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_set_multi(PylibMC_Client *, PyObject *, PyObject *);
@@ -342,7 +352,23 @@ static PyObject *PylibMC_Client_get_stats(PylibMC_Client *, PyObject *);
 static PyObject *PylibMC_Client_flush_all(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *PylibMC_Client_disconnect_all(PylibMC_Client *);
 static PyObject *PylibMC_Client_clone(PylibMC_Client *);
-static PyObject *PylibMC_Client_touch(PylibMC_Client *, PyObject *);
+static PyObject *PylibMC_Client_touch(PylibMC_Client *, PyObject *, PyObject *);
+/* Workers behind the methods above. *group* is the normalized master key (a
+ * bytes object) to pick the server by, or NULL for the usual hashing. */
+static PyObject *_PylibMC_get(PylibMC_Client *, PyObject *, PyObject *);
+static PyObject *_PylibMC_gets(PylibMC_Client *, PyObject *, PyObject *);
+static PyObject *_PylibMC_delete(PylibMC_Client *, PyObject *, PyObject *);
+static PyObject *_PylibMC_touch(PylibMC_Client *, PyObject *, PyObject *);
+static PyObject *_PylibMC_get_multi(PylibMC_Client *, PyObject *, PyObject *,
+        PyObject *);
+static PyObject *_PylibMC_delete_multi(PylibMC_Client *, PyObject *, PyObject *,
+        PyObject *);
+static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *, PyObject *,
+        PyObject *, PyObject *);
+static PyObject *_PylibMC_IncrSingle(PylibMC_Client *, PyObject *,
+        _PylibMC_IncrCommand, _PylibMC_IncrByKeyCommand, PyObject *);
+static PyObject *_PylibMC_IncrMulti(PylibMC_Client *, PyObject *,
+        _PylibMC_IncrCommand, _PylibMC_IncrByKeyCommand, PyObject *, PyObject *);
 static PyObject *PylibMC_ErrFromMemcachedWithKey(PylibMC_Client *, const char *,
         memcached_return, const char *, Py_ssize_t);
 static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *, const char *,
@@ -363,11 +389,14 @@ static int _PylibMC_SerializeValue(PylibMC_Client *self,
                                    pylibmc_mset *serialized);
 static void _PylibMC_FreeMset(pylibmc_mset*);
 static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
-        _PylibMC_SetCommand f, char *fname, PyObject *args, PyObject *kwds);
+        PyObject *group, _PylibMC_SetCommand f, _PylibMC_SetByKeyCommand fbk,
+        char *fname, PyObject *args, PyObject *kwds);
 static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
-        _PylibMC_SetCommand f, char *fname, PyObject *args, PyObject *kwds);
-static bool _PylibMC_RunSetCommand(PylibMC_Client *self,
-                                   _PylibMC_SetCommand f, char *fname,
+        PyObject *group, _PylibMC_SetCommand f, _PylibMC_SetByKeyCommand fbk,
+        char *fname, PyObject *args, PyObject *kwds);
+static bool _PylibMC_RunSetCommand(PylibMC_Client *self, PyObject *group,
+                                   _PylibMC_SetCommand f,
+                                   _PylibMC_SetByKeyCommand fbk, char *fname,
                                    pylibmc_mset *msets, Py_ssize_t nkeys,
                                    Py_ssize_t min_compress,
                                    int compress_level);
@@ -377,7 +406,8 @@ static int _PylibMC_Deflate(char *value, Py_ssize_t value_len,
 static int _PylibMC_Inflate(char *value, Py_ssize_t size,
                             char** result, Py_ssize_t* result_size,
                             char** failure_reason);
-static bool _PylibMC_IncrDecr(PylibMC_Client *, pylibmc_incr *, Py_ssize_t);
+static bool _PylibMC_IncrDecr(PylibMC_Client *, PyObject *, pylibmc_incr *,
+        Py_ssize_t);
 
 /* }}} */
 
@@ -389,9 +419,9 @@ static PyMethodDef PylibMC_ClientType_methods[] = {
     {"deserialize", (PyCFunction)PylibMC_Client_deserialize, METH_VARARGS,
         "Deserialize a bytestring and flag field retrieved from memcached. "
         "Raise pylibmc.CacheMiss to simulate a cache miss."},
-    {"get", (PyCFunction)PylibMC_Client_get, METH_VARARGS,
+    {"get", (PyCFunction)PylibMC_Client_get, METH_VARARGS|METH_KEYWORDS,
         "Retrieve a key from a memcached."},
-    {"gets", (PyCFunction)PylibMC_Client_gets, METH_O,
+    {"gets", (PyCFunction)PylibMC_Client_gets, METH_VARARGS|METH_KEYWORDS,
         "Retrieve a key and cas_id from a memcached."},
     {"set", (PyCFunction)PylibMC_Client_set, METH_VARARGS|METH_KEYWORDS,
         "Set a key unconditionally."},
@@ -405,11 +435,11 @@ static PyMethodDef PylibMC_ClientType_methods[] = {
         "Append data to a key."},
     {"cas", (PyCFunction)PylibMC_Client_cas, METH_VARARGS|METH_KEYWORDS,
         "Attempt to compare-and-store a key by CAS ID."},
-    {"delete", (PyCFunction)PylibMC_Client_delete, METH_VARARGS,
+    {"delete", (PyCFunction)PylibMC_Client_delete, METH_VARARGS|METH_KEYWORDS,
         "Delete a key."},
-    {"incr", (PyCFunction)PylibMC_Client_incr, METH_VARARGS,
+    {"incr", (PyCFunction)PylibMC_Client_incr, METH_VARARGS|METH_KEYWORDS,
         "Increment a key by a delta."},
-    {"decr", (PyCFunction)PylibMC_Client_decr, METH_VARARGS,
+    {"decr", (PyCFunction)PylibMC_Client_decr, METH_VARARGS|METH_KEYWORDS,
         "Decrement a key by a delta."},
     {"incr_multi", (PyCFunction)PylibMC_Client_incr_multi, METH_VARARGS|METH_KEYWORDS,
         "Increment more than one key by a delta."},
@@ -436,7 +466,7 @@ static PyMethodDef PylibMC_ClientType_methods[] = {
     {"clone", (PyCFunction)PylibMC_Client_clone, METH_NOARGS,
         "Clone this client entirely such that it is safe to access from "
         "another thread. This creates a new connection."},
-    {"touch", (PyCFunction)PylibMC_Client_touch, METH_VARARGS,
+    {"touch", (PyCFunction)PylibMC_Client_touch, METH_VARARGS|METH_KEYWORDS,
         "Change the TTL of a key."},
     {NULL, NULL, 0, NULL}
 };
