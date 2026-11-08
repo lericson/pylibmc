@@ -326,7 +326,4 @@ maintainer's explicit go-ahead.
 
 Keep this list short and delete items when they are fixed.
 
-- `tox.ini` still lists the old interpreter set.
-- The pipeline does not yet install each wheel and run the test suite against
-  it (the intended smoke test, with memcached started in the build container);
-  until it does, wheels are untested artifacts.
+None right now.

@@ -4,6 +4,14 @@ Change Log
 New in version 1.8.0
 --------------------
 
+This release is mostly about keys. pylibmc now checks every key itself, as the
+memcached protocol says it should, so a stray space or newline can no longer
+corrupt a connection or inject a command, and it can route related keys to one
+server with ``master_key=``. Booleans come back as booleans, ``cas`` compresses
+like ``set``, and the Linux wheels can finally log in with SASL. More leaks
+found and fixed. Read the list of changes that can break existing code before
+upgrading.
+
 Changes that can break existing code:
 
 - A negative expiry time now raises ``ValueError``, as does one that does not
@@ -16,6 +24,51 @@ Changes that can break existing code:
   (bit 31), so readers that do not know the flag, such as older pylibmc and
   ``python-memcached``, still see the integer. Booleans stored by earlier
   versions are integers and still read back as integers.
+- With the text protocol (the default), a key containing whitespace or a control
+  character now raises ``ValueError`` in every method that takes a key,
+  including ``get_multi``, ``set_multi`` and the other ``*_multi`` methods (and
+  their ``key_prefix``), ``in`` and ``client[key]``, before anything is sent.
+  Rejected are the bytes ``0x00`` to ``0x20`` (NUL, tab, CR, LF, space and the
+  other control characters) and ``0x7f``; non-ASCII bytes such as UTF-8 are
+  still fine. This is the memcached text protocol's rule (keys carry no
+  whitespace or control characters) and the same one ``python-memcached``
+  enforces on every key. Such keys used to reach the server: a space or newline
+  made later replies go to the wrong call on the same client, and a key with
+  ``\r\n`` could inject commands such as ``flush_all``; a key with a tab, a
+  control character or a NUL was stored but could not be read back. If you
+  relied on that, stop using such keys (hash or percent-encode them) or switch
+  to ``binary=True``, which accepts any byte. The key length limit and its
+  ``ValueError`` are unchanged, and the ``master_key=`` argument is only hashed,
+  so it is checked for length only. Calls that used to return ``False`` or a
+  miss for such a key (``get_multi`` skipped a key with a space, ``delete``
+  returned ``False``) now raise, so a bad key can no longer hide as a cache miss
+  (#351).
+- The ``verify_keys`` behavior is ignored. pylibmc now always checks keys itself
+  (see the ``ValueError`` for bad keys above), so setting ``verify_keys``, to
+  any value, in the constructor, with ``set_behaviors`` or through the
+  ``behaviors`` mapping, emits a ``DeprecationWarning`` and does nothing, and
+  ``get_behaviors()`` no longer lists it. Remove it from your code. Setting it
+  to ``True`` used to make libmemcached reject non-ASCII keys as well, and fail
+  on a ``binary=True`` client with libmemcached 1.0.x; neither happens any more.
+
+New:
+
+- Every data method (``get``, ``gets``, ``set``, ``add``, ``replace``,
+  ``append``, ``prepend``, ``cas``, ``delete``, ``touch``, ``incr``, ``decr``
+  and the ``*_multi`` methods) takes a keyword-only ``master_key=`` argument
+  (#53, #176). When given, it is hashed instead of the item key to pick the
+  server, so related keys can live on one server and a ``get_multi`` of them
+  reaches only that server. The same item key stored under different master keys
+  can live on different servers, so pass the same master key to read, change and
+  delete an item as to write it. The default, ``master_key=None``, is the old
+  behavior. See :ref:`master-keys`.
+- ``cas`` takes ``min_compress_len`` and ``compress_level`` and compresses
+  exactly like ``set``, so a value can be compressed when it is stored with
+  ``cas`` and not only with ``set``. ``cas`` and the other set commands now
+  share one code path for serializing and compressing values, and the cas token
+  is read as an unsigned 64-bit number, so tokens of ``2**63`` and above no
+  longer overflow. A hard ``cas`` error names the function but no longer the
+  key. ``cas`` also accepts ``master_key`` and compresses with it too (#285).
 
 Fixes:
 
@@ -29,6 +82,17 @@ Fixes:
   plugins and point libsasl2 at them through ``SASL_PATH``, unless you have set
   that yourself. The GSSAPI plugin is not included: if you use Kerberos, set
   ``SASL_PATH`` to your system's plugin directory.
+- ``delete_multi`` no longer leaks a reference to the key each time one of its
+  keys is rejected (too long, or with the new key check) or the underlying
+  ``delete`` fails, which made the process grow by that much on every such call.
+- ``key_prefix`` in the ``*_multi`` methods no longer cuts the key short at a
+  NUL byte. With ``binary=True``, where a key may contain a NUL, ``set_multi``
+  and ``incr_multi`` used to store such a key under a shorter name than
+  ``get_multi`` looked for.
+- ``Client.clone()`` raises ``MemoryError`` instead of returning an unusable
+  client when libmemcached cannot clone, and a clone of a client with SASL
+  credentials is tested to authenticate, as are the pools' clones.
+
 
 New in version 1.7.0
 --------------------
@@ -71,9 +135,6 @@ Build and platforms:
 
 Fixes:
 
-- ``Client.clone()`` raises ``MemoryError`` instead of returning an unusable
-  client when libmemcached cannot clone, and a clone of a client with SASL
-  credentials is tested to authenticate, as are the pools' clones.
 - Fixed a use-after-free in ``gets`` with a ``str`` key, which could look up
   the wrong key (#300).
 - ``get_multi`` raises on a connection failure after the request was sent,

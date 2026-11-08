@@ -7,6 +7,19 @@ __ http://sendapatch.se/projects/pylibmc/
 .. image:: https://github.com/lericson/pylibmc/actions/workflows/ci.yml/badge.svg
    :target: https://github.com/lericson/pylibmc/actions/workflows/ci.yml
 
+New in version 1.8.0
+====================
+
+pylibmc now checks every key itself (a key with whitespace or control characters
+raises ``ValueError`` on the text protocol instead of corrupting the connection),
+accepts a ``master_key=`` keyword on the data methods, returns booleans as
+booleans, compresses ``cas`` values like ``set``, and the Linux wheels now log in
+with SASL. The change log lists what can break existing code.
+
+See the `change log`__ for the details.
+
+__ http://sendapatch.se/projects/pylibmc/changelog.html
+
 New in version 1.7.0
 ====================
 
@@ -15,10 +28,6 @@ hopefully this will prevent further hiata down the line. Also, LLMs have
 slashed the time investment to near zero, hoo-rah. The biggest change is that we
 now build against libmemcached 1.1.4 for the wheels. Also the LLM found many
 memory safety problems, and likely many yet more to come.
-
-See the `change log`__ for the details.
-
-__ http://sendapatch.se/projects/pylibmc/changelog.html
 
 New in version 1.6.0
 ====================
@@ -36,33 +45,8 @@ interoperability between Python 2.x and 3.x. Also, this release introduces a
 ManyLinux wheel, making installation a breeze on ManyLinux systems (which I
 suppose is many linuxes.)
 
-New in version 1.5.0
-====================
-
-This release fixes critical memory leaks in common code paths introduced in
-1.4.2. Also fixes a critical bug in a corner of the zlib inflation code, where
-prior memory errors would trigger a double free. Thank you to everybody
-involved in the making of this release, and especially `Eau de Web`__, without
-their contributions, this release and the bug fixes it contains wouldn't have
-been so expedient.
-
-__ http://www.eaudeweb.ro/
-
-.. comment: 1.5.x should have been an extension to 1.4.x, therefore it's best
-   to keep the 1.4.x release announcement below.
-
-New in version 1.4.0
-====================
-
-Brace yourself, Python 3.x support has come!
-
-Thanks to everybody involved in this project; this release involves less
-authors but **a lot** more work per person. Thanks especially to Harvey Falcic
-for the work he put in, without which there wouldn't be any Python 3.x support.
-Also thanks to Sergey Pashinin for the initial stab at the problem.
-
-Other than that, we had miscellaneous bug fixes, testing improvements, and
-documentation updates.
+Support
+=======
 
 Last but not least I would like to ask for your support in this project, either
 by helping out with development, testing, documentation or anything at all; or
@@ -82,7 +66,7 @@ Maintainer
 
 - Website: `sendapatch.se/ <http://sendapatch.se/>`_
 - Github: `github.com/lericson <http://github.com/lericson>`_
-- IRC: ``lericson`` in ``#sendapatch`` on ``chat.freenode.net``
+- IRC: ``lericson`` in ``#sendapatch`` on ``irc.libera.chat``
 - E-mail: ``ludvig`` at ``sendapatch.se``
 
 ------
