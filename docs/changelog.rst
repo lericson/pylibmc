@@ -1,6 +1,21 @@
 Change Log
 ==========
 
+New in version 1.7.0
+--------------------
+
+- Support for libmemcached 1.1.x (the awesomized/libmemcached fork).
+- ``LIBMEMCACHED`` / ``--with-libmemcached`` now really link the requested
+  library, even when the interpreter's link flags name another one first.
+  Importing pylibmc warns if the loaded libmemcached differs in major.minor
+  from the headers it was built against; see
+  ``_pylibmc.libmemcached_runtime_version``.
+- New exception ``pylibmc.Timeout`` (``MEMCACHED_TIMEOUT``, a subclass of
+  ``pylibmc.Error``). libmemcached 1.1.x raises it for ``get`` timeouts where
+  1.0.x returned a miss.
+- ``remove_failed=N`` means "failure limit N" on libmemcached 1.1.x as well,
+  as on 1.0.x, where upstream turned it into an on/off alias of ``auto_eject``.
+
 New in version 1.6.0
 --------------------
 
