@@ -1513,14 +1513,20 @@ static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self,
 
     if (key_prefix_raw != NULL) {
         key_prefix = PyBytes_FromStringAndSize(key_prefix_raw, key_prefix_len);
+        if (key_prefix == NULL)
+            return NULL;
 
-        if (key_prefix != NULL && PyBytes_Size(key_prefix) == 0)
+        if (PyBytes_Size(key_prefix) == 0) {
+            Py_DECREF(key_prefix);
             key_prefix = NULL;
+        }
     }
 
     keys_tmp = PyList_New(nkeys);
-    if (keys_tmp == NULL)
+    if (keys_tmp == NULL) {
+        Py_XDECREF(key_prefix);
         return NULL;
+    }
 
     incrs = PyMem_New(pylibmc_incr, nkeys);
     if (incrs == NULL)
