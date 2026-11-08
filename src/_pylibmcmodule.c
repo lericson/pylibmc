@@ -633,6 +633,14 @@ static PyObject *_PylibMC_deserialize_native(PylibMC_Client *self, PyObject *val
         case PYLIBMC_FLAG_INTEGER:
         case PYLIBMC_FLAG_LONG:
             if (value) {
+                /* deserialize() is callable from Python with any object, and
+                   PyBytes_AS_STRING does no type checking. */
+                if (!PyBytes_Check(value)) {
+                    PyErr_Format(PyExc_TypeError,
+                                 "integer value must be bytes, not %.200s",
+                                 Py_TYPE(value)->tp_name);
+                    break;
+                }
                 retval = PyLong_FromString(PyBytes_AS_STRING(value), NULL, 10);
             } else {
                 retval = _PyLong_FromStringAndSize(value_str, value_size, NULL, 10);;
