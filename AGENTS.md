@@ -218,8 +218,7 @@ maintainer's explicit go-ahead.
    pylibmc changed or now exposes; do not document changes inside libmemcached
    itself, that is their work and their release notes. State anything that can
    break an existing pylibmc user (changed exceptions or defaults, dropped
-   platforms). Check the docs build (`make -C docs html`, needs Sphinx; not part
-   of CI).
+   platforms). Check that the docs build (see step 9; it is not part of CI).
 5. **Set the version.** Edit `src/pylibmc-version.h`; the tag is the same string
    with no `v` (`1.7.0`; a release candidate is `1.7.0rc1`). Use an annotated
    tag (`git tag -a`).
@@ -235,7 +234,24 @@ maintainer's explicit go-ahead.
    credentials, from the artifacts of the release (`cd.yml` does not upload to
    PyPI, by choice). Agents never upload. Uploads cannot be taken back: the
    files on PyPI for a version are final, so check the artifacts first.
-9. **After the release.** Install the published version in clean environments on
+9. **Update the published docs.** The documentation lives on sendapatch.se
+   (`https://sendapatch.se/pylibmc/`; `README.rst` and `setup.py` still link
+   `https://sendapatch.se/projects/pylibmc/`, so keep both working or change
+   them together). The maintainer publishes it by hand; how the files get onto
+   that site is not recorded in this repository. Build them from an installed
+   build of the release, because `docs/conf.py` imports the extension and
+   refuses to run without `PYLIBMC_DIR`:
+   ```sh
+   pip install sphinx
+   PYLIBMC_DIR=$(python -c "import _pylibmc, os; print(os.path.dirname(_pylibmc.__file__))") \
+     python -m sphinx -b html docs /tmp/pylibmc-docs
+   ```
+   It uses the `sap` theme from `docs/_themes`. Today this prints one
+   harmless warning (`html_static_path entry '_static' does not exist`). Check
+   that the new change log entry and the install page (supported Pythons and
+   libmemcached) render, and that the page's version reads the release you are
+   cutting, before it goes live.
+10. **After the release.** Install the published version in clean environments on
    macOS and Linux and run a smoke test. Comment on and close the issues it
    fixes (thanking the reporters). Move `pylibmc-version.h` to the next
    `-dev`. Delete merged branches. Answer any open maintenance thread with what
