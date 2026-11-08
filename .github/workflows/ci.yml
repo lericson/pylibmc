@@ -23,10 +23,19 @@ jobs:
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "pypy3.9", "pypy3.10", "pypy3.11"]
         os: [ubuntu-latest]
+        # 1.0.18 is the legacy floor (Ubuntu's libmemcached-dev). The
+        # maintained 1.1.x series is built from source, on a subset of
+        # Pythons (oldest, newest, one PyPy) to keep CI time sane.
+        libmemcached: ["1.0.18"]
+        include:
+          - {os: ubuntu-latest, python-version: "3.8", libmemcached: "1.1.4"}
+          - {os: ubuntu-latest, python-version: "3.14", libmemcached: "1.1.4"}
+          - {os: ubuntu-latest, python-version: "pypy3.11", libmemcached: "1.1.4"}
     runs-on: ${{ matrix.os }}
-    name: "${{ matrix.os }} Python: ${{ matrix.python-version }}"
+    name: "${{ matrix.os }} Python: ${{ matrix.python-version }} libmemcached: ${{ matrix.libmemcached }}"
     env:
-      LIBMEMCACHED_VERSION: '1.0.18'
+      # Also read by .github/scripts/build-libmemcached.sh.
+      LIBMEMCACHED_VERSION: ${{ matrix.libmemcached }}
     services:
       memcached:
         image: memcached:1.6.45
@@ -43,15 +52,46 @@ jobs:
     - name: Install dependencies
       run: |
         pip install -r ./requirements_test.txt
+    - name: Install libmemcached ${{ matrix.libmemcached }} from apt
+      if: ${{ matrix.libmemcached == '1.0.18' }}
+      run: |
         sudo apt-get update -qq
         sudo apt-get install libmemcached-dev
         apt-cache show libmemcached-dev
+    - name: Install libmemcached build dependencies
+      if: ${{ matrix.libmemcached != '1.0.18' }}
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y bison flex libsasl2-dev
+    - name: Cache libmemcached ${{ matrix.libmemcached }}
+      if: ${{ matrix.libmemcached != '1.0.18' }}
+      id: lmc-cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+      with:
+        path: ~/libmemcached
+        key: libmemcached-${{ matrix.libmemcached }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/scripts/build-libmemcached.sh') }}
+    - name: Build libmemcached ${{ matrix.libmemcached }} from source
+      if: ${{ matrix.libmemcached != '1.0.18' && steps.lmc-cache.outputs.cache-hit != 'true' }}
+      run: |
+        SASL=on JOBS="$(nproc)" .github/scripts/build-libmemcached.sh "$HOME/libmemcached"
+    - name: Point the build at the source-built libmemcached
+      if: ${{ matrix.libmemcached != '1.0.18' }}
+      run: |
+        echo "LIBMEMCACHED=$HOME/libmemcached" >> "$GITHUB_ENV"
+        echo "LD_LIBRARY_PATH=$HOME/libmemcached/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
     - name: memcached stats
       run: echo "stats settings" | netcat localhost 11211 -w 3
     - name: Install package
       run: pip install .
     - name: Set LIBMEMCACHED_VERSION
       run: echo LIBMEMCACHED_VERSION="$(python -c 'import pylibmc; print(pylibmc.libmemcached_version)')" >> $GITHUB_ENV
+    - name: Check the expected libmemcached was used
+      env:
+        EXPECTED: ${{ matrix.libmemcached }}
+      run: |
+        echo "expected ${EXPECTED}, got ${LIBMEMCACHED_VERSION}"
+        ldd "$(python -c 'import _pylibmc; print(_pylibmc.__file__)')" | grep memcached
+        test "${LIBMEMCACHED_VERSION}" = "${EXPECTED}"
     - name: Log versions
       run: |
         python --version
