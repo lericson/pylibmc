@@ -7,6 +7,19 @@ __ http://sendapatch.se/projects/pylibmc/
 .. image:: https://github.com/lericson/pylibmc/actions/workflows/ci.yml/badge.svg
    :target: https://github.com/lericson/pylibmc/actions/workflows/ci.yml
 
+New in version 1.8.0
+====================
+
+pylibmc now checks every key itself (a key with whitespace or control characters
+raises ``ValueError`` on the text protocol instead of corrupting the connection),
+accepts a ``master_key=`` keyword on the data methods, returns booleans as
+booleans, compresses ``cas`` values like ``set``, and the Linux wheels now log in
+with SASL. The change log lists what can break existing code.
+
+See the `change log`__ for the details.
+
+__ http://sendapatch.se/projects/pylibmc/changelog.html
+
 New in version 1.7.0
 ====================
 
