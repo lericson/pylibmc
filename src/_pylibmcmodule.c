@@ -1075,6 +1075,7 @@ static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *self,
 
     switch(rc) {
         case MEMCACHED_SUCCESS:
+        case MEMCACHED_BUFFERED:
             Py_INCREF(Py_True);
             ret = Py_True;
             break;
@@ -1333,8 +1334,11 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client* self,
 
         switch (rc) {
 
-            /* Successful case */
+            /* Successful case. MEMCACHED_BUFFERED is what buffer_requests
+             * returns for a command that was queued but not yet sent; it is
+             * a status, not an error. */
             case MEMCACHED_SUCCESS:
+            case MEMCACHED_BUFFERED:
                 mset->success = true;
                 break;
 
@@ -1416,6 +1420,7 @@ static PyObject *PylibMC_Client_delete(PylibMC_Client *self, PyObject *args) {
         Py_END_ALLOW_THREADS;
         switch (rc) {
             case MEMCACHED_SUCCESS:
+            case MEMCACHED_BUFFERED:
                 Py_RETURN_TRUE;
             case MEMCACHED_FAILURE:
             case MEMCACHED_NOTFOUND:
@@ -1446,6 +1451,7 @@ static PyObject *PylibMC_Client_touch(PylibMC_Client *self, PyObject *args) {
         switch (rc){
             case MEMCACHED_SUCCESS:
             case MEMCACHED_STORED:
+            case MEMCACHED_BUFFERED:
                 Py_RETURN_TRUE;
             case MEMCACHED_FAILURE:
             case MEMCACHED_NOTFOUND:
