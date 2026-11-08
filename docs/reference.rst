@@ -41,14 +41,34 @@
       :class:`~pylibmc.ThreadMappedPool` hand out clones, so their clients
       authenticate like the original.
 
+   .. Master keys
+
+   .. note:: Every data method below (``get``, ``gets``, ``set``, ``add``,
+             ``replace``, ``append``, ``prepend``, ``cas``, ``delete``,
+             ``touch``, ``incr``, ``decr``, ``get_multi``, ``set_multi``,
+             ``add_multi``, ``delete_multi`` and ``incr_multi``) takes a
+             keyword-only *master_key* argument. The default, ``None``, is the
+             usual behavior. When given, libmemcached hashes the master key
+             instead of the item key to pick the server, but the item is still
+             stored and fetched under its own key, so you must pass the same
+             master key to read, change and delete an item as to write it.
+             See :ref:`master-keys`.
+
+             The master key is checked like a key (text or bytes, not empty,
+             shorter than 250 bytes; ``ValueError`` or ``TypeError``
+             otherwise). It is passed down with the call and never stored on
+             the client. The *key_prefix* argument of the ``*_multi`` methods
+             applies to the item keys only, not to the master key. ``touch``
+             needs libmemcached 1.0.2 or later, with or without a master key.
+
    .. Reading
 
-   .. method:: get(key[, default]) -> value
+   .. method:: get(key[, default, master_key=None]) -> value
 
       Get *key* if it exists, otherwise *default*. If *default* is not given,
       it defaults to ``None``.
 
-   .. method:: get_multi(keys[, key_prefix=None]) -> values
+   .. method:: get_multi(keys[, key_prefix=None, master_key=None]) -> values
 
       Get each of the keys in sequence *keys*.
       
@@ -61,7 +81,7 @@
 
    .. Writing
 
-   .. method:: set(key, value[, time=0, min_compress_len=0, compress_level=-1]) -> success
+   .. method:: set(key, value[, time=0, min_compress_len=0, compress_level=-1, master_key=None]) -> success
 
       Set *key* to *value*.
 
@@ -103,7 +123,7 @@
       `zlib.Z_BEST_SPEED` and `zlib.Z_BEST_COMPRESSION` are commonly used
       constants. It accepts values between [0, 9] inclusively.
 
-   .. method:: set_multi(mapping[, time=0, key_prefix=None, min_compress_len, compress_level]) -> failed_keys
+   .. method:: set_multi(mapping[, time=0, key_prefix=None, min_compress_len, compress_level, master_key=None]) -> failed_keys
 
       Set multiple keys as given by *mapping*. *time* is the same as for
       :meth:`set`, including the 30 day limit for relative times.
@@ -114,34 +134,34 @@
       Returns a list of keys which were not set for one reason or another,
       without their optional key prefix.
 
-   .. method:: add(key, value[, time, min_compress_len, compress_level]) -> success
+   .. method:: add(key, value[, time, min_compress_len, compress_level, master_key=None]) -> success
 
       Sets *key* if it does not exist. *time* is the same as for :meth:`set`.
 
       .. seealso:: :meth:`set`, :meth:`replace`
 
-   .. method:: replace(key, value[, time, min_compress_len, compress_level]) -> success
+   .. method:: replace(key, value[, time, min_compress_len, compress_level, master_key=None]) -> success
 
       Sets *key* only if it already exists. *time* is the same as for
       :meth:`set`.
 
       .. seealso:: :meth:`set`, :meth:`add`
 
-   .. method:: append(key, value) -> success
+   .. method:: append(key, value[, master_key=None]) -> success
 
       Append *value* to *key* (i.e., ``m[k] = m[k] + v``).
 
       .. note:: Uses memcached's appending support, and therefore should never
                 be used on keys which may be compressed or non-string values.
 
-   .. method:: prepend(key, value) -> success
+   .. method:: prepend(key, value[, master_key=None]) -> success
 
       Prepend *value* to *key* (i.e., ``m[k] = v + m[k]``).
 
       .. note:: Uses memcached's prepending support, and therefore should never
                 be used on keys which may be compressed or non-string values.
 
-   .. method:: incr(key[, delta=1]) -> value
+   .. method:: incr(key[, delta=1, master_key=None]) -> value
 
       Increment value at *key* by *delta*.
 
@@ -152,7 +172,7 @@
       .. note:: There is currently no way to set a default for *key* when
                 incrementing.
 
-   .. method:: decr(key[, delta=1]) -> value
+   .. method:: decr(key[, delta=1, master_key=None]) -> value
 
       Decrement value at *key* by *delta*.
 
@@ -166,7 +186,7 @@
 
    .. Atomic operations
 
-   .. method:: gets(key) -> (value, cas_id)
+   .. method:: gets(key[, master_key=None]) -> (value, cas_id)
 
       Get *key* and its compare-and-swap ID if it exists, otherwise ``(None,
       None)``.
@@ -176,7 +196,7 @@
 
       .. seealso:: :meth:`get`, :meth:`cas`
 
-   .. method:: cas(key, value, cas[, time=0]) -> swapped
+   .. method:: cas(key, value, cas[, time=0, master_key=None]) -> swapped
 
       Set *key* to *value* if *key* CAS token is *cas*.
 
@@ -192,14 +212,14 @@
 
    .. Deleting
 
-   .. method:: delete(key) -> deleted
+   .. method:: delete(key[, master_key=None]) -> deleted
 
       Delete *key* if it exists.
 
       Returns ``True`` if the key was deleted, ``False`` otherwise (as is the case if
       it wasn't set in the first place.)
 
-   .. method:: delete_multi(keys[, key_prefix=None]) -> deleted
+   .. method:: delete_multi(keys[, key_prefix=None, master_key=None]) -> deleted
 
       Delete each of key in the sequence *keys*.
 
@@ -209,7 +229,7 @@
       Returns ``True`` if all keys were successfully deleted, ``False``
       otherwise (as is the case if it wasn't set in the first place.)
 
-   .. method:: touch(key, time) -> touched
+   .. method:: touch(key, time[, master_key=None]) -> touched
 
       Touch a given *key* and set its expiry time to *time* seconds.
 
