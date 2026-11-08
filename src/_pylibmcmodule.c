@@ -2084,6 +2084,12 @@ static PyObject *PylibMC_Client_delete_multi(PylibMC_Client *self,
     return retval;
 }
 
+/* libmemcached <= 1.0.x: remove_failed=N sets the failure limit to N.
+ * libmemcached 1.1.x: remove_failed is an on/off alias of auto_eject.
+ * Detected at import by _probe_remove_failed(). When set, pylibmc emulates
+ * the 1.0.x meaning on top of failure_limit. */
+static int PylibMC_remove_failed_is_alias = 0;
+
 static PyObject *PylibMC_Client_get_behaviors(PylibMC_Client *self) {
     PyObject *retval = PyDict_New();
     PylibMC_Behavior *b;
@@ -2099,6 +2105,12 @@ static PyObject *PylibMC_Client_get_behaviors(PylibMC_Client *self) {
         case PYLIBMC_BEHAVIOR_PICKLE_PROTOCOL:
             bval = self->pickle_protocol;
             break;
+#if LIBMEMCACHED_VERSION_HEX >= 0x00049000
+        case MEMCACHED_BEHAVIOR_REMOVE_FAILED_SERVERS:
+            bval = memcached_behavior_get(self->mc, PylibMC_remove_failed_is_alias
+                    ? MEMCACHED_BEHAVIOR_SERVER_FAILURE_LIMIT : b->flag);
+            break;
+#endif
         default:
             bval = memcached_behavior_get(self->mc, b->flag);
         }
@@ -2144,6 +2156,27 @@ static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *self,
         case PYLIBMC_BEHAVIOR_PICKLE_PROTOCOL:
             self->pickle_protocol = v;
             break;
+#if LIBMEMCACHED_VERSION_HEX >= 0x00049000
+        case MEMCACHED_BEHAVIOR_REMOVE_FAILED_SERVERS:
+            if (PylibMC_remove_failed_is_alias) {
+                /* N > 0: failure limit N, and turn removal on; 0: turn off */
+                r = MEMCACHED_SUCCESS;
+                if (v > 0)
+                    r = memcached_behavior_set(self->mc,
+                            MEMCACHED_BEHAVIOR_SERVER_FAILURE_LIMIT, (uint64_t)v);
+                if (r == MEMCACHED_SUCCESS)
+                    r = memcached_behavior_set(self->mc, b->flag, v > 0);
+            } else {
+                r = memcached_behavior_set(self->mc, b->flag, (uint64_t)v);
+            }
+            if (r != MEMCACHED_SUCCESS) {
+                PyErr_Format(PylibMCExc_Error,
+                             "memcached_behavior_set returned %d for "
+                             "behavior '%.32s' = %ld", r, b->name, v);
+                goto error;
+            }
+            break;
+#endif
         default:
             r = memcached_behavior_set(self->mc, b->flag, (uint64_t)v);
             if (r != MEMCACHED_SUCCESS) {
@@ -2604,6 +2637,20 @@ static int _check_libmemcached_runtime(PyObject *module) {
     return true;
 }
 
+static void _probe_remove_failed(void) {
+#if LIBMEMCACHED_VERSION_HEX >= 0x00049000
+    memcached_st *mc = memcached_create(NULL);
+    if (mc == NULL)
+        return;
+    /* Where it is the failure limit, a value of 3 reads back as 3. */
+    PylibMC_remove_failed_is_alias =
+        memcached_behavior_set(mc, MEMCACHED_BEHAVIOR_REMOVE_FAILED_SERVERS, 3)
+            == MEMCACHED_SUCCESS &&
+        memcached_behavior_get(mc, MEMCACHED_BEHAVIOR_REMOVE_FAILED_SERVERS) != 3;
+    memcached_free(mc);
+#endif
+}
+
 static int _check_libmemcached_version(void) {
     uint8_t maj, min;
     char *ver, *dot, *tmp;
@@ -2783,6 +2830,7 @@ by using comma-separation. Good luck with that.\n", PylibMC_functions);
             "libmemcached_version_hex", LIBMEMCACHED_VERSION_HEX);
     if (!_check_libmemcached_runtime(module))
         return MOD_ERROR_VAL;
+    _probe_remove_failed();
 
 #if LIBMEMCACHED_WITH_SASL_SUPPORT
     PyModule_ADD_REF(module, "support_sasl", Py_True);

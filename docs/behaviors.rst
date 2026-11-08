@@ -124,9 +124,12 @@ libmemcached behavior constants.
    operations on it in a row have failed. See the section on Failover_.
 
    .. note::
-      With libmemcached 1.1.x this is a plain on/off alias of ``"auto_eject"``;
-      the value is not used as a failure count (reading it back gives ``0`` or
-      ``1``). Set ``"failure_limit"`` as well to control the number of failures.
+      libmemcached 1.1.x itself treats this as a plain on/off alias of
+      ``"auto_eject"``. pylibmc detects that at import time and emulates the
+      1.0.x meaning: ``"remove_failed": N`` (N > 0) sets ``"failure_limit"`` to
+      N and enables ejection, ``0`` disables ejection, and reading
+      ``"remove_failed"`` back returns the failure limit, as it does with
+      libmemcached 1.0.x.
 
 .. _failure_limit:
 
