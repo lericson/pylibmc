@@ -54,8 +54,23 @@ libmemcached behavior constants.
 ``"buffer_requests"``
    Enabling buffered I/O causes commands to "buffer" instead of being sent. Any
    action that gets data causes this buffer to be be sent to the remote
-   connection. Quiting the connection or closing down the connection will also
+   connection (with libmemcached 1.1; see below). Quiting the connection or closing down the connection will also
    cause the buffered data to be pushed to the remote connection.
+
+   A command that was queued rather than sent (typically ``set``,
+   ``set_multi`` and ``delete``) is reported as a success: ``set`` and
+   ``delete`` return ``True`` and the multi variants do not list the key as
+   failed, just as if the server had acknowledged it. The server's actual answer
+   is not known at that point, so errors such as a rejected value are not
+   reported for queued commands. Commands that need an answer to proceed, such
+   as ``incr``, ``decr``, ``add`` and ``replace``, are sent right away in the
+   usual way.
+
+   Queued data is lost if the process dies before it was sent. Calling
+   ``disconnect_all()`` or freeing the client pushes it out. With libmemcached
+   1.1 reads such as ``get`` also push it out first. With libmemcached 1.0 they
+   do not: the read does not see the queued writes, and the queued writes are
+   discarded, so do not read from a client that has unsent buffered writes.
 
 .. _no_block:
 
