@@ -174,22 +174,31 @@ kill %1
 Pushing a tag starts the release pipeline, so never push one without the
 maintainer's explicit go-ahead.
 
-1. **Survey the open work.** Know what is waiting before you decide what ships.
+1. **Go over the open work, issue by issue.** Do this first, before writing
+   notes or thanking anybody: what ships, and who deserves thanks, only becomes
+   clear once the open work has been triaged.
    - PRs: `gh pr list`. Review, merge or consciously defer each.
-   - Issues: `gh issue list --state open --limit 200`. Sort them: fixed on
-     `master` and waiting for the release (comment, close at release time);
-     blocks the release; can wait. Read the recent comments: people ask for
-     releases there.
+   - Issues: `gh issue list --state open --limit 200`. Open every one, old ones
+     included, and sort them: fixed on `master` and waiting for the release
+     (comment, close at release time); blocks the release; can wait; no longer
+     applies (say why and close). Read the recent comments: people ask for
+     releases there. Note who reported, reproduced or helped with each issue
+     you resolve; that list feeds the thanks below.
    - Forks and other maintenance threads: `gh api repos/OWNER/REPO/forks`, compare
      `ahead_by` against `master`, and read what is ahead. Take back what is
      worth taking (credit them), and answer any thread about the project's
      maintenance.
-2. **Check the support policy is consistent.** `python_requires` and the
-   classifiers in `setup.py`, `tox.ini`, the CI matrix, the interpreters
-   cibuildwheel builds, and the libmemcached range in `docs/install.rst` should
-   all say the same thing. Decide deliberately which Python and libmemcached
-   versions you stop supporting, and say so in the notes.
-3. **Make sure the people are thanked.** Collect everyone since the last tag:
+2. **Check the support policy is consistent.** We claim support for what CI
+   actually tests, and nothing else. `python_requires` and the classifiers in
+   `setup.py`, `tox.ini`, `docs/install.rst`, the CI matrix, and the
+   interpreters cibuildwheel builds must all say the same thing. In particular,
+   don't ship wheels for interpreters CI doesn't test (cibuildwheel also builds
+   free-threaded `cp314t` unless told to skip it), and pin the cibuildwheel
+   version in the release job so a new upstream release can't change what gets
+   built. Decide deliberately which Python and libmemcached versions you stop
+   supporting, and say so in the notes.
+3. **Thank the people, after the issue review.** Collect everyone since the last
+   tag:
    ```sh
    git log LAST_TAG..origin/master --no-merges --format='%an' | sort | uniq -c | sort -rn
    git log LAST_TAG..origin/master --format='%(trailers:key=Co-Authored-By,valueonly)'
@@ -205,10 +214,12 @@ maintainer's explicit go-ahead.
    that fixes it is out. Use the name someone uses themselves and don't guess
    pronouns.
 4. **Write the change log.** `docs/changelog.rst`, "New in version X":
-   user-visible changes first, then fixes, then platform changes. State anything
-   that can break an existing user (changed exceptions or defaults, dropped
-   platforms, a different bundled libmemcached). Check the docs build
-   (`make -C docs html`, needs Sphinx; not part of CI).
+   user-visible changes first, then fixes, then platform changes. Document what
+   pylibmc changed or now exposes; do not document changes inside libmemcached
+   itself, that is their work and their release notes. State anything that can
+   break an existing pylibmc user (changed exceptions or defaults, dropped
+   platforms). Check the docs build (`make -C docs html`, needs Sphinx; not part
+   of CI).
 5. **Set the version.** Edit `src/pylibmc-version.h`; the tag is the same string
    with no `v` (`1.7.0`; a release candidate is `1.7.0rc1`). Use an annotated
    tag (`git tag -a`).
@@ -220,10 +231,10 @@ maintainer's explicit go-ahead.
 7. **Release candidate first for anything non-trivial.** Tag, wait for `cd.yml`,
    check the draft or release it produced, and let affected users try it
    (`pip install --pre pylibmc`), pointing at the issues they filed.
-8. **Publish to PyPI.** As of this writing `cd.yml` does not upload to PyPI (the
-   job is commented out), so uploading is a manual step with the maintainer's
-   credentials. Update this step when that changes. Uploads cannot be taken
-   back: the files on PyPI for a version are final.
+8. **Publish to PyPI.** The maintainer does this by hand, with their own
+   credentials, from the artifacts of the release (`cd.yml` does not upload to
+   PyPI, by choice). Agents never upload. Uploads cannot be taken back: the
+   files on PyPI for a version are final, so check the artifacts first.
 9. **After the release.** Install the published version in clean environments on
    macOS and Linux and run a smoke test. Comment on and close the issues it
    fixes (thanking the reporters). Move `pylibmc-version.h` to the next
@@ -260,5 +271,6 @@ Keep this list short and delete items when they are fixed.
 - CI's libmemcached coverage is whatever `ubuntu-latest` provides (1.1.4 today)
   until the matrix gets an explicit axis for the 1.0.18 floor and for 1.1.x
   built from source. Don't read a green CI as "works on 1.0.18" until then.
-- Wheels are not smoke-tested by the pipeline itself.
-- PyPI upload is manual (see "Making a release").
+- The pipeline does not yet install each wheel and run the test suite against
+  it (the intended smoke test, with memcached started in the build container);
+  until it does, wheels are untested artifacts.
