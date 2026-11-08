@@ -1706,6 +1706,11 @@ static pylibmc_mget_res _fetch_multi(memcached_st *mc,
             memcached_quit(mc);  /* Reset fetch state */
             res.err_func = "memcached_fetch";
             _free_multi_result(res);
+            /* The caller frees res.results too, and reports res.rc. Don't
+             * keep looping into the array we just freed. */
+            res.results = NULL;
+            res.nresults = 0;
+            return res;
         }
     }
 
