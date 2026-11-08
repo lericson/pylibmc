@@ -197,9 +197,24 @@ jobs:
       - name: Make zip of artifacts
         run: |
           zip -0 artifacts.zip wheels/*.whl dist/*.tar.gz
+      - name: Detect pre-release tag
+        id: prerelease
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [[ "$TAG" =~ [0-9][.-]?(a|b|c|rc|alpha|beta|pre|preview|dev)[.-]?[0-9]* ]]; then
+            echo "value=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Release on GitHub
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b  # v2.5.0
         with:
+          # Publishing is a deliberate manual step: review the draft, then
+          # publish it. Tags like 1.7.0rc1, 1.7.0a2, 1.7.0b1, 1.7.0.dev0 are
+          # flagged as pre-releases.
+          draft: true
+          prerelease: ${{ steps.prerelease.outputs.value }}
           files: |
             wheels/*.whl
             dist/*.tar.gz
