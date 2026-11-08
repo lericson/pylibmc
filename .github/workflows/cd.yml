@@ -3,6 +3,12 @@ on:
   push:
     tags:
     - '*'
+  # Dry run: builds everything but does not create a release.
+  workflow_dispatch:
+
+# Third-party actions are pinned to commit SHAs (version in the comment): the
+# release job holds a token that can write to the repository.
+permissions: {}
 
 jobs:
 
@@ -15,20 +21,22 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3 
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
         with:
           python-version: 3.13
 
       - name: Set up QEMU
         if: ${{ matrix.os == 'ubuntu-latest' }}
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130  # v3.7.0
 
       - name: Install cibuildwheel
         run: |
           python -m pip install cibuildwheel
 
+      # TODO: replace this prebuilt binary tarball with a libmemcached built
+      # from source in this job; it is fetched and unpacked with no checksum.
       - name: Install prebuilt Universal libraries for macOS
         if: ${{ matrix.os == 'macos-latest' }}
         run: |
@@ -55,10 +63,11 @@ jobs:
         run: |
           cibuildwheel --output-dir ./wheelhouse
 
+      # Artifact names must be unique per job since upload-artifact v4.
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         with:
-          name: wheels
+          name: wheels-${{ matrix.os }}
           path: ./wheelhouse/*.whl
 
   build_sdist:
@@ -66,18 +75,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
         with:
-          python-version: '3.7'
+          python-version: '3.13'
 
       - name: Build sdist
         run: |
-          python setup.py sdist
+          python -m pip install build
+          python -m build --sdist
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         with:
           name: dist
           path: dist/*.tar.gz
@@ -104,18 +114,30 @@ jobs:
 
   release:
     name: Create GitHub release
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
     needs:
       - build_wheels
       - build_sdist
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v3
+      - name: Download wheels
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: wheels
+      - name: Download sdist
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
+        with:
+          name: dist
+          path: dist
       - name: Make zip of artifacts
         run: |
           zip -0 artifacts.zip wheels/*.whl dist/*.tar.gz
       - name: Release on GitHub
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b  # v2.5.0
         with:
           files: |
             wheels/*.whl
