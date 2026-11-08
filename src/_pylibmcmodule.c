@@ -1629,9 +1629,13 @@ static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self,
     /* Build pylibmc_incr structs, prefixed as appropriate. */
     for (i = 0; (key = PyIter_Next(iterator)) != NULL; i++) {
         pylibmc_incr *incr = incrs + i;
+        PyObject *item = key;  /* the reference PyIter_Next gave us */
 
         if (!_key_normalized_obj(&key))
-            goto loopcleanup;
+            goto loopcleanup;  /* key is still item: released there */
+
+        /* key now holds its own reference; release the iterator's. */
+        Py_DECREF(item);
 
         /* prefix `key` with `key_prefix` */
         if (key_prefix != NULL) {
@@ -1640,6 +1644,8 @@ static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self,
                                                    PyBytes_AS_STRING(key));
             Py_DECREF(key);
             key = newkey;
+            if (key == NULL)
+                goto cleanup;
         }
 
         Py_INCREF(key);
@@ -1865,11 +1871,12 @@ static PyObject *PylibMC_Client_get_multi(
         if (prefix != NULL) {
             rkey = PyBytes_FromStringAndSize(prefix, prefix_len);
             PyBytes_Concat(&rkey, ckey);
-            if (rkey == NULL)
+            if (rkey == NULL) {
+                /* Concat released the prefix object and set an exception. */
+                Py_DECREF(ckey);
+                nkeys = key_idx;
                 goto earlybird;
-            Py_DECREF(rkey);
-            rkey = PyBytes_FromFormat("%s%s",
-                    prefix, PyBytes_AS_STRING(ckey));
+            }
         } else {
             Py_INCREF(ckey);
             rkey = ckey;
@@ -2630,16 +2637,18 @@ static int _key_normalized_obj(PyObject **key) {
     rc = _key_normalized_str(&key_str, &key_sz);
 
 END:
-    if (retval != orig_key) {
-        /* If retval is new, release the temporary reference on the original. */
-        Py_DECREF(orig_key);
-    }
-    if (retval != encoded_key) {
-        /* Same deal for the UTF-8 encoded key, if we made one. */
-        Py_XDECREF(encoded_key);
-    }
-    if (retval != NULL) {
+    if (rc) {
+        /* Success: *key now owns a reference to the normalized key, which is
+         * either orig_key (we took a reference above) or encoded_key. */
+        if (retval != orig_key) {
+            Py_DECREF(orig_key);
+        }
         *key = retval;
+    } else {
+        /* Failure: hand back nothing.  *key is left as the caller passed it,
+         * so the caller releases only what it owned before. */
+        Py_DECREF(orig_key);
+        Py_XDECREF(encoded_key);
     }
     return rc;
 }
