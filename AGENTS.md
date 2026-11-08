@@ -182,8 +182,7 @@ maintainer's explicit go-ahead.
      included, and sort them: fixed on `master` and waiting for the release
      (comment, close at release time); blocks the release; can wait; no longer
      applies (say why and close). Read the recent comments: people ask for
-     releases there. Note who reported, reproduced or helped with each issue
-     you resolve; that list feeds the thanks below.
+     releases there.
    - Forks and other maintenance threads: `gh api repos/OWNER/REPO/forks`, compare
      `ahead_by` against `master`, and read what is ahead. Take back what is
      worth taking (credit them), and answer any thread about the project's
@@ -202,17 +201,15 @@ maintainer's explicit go-ahead.
    ```sh
    git log LAST_TAG..origin/master --no-merges --format='%an' | sort | uniq -c | sort -rn
    git log LAST_TAG..origin/master --format='%(trailers:key=Co-Authored-By,valueonly)'
-   git log LAST_TAG..origin/master --format=%B | grep -i -E 'idea from|thanks to|reported by'
+   git log LAST_TAG..origin/master --format=%B | grep -i -E 'idea from|thanks to'
    gh pr list --state merged --search "merged:>YYYY-MM-DD" --limit 200 --json number,author,title
-   gh issue list --state all --search "closed:>YYYY-MM-DD" --limit 200 --json number,author,title
    ```
-   Thank, by name or handle, everyone whose code was merged, who filed a
-   reproducible bug, who tested or reviewed, whose fork or fix supplied an idea
-   that was used, and any collaborator who helped. Do it in three places: a
-   paragraph in the `docs/changelog.rst` entry (earlier releases do this),
-   the GitHub release notes, and a comment on each issue or PR once the release
-   that fixes it is out. Use the name someone uses themselves and don't guess
-   pronouns.
+   Thank, by name or handle, the people whose code was merged, whose fork or
+   fix supplied an idea we used, and the collaborators who helped. Filing an
+   issue is not something to thank anyone for in the release notes; that would
+   turn the notes into a list. Do it in two places: the `docs/changelog.rst`
+   entry (earlier releases do this) and the GitHub release notes. Use the name
+   someone uses themselves and don't guess pronouns.
 4. **Write the change log.** `docs/changelog.rst`, "New in version X":
    user-visible changes first, then fixes, then platform changes. Document what
    pylibmc changed or now exposes, which libmemcached versions we support, and
@@ -253,7 +250,7 @@ maintainer's explicit go-ahead.
    cutting, before it goes live.
 10. **After the release.** Install the published version in clean environments on
    macOS and Linux and run a smoke test. Comment on and close the issues it
-   fixes (thanking the reporters). Move `pylibmc-version.h` to the next
+   fixes, saying which release has the fix. Move `pylibmc-version.h` to the next
    `-dev`. Delete merged branches. Answer any open maintenance thread with what
    shipped.
 
