@@ -951,6 +951,7 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
 
     serialized = PyMem_New(pylibmc_mset, nkeys);
     if (serialized == NULL) {
+        PyErr_NoMemory();
         goto cleanup;
     }
 
@@ -1529,8 +1530,10 @@ static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self,
     }
 
     incrs = PyMem_New(pylibmc_incr, nkeys);
-    if (incrs == NULL)
+    if (incrs == NULL) {
+        PyErr_NoMemory();
         goto cleanup;
+    }
 
     iterator = PyObject_GetIter(keys);
     if (iterator == NULL)
