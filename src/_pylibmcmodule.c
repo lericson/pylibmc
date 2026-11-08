@@ -728,9 +728,8 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *args) {
             &val_size, &flags, &error);
     Py_END_ALLOW_THREADS;
 
-    Py_DECREF(key);
-
     if (error == MEMCACHED_SUCCESS) {
+        Py_DECREF(key);
         /* note that mc_val can and is NULL for zero-length values. */
         PyObject *r = _PylibMC_parse_memcached_value(self, mc_val, val_size, flags);
 
@@ -747,13 +746,17 @@ static PyObject *PylibMC_Client_get(PylibMC_Client *self, PyObject *args) {
     }
 
     if (error == MEMCACHED_NOTFOUND) {
+        Py_DECREF(key);
         Py_INCREF(default_value);
         return default_value;
     }
 
-    return PylibMC_ErrFromMemcachedWithKey(self, "memcached_get", error,
-                                           PyBytes_AS_STRING(key),
-                                           PyBytes_GET_SIZE(key));
+    /* The key is still needed for the message, so release it afterwards. */
+    PylibMC_ErrFromMemcachedWithKey(self, "memcached_get", error,
+                                    PyBytes_AS_STRING(key),
+                                    PyBytes_GET_SIZE(key));
+    Py_DECREF(key);
+    return NULL;
 }
 
 static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *arg) {
