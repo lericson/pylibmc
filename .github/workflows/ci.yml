@@ -16,6 +16,43 @@ permissions:
   contents: read
 
 jobs:
+  changelog:
+    # Every PR that touches src/, setup.py or .github/ adds a fragment to
+    # changes.d/ (see changes.d/README.rst), or says "no-changelog" on a line
+    # of its own in the description.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+      with:
+        # The merge commit and both its parents.
+        fetch-depth: 2
+    - name: Validate the fragments
+      run: python3 bin/changelog check
+    - name: Require a fragment for code changes
+      env:
+        # Passed through the environment, never expanded into the script.
+        PR_BODY: ${{ github.event.pull_request.body }}
+      run: |
+        if printf '%s\n' "$PR_BODY" | tr -d '\r' | grep -qxF no-changelog; then
+          echo "no-changelog given; skipping"
+          exit 0
+        fi
+        # HEAD is the merge of the PR into its base; HEAD^1 is the base.
+        git diff --name-status HEAD^1 HEAD > /tmp/changes
+        cat /tmp/changes
+        if ! grep -qE '^\S+\s+(src/|setup\.py$|\.github/)' /tmp/changes; then
+          echo "nothing under src/, setup.py or .github/ changed"
+          exit 0
+        fi
+        if grep -qE '^A\s+changes\.d/.+\.rst$' /tmp/changes \
+            && grep -E '^A\s+changes\.d/' /tmp/changes | grep -qv 'README.rst'; then
+          exit 0
+        fi
+        echo "::error::Add a fragment to changes.d/ (see changes.d/README.rst), or put a line saying no-changelog in the PR description."
+        exit 1
+
   test:
     timeout-minutes: 10
     strategy:

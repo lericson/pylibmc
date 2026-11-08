@@ -1,0 +1,233 @@
+#!/usr/bin/env python3
+"""Build docs/changelog.rst entries from the fragments in changes.d/.
+
+    bin/changelog check
+    bin/changelog build X.Y.Z [--write]
+
+See changes.d/README.rst for the file format. Standard library only.
+"""
+import argparse
+import os
+import re
+import sys
+import textwrap
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FRAGMENT_DIR = os.path.join(ROOT, "changes.d")
+CHANGELOG = os.path.join(ROOT, "docs", "changelog.rst")
+
+# Category -> heading, in the order a release lists them.
+CATEGORIES = [
+    ("breaking", "Changes that can break existing code:"),
+    ("new", "New:"),
+    ("fix", "Fixes:"),
+    ("build", "Build and platforms:"),
+    ("docs", "Documentation:"),
+]
+HEADINGS = dict(CATEGORIES)
+NAME_RE = re.compile(
+    r"^(?P<id>\d+|\+[A-Za-z0-9_-]+)\.(?P<cat>%s)\.rst$"
+    % "|".join(c for c, _ in CATEGORIES))
+WIDTH = 80
+
+
+class Fragment(object):
+    def __init__(self, name, ident, category, text):
+        self.name = name
+        self.ident = ident
+        self.category = category
+        self.text = text
+
+    @property
+    def number(self):
+        return int(self.ident) if self.ident.isdigit() else None
+
+    def sort_key(self):
+        n = self.number
+        return (0, n, "") if n is not None else (1, 0, self.ident)
+
+    def bullet(self):
+        text = " ".join(self.text.split())
+        n = self.number
+        if n is not None and not re.search(r"#%d(?!\d)" % n, text):
+            tail = "."
+            if text.endswith("."):
+                text = text[:-1]
+            else:
+                tail = ""
+            text = "%s (#%d)%s" % (text, n, tail)
+        return textwrap.fill(
+            text, WIDTH, initial_indent="- ", subsequent_indent="  ",
+            break_long_words=False, break_on_hyphens=False)
+
+
+def load(directory=FRAGMENT_DIR):
+    """Return (fragments, errors) for the directory."""
+    frags, errors = [], []
+    for name in sorted(os.listdir(directory)):
+        if name.startswith(".") or name == "README.rst":
+            continue
+        path = os.path.join(directory, name)
+        if os.path.isdir(path):
+            errors.append("%s: unexpected directory" % name)
+            continue
+        m = NAME_RE.match(name)
+        if not m:
+            errors.append(
+                "%s: name must be <number>.<category>.rst or "
+                "+<word>.<category>.rst, category one of %s"
+                % (name, ", ".join(c for c, _ in CATEGORIES)))
+            continue
+        with open(path, encoding="utf-8") as f:
+            text = f.read().strip()
+        if not text:
+            errors.append("%s: empty" % name)
+            continue
+        if text.startswith("- ") or text.startswith("* "):
+            errors.append("%s: text must not start with a bullet marker" % name)
+            continue
+        frags.append(Fragment(name, m.group("id"), m.group("cat"), text))
+    return frags, errors
+
+
+def bullets_by_category(frags):
+    out = {}
+    for cat, _ in CATEGORIES:
+        sel = sorted((f for f in frags if f.category == cat),
+                     key=Fragment.sort_key)
+        if sel:
+            out[cat] = [f.bullet() for f in sel]
+    return out
+
+
+def render_blocks(preamble, blocks):
+    """Join preamble lines and {category: [bullet text]} in release order."""
+    parts = []
+    if preamble:
+        parts.append("\n".join(preamble))
+    for cat, heading in CATEGORIES:
+        if cat in blocks:
+            parts.append(heading + "\n\n" + "\n".join(blocks[cat]))
+    return "\n\n".join(parts) + "\n"
+
+
+def title(version):
+    t = "New in version %s" % version
+    return t + "\n" + "-" * len(t) + "\n"
+
+
+def build_section(version, frags):
+    return title(version) + "\n" + render_blocks([], bullets_by_category(frags))
+
+
+def insert_into_changelog(text, version, frags):
+    """Return changelog text with the fragments added under version."""
+    new = bullets_by_category(frags)
+    lines = text.split("\n")
+    head = "New in version %s" % version
+    start = None
+    for i in range(len(lines) - 1):
+        if lines[i] == head and re.match(r"^-+$", lines[i + 1]):
+            start = i
+            break
+    if start is None:
+        # New section directly under the page title ("Change Log", "====").
+        at = 0
+        for i in range(len(lines) - 1):
+            if re.match(r"^=+$", lines[i + 1]) and lines[i]:
+                at = i + 2
+                break
+        section = build_section(version, frags)
+        before = "\n".join(lines[:at]).rstrip("\n") + "\n\n"
+        after = "\n".join(lines[at:]).lstrip("\n")
+        return before + section + "\n" + after
+    end = len(lines)
+    for i in range(start + 2, len(lines) - 1):
+        if (lines[i].startswith("New in version ")
+                and re.match(r"^-+$", lines[i + 1])):
+            end = i
+            break
+    body = lines[start + 2:end]
+    preamble, blocks, cur = [], {}, None
+    by_heading = {h: c for c, h in CATEGORIES}
+    for line in body:
+        if line in by_heading:
+            cur = by_heading[line]
+            blocks[cur] = []
+        elif cur is None:
+            preamble.append(line)
+        else:
+            blocks[cur].append(line)
+    for cat in blocks:
+        text_ = "\n".join(blocks[cat]).strip("\n")
+        blocks[cat] = [text_] if text_ else []
+    for cat, bullets in new.items():
+        blocks.setdefault(cat, []).extend(bullets)
+    while preamble and not preamble[-1].strip():
+        preamble.pop()
+    while preamble and not preamble[0].strip():
+        preamble.pop(0)
+    merged = title(version) + "\n" + render_blocks(preamble, blocks)
+    rest = "\n".join(lines[end:])
+    head_txt = "\n".join(lines[:start])
+    return head_txt + ("\n" if head_txt else "") + merged + \
+        ("\n" + rest if rest else "")
+
+
+def cmd_check(args):
+    frags, errors = load(args.dir)
+    for e in errors:
+        print("changes.d/" + e, file=sys.stderr)
+    if errors:
+        return 1
+    print("%d fragment(s) ok" % len(frags))
+    return 0
+
+
+def cmd_build(args):
+    if not re.match(r"^\d+\.\d+\.\d+$", args.version):
+        print("version must look like 1.8.0", file=sys.stderr)
+        return 2
+    frags, errors = load(args.dir)
+    if errors:
+        for e in errors:
+            print("changes.d/" + e, file=sys.stderr)
+        return 1
+    if not frags:
+        print("no fragments", file=sys.stderr)
+        return 1
+    consumed = sorted(frags, key=lambda f: (f.category, f.sort_key()))
+    listing = "".join("changes.d/%s\n" % f.name for f in consumed)
+    if args.write:
+        with open(CHANGELOG, encoding="utf-8") as f:
+            text = f.read()
+        with open(CHANGELOG, "w", encoding="utf-8") as f:
+            f.write(insert_into_changelog(text, args.version, frags))
+        print("Wrote docs/changelog.rst. Review it, then delete:")
+        sys.stdout.write(listing)
+    else:
+        sys.stdout.write(build_section(args.version, frags))
+        print("\nConsumed fragments (delete in the release commit):",
+              file=sys.stderr)
+        sys.stderr.write(listing)
+    return 0
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    p.add_argument("--dir", default=FRAGMENT_DIR, help=argparse.SUPPRESS)
+    sub = p.add_subparsers(dest="cmd")
+    sub.required = True
+    sub.add_parser("check", help="validate the fragments").set_defaults(
+        func=cmd_check)
+    b = sub.add_parser("build", help="print or write a release section")
+    b.add_argument("version")
+    b.add_argument("--write", action="store_true",
+                   help="insert into docs/changelog.rst")
+    b.set_defaults(func=cmd_build)
+    args = p.parse_args(argv)
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
