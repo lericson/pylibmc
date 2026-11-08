@@ -10,6 +10,7 @@ The List of Honored People
 * Misha Brukman <mbrukman@google.com>
 * James Brown <jbrown@yelp.com>
 * Adam Chainz <adam@adamj.eu>
+* Christian Clauss
 * Mika Eloranta <mel@ohmu.fi>
 * Ludvig Ericson <ludvig@lericson.se>
 * Harvey Falcic <harvey.falcic@gmail.com>
@@ -17,6 +18,7 @@ The List of Honored People
 * Marius Gedminas <marius@gedmin.as>
 * Joe Hansche <jhansche@myyearbook.com>
 * Keli Hlodversson <keli@hapti.co>
+* Miro Hrončok
 * ketralnis <ketralnis@reddit.com>
 * Paweł Kowalak <pawel.kowalak@gmail.com>
 * Hiroki Kumzaki <hiroki.kumazaki@gmail.com>
@@ -24,14 +26,18 @@ The List of Honored People
 * Shivaram Lingamneni <slingamn@cs.stanford.edu>
 * Andrew McFague <amcfague@wgen.net>
 * Remoun Metyas <remoun.metyas@gmail.com>
+* Bryan C. Mills
 * Ed Morley <emorley@mozilla.com>
 * Rudá Moura <ruda.moura@gmail.com>
 * Muneyuki Noguchi <nogu.dev@gmail.com>
+* Nikolas Nyby
 * Sergey Pashinin <sergey@pashinin.com>
 * Michael Schurter <schmichael@urbanairship.com>
 * Radek Senfeld <rush@logic.cz>
 * Noah Silas <noah@mahalo.com>
+* Amin Solhizadeh (mxamin)
 * Jari Sukanen <jari.sukanen@f-secure.com>
+* David Szotten
 * John Watson <johnw@mahalo.com>
 * John Whitlock <john-whitlock@ieee.org>
 * Neil Williams <neil@reddit.com>
