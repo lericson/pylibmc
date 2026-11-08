@@ -33,6 +33,14 @@
 
       Clone client, making new connections as necessary.
 
+      The clone has the same servers, behaviors (including ``pickle_protocol``),
+      binary protocol setting and SASL credentials, and is of the same class,
+      so overridden ``serialize()`` and ``deserialize()`` methods apply to it
+      too. Attributes a subclass sets on the instance (for example in its own
+      ``__init__``) are not copied. :class:`~pylibmc.ClientPool` and
+      :class:`~pylibmc.ThreadMappedPool` hand out clones, so their clients
+      authenticate like the original.
+
    .. Reading
 
    .. method:: get(key[, default]) -> value

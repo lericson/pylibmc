@@ -2465,6 +2465,13 @@ static PyObject *PylibMC_Client_clone(PylibMC_Client *self) {
     Py_BEGIN_ALLOW_THREADS;
     clone->mc = memcached_clone(NULL, self->mc);
     Py_END_ALLOW_THREADS;
+    if (clone->mc == NULL) {
+        Py_DECREF(clone);
+        return PyErr_NoMemory();
+    }
+    /* libmemcached copies the SASL credentials into the clone, which then owns
+     * them; dealloc must destroy them like it does for the original. */
+    clone->sasl_set = self->sasl_set;
     clone->native_serialization = self->native_serialization;
     clone->native_deserialization = self->native_deserialization;
     clone->pickle_protocol = self->pickle_protocol;
