@@ -225,3 +225,21 @@ def test_compressed_cas_does_not_leak_references(c, key):
     churn(500)
     after = get_refcounts([k, value])
     assert after == before
+
+
+@needs_zlib
+def test_master_key_cas_compresses(c, raw, key):
+    """cas with master_key= goes through memcached_cas_by_key and still
+    compresses like set does."""
+    mk = "mk-" + uuid.uuid4().hex
+    c.set(key, "first", master_key=mk)
+    _, token = c.gets(key, master_key=mk)
+    assert c.cas(key, BIG, token, min_compress_len=THRESHOLD,
+                 master_key=mk) is True
+    flags, length = stored(key)
+    assert flags & f_zlib
+    assert length < len(BIG) // 4
+    assert c.get(key, master_key=mk) == BIG
+    # The old token is stale now, with a master key too.
+    assert c.cas(key, BIG + "x", token, min_compress_len=THRESHOLD,
+                 master_key=mk) is False
