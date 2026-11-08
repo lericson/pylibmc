@@ -41,6 +41,39 @@ is threadlocal).
 
 .. _exceptions:
 
+.. _master-keys:
+
+Master keys
+===========
+
+With several memcached servers, each key is hashed to pick its server, so a
+:meth:`~pylibmc.Client.get_multi` of many keys talks to many servers. If the
+keys belong together, say everything cached for one user, you can tell
+libmemcached to hash a *master key* (libmemcached calls it the group key)
+instead, so that they all land on one server and one multi-get is enough::
+
+    mc.set_multi({"profile": profile, "prefs": prefs}, master_key="user:42")
+    mc.get_multi(["profile", "prefs"], master_key="user:42")
+    mc.delete("profile", master_key="user:42")
+
+The master key only decides which server is used. The items are still called
+``"profile"`` and ``"prefs"``. The keyword is explicit on every call, and
+nothing is remembered on the client between calls.
+
+.. warning:: The same key stored under different master keys, or with and
+             without one, may be on different servers, so you must give the
+             same master key when you read and delete it as when you wrote it.
+             With a single server there is no difference, which makes this easy
+             to get wrong in development: ``mc.get("profile")`` finds the item
+             above only by luck once there are several servers.
+
+If the master key's server is down, calls with that master key fail, even for
+keys that would have hashed to a live server. The master key is only hashed
+and is never sent to the server. If libmemcached's ``namespace`` is set, it is
+added to item keys, and it is part of what is hashed for the server choice only
+if the ``_hash_with_prefix_key`` behavior is on, for master keys as for any
+key.
+
 Exceptions
 ==========
 
