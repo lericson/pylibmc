@@ -35,7 +35,7 @@ jobs:
 
       - name: Install cibuildwheel
         run: |
-          python -m pip install cibuildwheel
+          python -m pip install cibuildwheel==3.3.1
 
       # libmemcached is built from a checksum-verified source tarball (see
       # .github/scripts/build-libmemcached.sh). The deployment target is kept
@@ -68,7 +68,8 @@ jobs:
 
       - name: Build wheels
         env:
-          CIBW_SKIP: "*-musllinux* pp*"
+          # musllinux, PyPy and free-threaded CPython (untested) are skipped.
+          CIBW_SKIP: "*-musllinux* pp* cp314t-*"
           CIBW_ARCHS_MACOS: "x86_64 arm64"
           CIBW_ARCHS_LINUX: "x86_64 aarch64"
           # manylinux_2_28 (AlmaLinux 8, glibc 2.28) is the cibuildwheel 3
