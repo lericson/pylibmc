@@ -846,6 +846,24 @@ static PyObject *PylibMC_Client_hash(PylibMC_Client *self, PyObject *args, PyObj
     return PyLong_FromLong((long)h);
 }
 
+/* Expiry times are parsed as long long and range-checked here. PyArg's "I" and
+   "k" convert without overflow checking, so a negative time used to wrap into
+   a huge unsigned one (memcached's log showed 18446744073709551615 for -1),
+   which the text protocol then treated as already expired and the binary
+   protocol as no expiry at all. */
+static int _PylibMC_time_arg(long long in, unsigned int *out) {
+    if (in < 0) {
+        PyErr_SetString(PyExc_ValueError, "time must not be negative");
+        return 0;
+    }
+    if (in > (long long)UINT_MAX) {
+        PyErr_SetString(PyExc_ValueError, "time is too large");
+        return 0;
+    }
+    *out = (unsigned int)in;
+    return 1;
+}
+
 /* {{{ Set commands (set, replace, add, prepend, append) */
 static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
         _PylibMC_SetCommand f, char *fname, PyObject *args,
@@ -860,6 +878,7 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
     PyObject *value;
     pylibmc_mset serialized = { NULL };
     unsigned int time = 0; /* this will be turned into a time_t */
+    long long time_arg = 0;
     unsigned int min_compress = 0;
     int compress_level = -1;
 
@@ -870,9 +889,10 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
      * to UTF-8 byte strings for use as keys, and this seems to be
      * the only sensible thing to do when the user attempts this
      */
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#O|IIi", kws,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#O|LIi", kws,
                                      &key_raw, &keylen, &value,
-                                     &time, &min_compress, &compress_level)) {
+                                     &time_arg, &min_compress, &compress_level)
+        || !_PylibMC_time_arg(time_arg, &time)) {
       return NULL;
     }
 
@@ -931,6 +951,7 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
     Py_ssize_t key_prefix_len = 0;
     PyObject *key_prefix = NULL;
     unsigned int time = 0;
+    long long time_arg = 0;
     unsigned int min_compress = 0;
     int compress_level = -1;
     PyObject *failed = NULL;
@@ -946,10 +967,11 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
                            "min_compress_len", "compress_level",
                            NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|Is#Ii", kws,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|Ls#Ii", kws,
                                      &PyDict_Type, &keys,
-                                     &time, &key_prefix_raw, &key_prefix_len,
-                                     &min_compress, &compress_level)) {
+                                     &time_arg, &key_prefix_raw, &key_prefix_len,
+                                     &min_compress, &compress_level)
+        || !_PylibMC_time_arg(time_arg, &time)) {
         return NULL;
     }
 
@@ -1047,13 +1069,15 @@ static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *self,
     PyObject *value;
     uint64_t cas = 0;
     unsigned int time = 0; /* this will be turned into a time_t */
+    long long time_arg = 0;
     bool success = false;
     memcached_return rc;
     pylibmc_mset mset = { NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#OL|I", kws,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#OL|L", kws,
                                      &key_raw, &key_len, &value, &cas,
-                                     &time)) {
+                                     &time_arg)
+        || !_PylibMC_time_arg(time_arg, &time)) {
       return NULL;
     }
 
@@ -1446,11 +1470,15 @@ static PyObject *PylibMC_Client_touch(PylibMC_Client *self, PyObject *args) {
 #if LIBMEMCACHED_VERSION_HEX >= 0x01000002
     char *key;
     long seconds;
+    long long seconds_arg;
+    unsigned int seconds_checked;
     Py_ssize_t key_len;
     memcached_return rc;
 
-    if(PyArg_ParseTuple(args, "s#k", &key, &key_len, &seconds)
+    if(PyArg_ParseTuple(args, "s#L", &key, &key_len, &seconds_arg)
+            && _PylibMC_time_arg(seconds_arg, &seconds_checked)
             && _key_normalized_str(&key, &key_len)) {
+        seconds = (long)seconds_checked;
         Py_BEGIN_ALLOW_THREADS;
         rc = memcached_touch(self->mc, key, key_len, seconds);
         Py_END_ALLOW_THREADS;
