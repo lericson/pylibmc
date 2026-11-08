@@ -1,0 +1,16 @@
+With the text protocol (the default), a key containing whitespace or a control
+character now raises ``ValueError`` in every method that takes a key,
+including ``get_multi``, ``set_multi`` and the other ``*_multi`` methods (and
+their ``key_prefix``), ``in`` and ``client[key]``, before anything is sent.
+Rejected are the bytes ``0x00`` to ``0x20`` (NUL, tab, CR, LF, space and the
+other control characters) and ``0x7f``; non-ASCII bytes such as UTF-8 are still
+fine. Such keys used to reach the server: a space or newline made later replies
+go to the wrong call on the same client, and a key with ``\r\n`` could inject
+commands such as ``flush_all``; a key with a tab, a control character or a NUL
+was stored but could not be read back. If you relied on that, stop using such
+keys (hash or percent-encode them) or switch to ``binary=True``, which accepts
+any byte. The key length limit and its ``ValueError`` are unchanged, and the
+``master_key=`` argument is only hashed, so it is checked for length only.
+Calls that used to return ``False`` or a miss for such a key (``get_multi``
+skipped a key with a space, ``delete`` returned ``False``) now raise, so a bad
+key can no longer hide as a cache miss.

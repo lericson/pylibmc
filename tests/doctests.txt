@@ -209,13 +209,11 @@ Per-error exceptions
 ... except pylibmc.NotFound:
 ...   print("ok")
 ok
->>> c.set_behaviors({"verify_keys": True})
 >>> try:
 ...   c.incr(chr(0))
-... except pylibmc.BadKeyProvided:
+... except ValueError:
 ...   print("ok")
 ok
->>> c.set_behaviors({"verify_keys": False})
 
 Behaviors.
 >>> c.set_behaviors({"tcp_nodelay": True, "hash": 6})

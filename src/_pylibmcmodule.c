@@ -75,6 +75,26 @@ static PyObject *_PylibMC_pickle_dumps = NULL;
 #define GROUP_KEY(g) (PyBytes_AS_STRING(g))
 #define GROUP_KEY_LEN(g) ((size_t)PyBytes_GET_SIZE(g))
 
+/* Keys sent over the text protocol are subject to the byte check in
+ * _key_normalized_str. Ask libmemcached which protocol the client really
+ * speaks, so clone() and set_behaviors({"binary_protocol": ...}) cannot make
+ * this go stale. The master_key is only ever hashed, so it skips the check. */
+#define KEYS_ARE_TEXT(self) \
+    (!memcached_behavior_get((self)->mc, MEMCACHED_BEHAVIOR_BINARY_PROTOCOL))
+
+/* A new bytes object holding *prefix* then *key*, both bytes. Unlike
+ * PyBytes_FromFormat("%s%s", ...) this keeps bytes after a NUL, which the
+ * binary protocol allows in a key. */
+static PyObject *_PylibMC_concat_keys(PyObject *prefix, PyObject *key) {
+    PyObject *joined = PyBytes_FromStringAndSize(PyBytes_AS_STRING(prefix),
+                                                 PyBytes_GET_SIZE(prefix));
+    if (joined == NULL) {
+        return NULL;
+    }
+    PyBytes_Concat(&joined, key);  /* releases joined on failure */
+    return joined;
+}
+
 /* Split *kwds* into the group key and the remaining keyword arguments. On
  * success *group* is a new reference or NULL and *rest* a new reference or
  * NULL; with *allow_rest* false, any other keyword is a TypeError. Costs a NULL
@@ -102,7 +122,7 @@ static int _PylibMC_split_kwds(PyObject *kwds, int allow_rest,
 
     if (mk != Py_None) {
         PyObject *g = mk;
-        if (!_key_normalized_obj(&g)) {
+        if (!_key_normalized_obj(&g, 0)) {
             return 0;
         }
         if (PyBytes_GET_SIZE(g) == 0) {
@@ -821,7 +841,7 @@ static PyObject *_PylibMC_get(PylibMC_Client *self, PyObject *group,
         return NULL;
     }
 
-    if (!_key_normalized_obj(&key)) {
+    if (!_key_normalized_obj(&key, KEYS_ARE_TEXT(self))) {
         return NULL;
     } else if (!PySequence_Length(key)) {
         Py_DECREF(key);
@@ -890,7 +910,7 @@ static PyObject *_PylibMC_gets(PylibMC_Client *self, PyObject *group,
     memcached_return rc;
     PyObject* ret = NULL;
 
-    if (!_key_normalized_obj(&arg)) {
+    if (!_key_normalized_obj(&arg, KEYS_ARE_TEXT(self))) {
         return NULL;
     } else if (!PySequence_Length(arg)) {
         Py_DECREF(arg);
@@ -1290,7 +1310,7 @@ static int _PylibMC_SerializeValue(PylibMC_Client *self,
     serialized->success = false;
     serialized->value_obj = NULL;
 
-    if (!_key_normalized_obj(&key_obj)) {
+    if (!_key_normalized_obj(&key_obj, KEYS_ARE_TEXT(self))) {
         return false;
     }
 
@@ -1305,7 +1325,7 @@ static int _PylibMC_SerializeValue(PylibMC_Client *self,
 
     /* Check the key_prefix */
     if (key_prefix != NULL) {
-        if (!_key_normalized_obj(&key_prefix)) {
+        if (!_key_normalized_obj(&key_prefix, KEYS_ARE_TEXT(self))) {
             return false;
         }
 
@@ -1320,9 +1340,7 @@ static int _PylibMC_SerializeValue(PylibMC_Client *self,
     if (key_prefix != NULL) {
         PyObject* prefixed_key_obj = NULL; /* freed by _PylibMC_FreeMset */
 
-        prefixed_key_obj = PyBytes_FromFormat("%s%s",
-                PyBytes_AS_STRING(key_prefix),
-                PyBytes_AS_STRING(key_obj));
+        prefixed_key_obj = _PylibMC_concat_keys(key_prefix, key_obj);
 
         Py_DECREF(key_prefix);
         key_prefix = NULL;
@@ -1332,7 +1350,7 @@ static int _PylibMC_SerializeValue(PylibMC_Client *self,
         }
 
         /* check the key and overwrite the C string */
-        if(!_key_normalized_obj(&prefixed_key_obj)
+        if(!_key_normalized_obj(&prefixed_key_obj, KEYS_ARE_TEXT(self))
            || PyBytes_AsStringAndSize(prefixed_key_obj,
                                        &serialized->key,
                                        &serialized->key_len) == -1) {
@@ -1601,7 +1619,7 @@ static PyObject *_PylibMC_delete(PylibMC_Client *self, PyObject *group,
     memcached_return rc;
 
     if (PyArg_ParseTuple(args, "s#:delete", &key, &key_len)
-            && _key_normalized_str(&key, &key_len)) {
+            && _key_normalized_str(&key, &key_len, KEYS_ARE_TEXT(self))) {
         Py_BEGIN_ALLOW_THREADS;
         if (group == NULL) {
             rc = memcached_delete(self->mc, key, key_len, 0);
@@ -1646,7 +1664,7 @@ static PyObject *_PylibMC_touch(PylibMC_Client *self, PyObject *group,
 
     if(PyArg_ParseTuple(args, "s#L", &key, &key_len, &seconds_arg)
             && _PylibMC_time_arg(seconds_arg, &seconds_checked)
-            && _key_normalized_str(&key, &key_len)) {
+            && _key_normalized_str(&key, &key_len, KEYS_ARE_TEXT(self))) {
         seconds = (long)seconds_checked;
         Py_BEGIN_ALLOW_THREADS;
         if (group == NULL) {
@@ -1695,7 +1713,7 @@ static PyObject *_PylibMC_IncrSingle(PylibMC_Client *self, PyObject *group,
 
     if (!PyArg_ParseTuple(args, "s#|i", &key, &key_len, &delta)) {
         return NULL;
-    } else if (!_key_normalized_str(&key, &key_len)) {
+    } else if (!_key_normalized_str(&key, &key_len, KEYS_ARE_TEXT(self))) {
         return NULL;
     }
 
@@ -1781,7 +1799,7 @@ static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self, PyObject *group,
         pylibmc_incr *incr = incrs + i;
         PyObject *item = key;  /* the reference PyIter_Next gave us */
 
-        if (!_key_normalized_obj(&key))
+        if (!_key_normalized_obj(&key, KEYS_ARE_TEXT(self)))
             goto loopcleanup;  /* key is still item: released there */
 
         /* key now holds its own reference; release the iterator's. */
@@ -1789,13 +1807,19 @@ static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self, PyObject *group,
 
         /* prefix `key` with `key_prefix` */
         if (key_prefix != NULL) {
-            PyObject* newkey = PyBytes_FromFormat("%s%s",
-                                                   PyBytes_AS_STRING(key_prefix),
-                                                   PyBytes_AS_STRING(key));
+            PyObject* newkey = _PylibMC_concat_keys(key_prefix, key);
             Py_DECREF(key);
             key = newkey;
             if (key == NULL)
                 goto cleanup;
+
+            /* The prefix is not normalized on its own, so check the key as
+             * it will be sent. */
+            char *newkey_str = PyBytes_AS_STRING(key);
+            Py_ssize_t newkey_len = PyBytes_GET_SIZE(key);
+            if (!_key_normalized_str(&newkey_str, &newkey_len,
+                                     KEYS_ARE_TEXT(self)))
+                goto loopcleanup;
         }
 
         Py_INCREF(key);
@@ -2026,7 +2050,7 @@ static PyObject *_PylibMC_get_multi(
         Py_ssize_t final_key_len;
         PyObject *rkey;
 
-        if (PyErr_Occurred() || !_key_normalized_obj(&ckey)) {
+        if (PyErr_Occurred() || !_key_normalized_obj(&ckey, KEYS_ARE_TEXT(self))) {
             nkeys = key_idx;
             goto earlybird;
         }
@@ -2058,6 +2082,19 @@ static PyObject *_PylibMC_get_multi(
             rkey = ckey;
         }
         Py_DECREF(ckey);
+
+        /* The prefix is not normalized on its own, so check the key as it
+         * will be sent. (Without a prefix ckey was checked above.) */
+        if (prefix_len > 0) {
+            char *rkey_str = PyBytes_AS_STRING(rkey);
+            Py_ssize_t rkey_len = PyBytes_GET_SIZE(rkey);
+            if (!_key_normalized_str(&rkey_str, &rkey_len,
+                                     KEYS_ARE_TEXT(self))) {
+                Py_DECREF(rkey);
+                nkeys = key_idx;
+                goto earlybird;
+            }
+        }
 
         keys[key_idx] = PyBytes_AS_STRING(rkey);
         key_objs[key_idx] = rkey;
@@ -2192,8 +2229,11 @@ static PyObject *_PylibMC_DoMulti(PyObject *values, PyObject *func,
          * prefix is already converted to a byte string, so ensure that
          * the key is of the same type before trying to append.
          */
-        if (!_key_normalized_obj(&item))
-            goto loopcleanup;
+        if (!_key_normalized_obj(&item, 0)) {
+            /* Nothing was created: release the iterator's reference only. */
+            Py_DECREF(orig_item);
+            goto cleanup;
+        }
         if (prefix == NULL || prefix == Py_None) {
             key = item;
             Py_INCREF(key);
@@ -2203,7 +2243,7 @@ static PyObject *_PylibMC_DoMulti(PyObject *values, PyObject *func,
              * Another call to _key_normalized_obj is still a good idea since
              * we might have created a key that's too long
              */
-            if (key == NULL || !_key_normalized_obj(&key))
+            if (key == NULL || !_key_normalized_obj(&key, 0))
                 goto loopcleanup;
             /* Normalization created a new ref to key; clean up the temporary ref. */
             Py_DECREF(concat_key);
@@ -2255,7 +2295,9 @@ loopcleanup:
         Py_XDECREF(args_f);
         Py_XDECREF(args);
         Py_XDECREF(key);
+        /* item is the normalized reference; orig_item is the iterator's. */
         Py_DECREF(item);
+        Py_DECREF(orig_item);
         goto cleanup;
     }
     Py_DECREF(iter);
@@ -2791,13 +2833,15 @@ static PyObject *_PylibMC_Pickle(PylibMC_Client *self, PyObject *val) {
 /* }}} */
 
 /**
- * Normalize a key. Takes in a PyObject **.
+ * Normalize a key. Takes in a PyObject **. *text* says whether the key will be
+ * sent over the text protocol, which restricts its bytes (see
+ * _key_normalized_str).
  *
  * Returns a status code; on success (code != 0), *key will contain a new
  * reference to a normalized key (possibly the original object itself).
  * On error (code == 0), no references are created.
  */
-static int _key_normalized_obj(PyObject **key) {
+static int _key_normalized_obj(PyObject **key, int text) {
     int rc;
     char *key_str;
     Py_ssize_t key_sz;
@@ -2831,7 +2875,7 @@ static int _key_normalized_obj(PyObject **key) {
 
     key_str = PyBytes_AS_STRING(retval);
     key_sz = PyBytes_GET_SIZE(retval);
-    rc = _key_normalized_str(&key_str, &key_sz);
+    rc = _key_normalized_str(&key_str, &key_sz, text);
 
 END:
     if (rc) {
@@ -2851,9 +2895,18 @@ END:
 }
 
 /**
- * Validate a memcached key.  Returns 0 if invalid, 1 if valid.
+ * Validate a memcached key.  Returns 0 if invalid (with an exception set), 1 if
+ * valid.
+ *
+ * Every key must be shorter than MEMCACHED_MAX_KEY.  With *text* true, the key
+ * is going to be written into a text protocol command line, where a byte
+ * <= 0x20 (NUL, tab, CR, LF, space and the other control characters) or 0x7f
+ * would end the key early or let whoever controls the key send commands of
+ * their own, so those are rejected as well (memcached's protocol.txt: "The key
+ * must not include control characters or whitespace"). Bytes >= 0x80 are fine.
+ * The binary protocol length-prefixes the key and allows any byte.
  */
-static int _key_normalized_str(char **str, Py_ssize_t *size) {
+static int _key_normalized_str(char **str, Py_ssize_t *size, int text) {
     /* libmemcached pads max_key_size with one byte for null termination */
     if (*size >= MEMCACHED_MAX_KEY) {
         PyErr_Format(PyExc_ValueError, "key length %zd too long, max is %d",
@@ -2863,6 +2916,24 @@ static int _key_normalized_str(char **str, Py_ssize_t *size) {
 
     if (*str == NULL) {
         return 0;
+    }
+
+    if (text) {
+        const unsigned char *p = (const unsigned char *)*str;
+        for (Py_ssize_t i = 0; i < *size; i++) {
+            if (p[i] <= 0x20 || p[i] == 0x7f) {
+                PyObject *bad = PyBytes_FromStringAndSize(*str, *size);
+                if (bad != NULL) {
+                    PyErr_Format(PyExc_ValueError,
+                        "key %R has byte 0x%02x at position %zd, but a key "
+                        "must not contain whitespace or control characters "
+                        "with the text protocol (use binary=True, or encode "
+                        "the key)", bad, (unsigned int)p[i], i);
+                    Py_DECREF(bad);
+                }
+                return 0;
+            }
+        }
     }
 
     return 1;
