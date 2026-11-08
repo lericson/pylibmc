@@ -2,4 +2,6 @@
 
 if __name__ == "__main__":
     import pytest
-    pytest.main(['--doctest-modules', '--doctest-glob=*.txt', 'src', 'tests'])
+    raise SystemExit(
+        pytest.main(['--doctest-modules', '--doctest-glob=*.txt', 'src', 'tests'])
+    )
