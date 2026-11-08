@@ -53,9 +53,12 @@ sha256() {
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
-URL=https://github.com/awesomized/libmemcached/archive/refs/tags/$VERSION.tar.gz
+# codeload.github.com serves the same bytes as github.com/.../archive/... (the
+# checksum below is the same) but without the redirect that was returning
+# persistent HTTP 504 errors in CI.
+URL=https://codeload.github.com/awesomized/libmemcached/tar.gz/refs/tags/$VERSION
 echo "Downloading $URL"
-curl --fail --silent --show-error --location --retry 3 --output "$WORK/src.tar.gz" "$URL"
+curl --fail --silent --show-error --location --retry 5 --retry-delay 5 --retry-all-errors --output "$WORK/src.tar.gz" "$URL"
 
 GOT=$(sha256 "$WORK/src.tar.gz")
 if [ "$GOT" != "$SHA256" ]; then
