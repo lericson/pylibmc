@@ -39,6 +39,13 @@ jobs:
           else
             echo "Tag ${TAG} matches the source version."
           fi
+      # A patch version (X.Y.Z with Z > 0) may only carry fix/build/docs
+      # fragments. On a tag build the compare step has just shown that the
+      # tag equals the header; a dry run checks the header's version.
+      - name: Check the change log fragments against the version
+        run: |
+          version=$(sed -n 's/^#define PYLIBMC_VERSION "\(.*\)"$/\1/p' src/pylibmc-version.h)
+          python3 bin/changelog check --version "${version}"
 
   build_wheels:
     name: Build wheel for ${{ matrix.os }}

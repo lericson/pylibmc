@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build docs/changelog.rst entries from the fragments in changes.d/.
 
-    bin/changelog check
+    bin/changelog check [--version X.Y.Z]
     bin/changelog build X.Y.Z [--write]
 
 See changes.d/README.rst for the file format. Standard library only.
@@ -29,6 +29,9 @@ NAME_RE = re.compile(
     r"^(?P<id>\d+|\+[A-Za-z0-9_-]+)\.(?P<cat>%s)\.rst$"
     % "|".join(c for c, _ in CATEGORIES))
 WIDTH = 80
+VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:[-.]?[A-Za-z][A-Za-z0-9.]*)?$")
+# Categories a patch release (X.Y.Z with Z > 0) may not contain.
+MINOR_ONLY = ("breaking", "new")
 
 
 class Fragment(object):
@@ -174,13 +177,49 @@ def insert_into_changelog(text, version, frags):
         ("\n" + rest if rest else "")
 
 
+def parse_version(text):
+    """Return (major, minor, patch) of "1.8.1", "1.8.1rc1", "1.8.0-dev"."""
+    m = VERSION_RE.match(text)
+    if not m:
+        raise ValueError("cannot parse version %r: want X.Y.Z with an "
+                         "optional suffix such as -dev or rc1" % text)
+    return tuple(int(g) for g in m.groups())
+
+
+def is_patch_release(version):
+    return parse_version(version)[2] > 0
+
+
+def semver_errors(version, frags):
+    """Messages for fragments a patch release version may not contain."""
+    if not is_patch_release(version):
+        return []
+    bad = sorted(f.name for f in frags if f.category in MINOR_ONLY)
+    if not bad:
+        return []
+    return ["version %s is a patch release, which may only contain fix, "
+            "build and docs fragments, but these are breaking or new: %s. "
+            "Move them to a minor release (X.Y.0) or reclassify them."
+            % (version, ", ".join("changes.d/" + n for n in bad))]
+
+
 def cmd_check(args):
     frags, errors = load(args.dir)
     for e in errors:
         print("changes.d/" + e, file=sys.stderr)
     if errors:
         return 1
-    print("%d fragment(s) ok" % len(frags))
+    try:
+        problems = semver_errors(args.version, frags) if args.version is not None else []
+    except ValueError as e:
+        print("error: %s" % e, file=sys.stderr)
+        return 2
+    for e in problems:
+        print("error: " + e, file=sys.stderr)
+    if problems:
+        return 1
+    print("%d fragment(s) ok%s" % (
+        len(frags), " for version " + args.version if args.version is not None else ""))
     return 0
 
 
@@ -192,6 +231,11 @@ def cmd_build(args):
     if errors:
         for e in errors:
             print("changes.d/" + e, file=sys.stderr)
+        return 1
+    problems = semver_errors(args.version, frags)
+    for e in problems:
+        print("error: " + e, file=sys.stderr)
+    if problems:
         return 1
     if not frags:
         print("no fragments", file=sys.stderr)
@@ -218,8 +262,11 @@ def main(argv=None):
     p.add_argument("--dir", default=FRAGMENT_DIR, help=argparse.SUPPRESS)
     sub = p.add_subparsers(dest="cmd")
     sub.required = True
-    sub.add_parser("check", help="validate the fragments").set_defaults(
-        func=cmd_check)
+    c = sub.add_parser("check", help="validate the fragments")
+    c.add_argument("--version", help="also apply the release rules for this "
+                   "version: a patch release (Z > 0) may not carry breaking "
+                   "or new fragments (the release workflow passes the tag)")
+    c.set_defaults(func=cmd_check)
     b = sub.add_parser("build", help="print or write a release section")
     b.add_argument("version")
     b.add_argument("--write", action="store_true",
