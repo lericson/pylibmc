@@ -17,6 +17,9 @@ New:
 
 Build and platforms:
 
+- libmemcached 1.1.x (the awesomized/libmemcached fork, tested with 1.1.4) is
+  supported, in addition to 1.0.x. The test suite runs against both.
+- The wheels are built against libmemcached 1.1.4 and bundle it.
 - Python 3.12, 3.13 and 3.14 are supported. Python 3.7 is no longer supported:
   pylibmc requires Python 3.8 or newer.
 - Building with ``LIBMEMCACHED`` or ``--with-libmemcached`` now links the
