@@ -93,8 +93,10 @@ libmemcached behavior constants.
 .. _verify_keys:
 
 ``"verify_keys"``
-   Setting this behavior will test if the keys for validity before sending to
-   memcached.
+   Ignored, and no longer reported by ``get_behaviors()``. :mod:`pylibmc` now
+   always checks keys itself, so there is nothing left to switch on. Setting it,
+   to any value, emits a :class:`DeprecationWarning`; remove it from your
+   code. See :ref:`verify-keys-notes`.
 
 .. _tcp_keepalive:
 

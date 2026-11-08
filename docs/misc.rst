@@ -231,14 +231,39 @@ consequences that may not be obvious:
     >>> c.get_multi((b'key1', 'key2'))
     {b'key1': 1, 'key2': 2}
 
-`verify_keys` ⋁ ¬ `verify_keys`
-===============================
+.. _verify-keys-notes:
 
-Security researchers have noted that disabling the `verify_keys` behavior is a
-potential threat when accepting unsanitized input. This is most troublesome as
-the default configuration disables this behavior. However, we have in fact
-**not** specified this as the default, it comes as a sort of heritage from
-libmemcached.
+Key checks and the `verify_keys` behavior
+=========================================
 
-For this reason, you are urged to enable `verify_keys` if you have the
-slightest doubt about user input getting through to your key names.
+With the text protocol, a key is written into a command line as it is. A key
+containing a space or a control character confuses the exchange: the server's
+replies no longer line up with the requests, and later calls on the same client
+can get the wrong answers. A key containing ``\r\n`` lets whoever controls the
+key send commands of their own, such as ``flush_all``. This is a threat
+whenever unsanitized input can reach your key names.
+
+Since version 1.8.0, :mod:`pylibmc` therefore checks every key itself, before
+anything is sent, in every method that takes a key (``get``, ``set``,
+``delete``, ``incr``, ``touch``, ``cas``, the ``*_multi`` methods with their
+*key_prefix*, ``in`` and ``client[key]``). A bad key raises ``ValueError``,
+which is also what a key that is too long has always done. What is checked
+depends on the protocol:
+
+* Text protocol: a key must be shorter than 250 bytes and must not contain a
+  byte at or below ``0x20`` (NUL, tab, CR, LF, space and the other control
+  characters) or ``0x7f`` (DEL). Bytes ``0x80`` and above are allowed, so UTF-8
+  keys work.
+* Binary protocol (``binary=True``): the length limit only. The key is
+  length-prefixed, so any byte, a space included, is safe.
+
+The master key (``master_key=``) is only hashed to pick a server and never sent,
+so it is checked for length only, with either protocol.
+
+The check costs well under a microsecond for a 100-byte key.
+
+Older versions left this to libmemcached's `verify_keys` behavior, which was
+off by default and, when on, also rejected non-ASCII keys. `verify_keys` is now
+ignored: setting it, in the constructor, with ``set_behaviors`` or through the
+``behaviors`` mapping, emits a :class:`DeprecationWarning` and has no other
+effect, and ``get_behaviors()`` does not list it. Remove it from your code.
