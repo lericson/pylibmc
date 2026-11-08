@@ -1,0 +1,32 @@
+name: Set up Python, retrying once
+description: >
+  actions/setup-python downloads interpreters that are not preinstalled on the
+  runner image (older CPython versions) from a GitHub release asset, and that
+  download sometimes fails with HTTP 504. The action retries a few times
+  within seconds, which is not long enough to ride out an outage, so wait and
+  try the whole step once more.
+
+inputs:
+  python-version:
+    description: Passed to actions/setup-python.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - id: first
+      uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
+      continue-on-error: true
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Wait before retrying Python setup
+      if: ${{ steps.first.outcome == 'failure' }}
+      shell: bash
+      run: |
+        echo "::warning::setup-python failed for ${{ inputs.python-version }}, retrying in 90s"
+        sleep 90
+    - name: Retry Python setup
+      if: ${{ steps.first.outcome == 'failure' }}
+      uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
+      with:
+        python-version: ${{ inputs.python-version }}
