@@ -17,8 +17,8 @@ and GitHub.
 | `src/pylibmc-version.h` | The one source of the version number. `setup.py` and the C module both read it. |
 | `src/pylibmc/` | The Python package: `client.py`, `pools.py`, `consts.py`, `autoconf.py`, `test.py`. |
 | `tests/` | pytest tests plus `doctests.txt`. `tests/__init__.py` has `PylibmcTestCase` and `get_refcounts`. |
-| `docs/` | Sphinx docs. `docs/changelog.rst` is the user-facing change log, written at release time from `docs/changes.d/`. |
-| `docs/changes.d/` | One change log fragment per change; see `docs/changes.d/README.rst`. |
+| `docs/` | Sphinx docs. `docs/changelog.rst` is the user-facing change log, written at release time from `changes.d/`. |
+| `changes.d/` | One change log fragment per change; see `changes.d/README.rst`. |
 | `bin/` | `runtests.py` (runs pytest, exits with its status), `with-memcached` (see the pitfalls below), `changelog` (checks fragments, builds the change log entry). |
 | `.github/` | Workflows (`ci.yml`, `cd.yml`), the `setup-python-retry` action, and helper scripts in `.github/scripts`. |
 
@@ -129,8 +129,8 @@ kill %1
   scope prefix (`ci:`, `tests:`). Link issues with `Fixes #N` in the PR
   description, one issue per line, so GitHub closes them on merge.
 - A PR that changes behaviour, the build or the docs adds a fragment file in
-  `docs/changes.d/` and does not edit `docs/changelog.rst` (that is what made
-  every PR conflict). A fragment says what the change means for someone using
+  `changes.d/` and does not edit `docs/changelog.rst` (that is what made every
+  PR conflict). A fragment says what the change means for someone using
   pylibmc (what behaves differently, what to do about it, what to watch out
   for), not what the code does. CI fails a PR that touches `src/`, `setup.py` or `.github/`
   without one, unless its description has a line saying `no-changelog`.
@@ -224,7 +224,7 @@ maintainer's explicit go-ahead.
    guess pronouns.
 4. **Write the change log.** Feature releases (`1.8.0`) get an entry; patch
    releases (`1.7.1`) do not. Run `bin/changelog build X.Y.Z --write`: it puts
-   the fragments of `docs/changes.d/` into `docs/changelog.rst` as "New in version
+   the fragments of `changes.d/` into `docs/changelog.rst` as "New in version
    X.Y.Z" (merging with a section already there). Edit the result, and delete
    the consumed fragments in the release commit. Order: user-visible changes
    first, then fixes, then platform changes. Document what

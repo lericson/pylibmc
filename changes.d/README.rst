@@ -27,7 +27,7 @@ Content
     process by one reference per key on every call" is a consequence. Do not
     describe changes inside libmemcached itself.
 
-Example, ``docs/changes.d/202.breaking.rst``::
+Example, ``changes.d/202.breaking.rst``::
 
     A negative expiry time now raises ``ValueError`` in ``set`` and friends.
     It used to be turned silently into a huge number.

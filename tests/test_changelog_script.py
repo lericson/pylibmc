@@ -1,4 +1,4 @@
-"""Tests for bin/changelog, which builds change log entries from docs/changes.d/."""
+"""Tests for bin/changelog, which builds change log entries from changes.d/."""
 import importlib.machinery
 import importlib.util
 import os
