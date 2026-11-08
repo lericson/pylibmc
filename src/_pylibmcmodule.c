@@ -2577,6 +2577,16 @@ static int _check_libmemcached_version(void) {
     }
 }
 
+/* Append the tuple (name, obj) to list. PyList_Append does not steal, so the
+ * temporary tuple has to be released here. */
+static void _append_name_obj(PyObject *list, const char *name, PyObject *obj) {
+    PyObject *item = Py_BuildValue("sO", name, obj);
+    if (item == NULL)
+        return;
+    PyList_Append(list, item);
+    Py_DECREF(item);
+}
+
 static void _make_excs(PyObject *module) {
     PyObject *exc_objs;
     PylibMC_McErr *err;
@@ -2588,19 +2598,21 @@ static void _make_excs(PyObject *module) {
             "pylibmc.CacheMiss", PylibMCExc_Error, NULL);
 
     exc_objs = PyList_New(0);
-    PyList_Append(exc_objs,
-                  Py_BuildValue("sO", "Error", (PyObject *)PylibMCExc_Error));
-    PyList_Append(exc_objs,
-                  Py_BuildValue("sO", "CacheMiss", (PyObject *)PylibMCExc_CacheMiss));
+    _append_name_obj(exc_objs, "Error", (PyObject *)PylibMCExc_Error);
+    _append_name_obj(exc_objs, "CacheMiss", (PyObject *)PylibMCExc_CacheMiss);
 
     for (err = PylibMCExc_mc_errs; err->name != NULL; err++) {
         char excnam[64];
+        PyObject *retcode;
         snprintf(excnam, 64, "pylibmc.%s", err->name);
         err->exc = PyErr_NewException(excnam, PylibMCExc_Error, NULL);
-        PyObject_SetAttrString(err->exc, "retcode", PyLong_FromLong(err->rc));
+        retcode = PyLong_FromLong(err->rc);
+        if (retcode != NULL) {
+            PyObject_SetAttrString(err->exc, "retcode", retcode);
+            Py_DECREF(retcode);
+        }
         PyModule_AddObject(module, err->name, (PyObject *)err->exc);
-        PyList_Append(exc_objs,
-                      Py_BuildValue("sO", err->name, (PyObject *)err->exc));
+        _append_name_obj(exc_objs, err->name, (PyObject *)err->exc);
     }
 
     PyModule_AddObject(module, "Error",
@@ -2621,6 +2633,15 @@ static void _make_excs(PyObject *module) {
                        (PyObject *)PylibMCExc_Error);
 
     PyModule_AddObject(module, "exceptions", exc_objs);
+}
+
+/* Append the str for name to list, releasing the temporary. */
+static void _append_str(PyObject *list, const char *name) {
+    PyObject *s = PyUnicode_FromString(name);
+    if (s == NULL)
+        return;
+    PyList_Append(list, s);
+    Py_DECREF(s);
 }
 
 static void _make_behavior_consts(PyObject *mod) {
@@ -2644,7 +2665,7 @@ static void _make_behavior_consts(PyObject *mod) {
     for (b = PylibMC_callbacks; b->name != NULL; b++) {
         sprintf(name, "callback_%s", b->name);
         PyModule_AddIntConstant(mod, name, b->flag);
-        PyList_Append(names, PyUnicode_FromString(b->name));
+        _append_str(names, b->name);
     }
 
     PyModule_AddObject(mod, "all_callbacks", names);
@@ -2652,7 +2673,7 @@ static void _make_behavior_consts(PyObject *mod) {
     names = PyList_New(0);
 
     for (b = PylibMC_behaviors; b->name != NULL; b++) {
-        PyList_Append(names, PyUnicode_FromString(b->name));
+        _append_str(names, b->name);
     }
 
     PyModule_AddObject(mod, "all_behaviors", names);
