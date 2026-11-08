@@ -20,7 +20,14 @@ Content
     lines; the script rewraps it to 80 columns. If the file name has a number
     and the text does not mention it, ``(#N)`` is added.
 
-Example, ``changes.d/202.breaking.rst``::
+    Write for the person upgrading, not for the reviewer: say what behaves
+    differently, what they should do about it and what to watch out for (a
+    changed exception, a new default, a dropped platform), and why. "Fixed
+    reference leak in ``foo``" is a code change; "``foo`` no longer grows the
+    process by one reference per key on every call" is a consequence. Do not
+    describe changes inside libmemcached itself.
+
+Example, ``docs/changes.d/202.breaking.rst``::
 
     A negative expiry time now raises ``ValueError`` in ``set`` and friends.
     It used to be turned silently into a huge number.

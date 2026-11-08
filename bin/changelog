@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Build docs/changelog.rst entries from the fragments in changes.d/.
+"""Build docs/changelog.rst entries from the fragments in docs/changes.d/.
 
     bin/changelog check
     bin/changelog build X.Y.Z [--write]
 
-See changes.d/README.rst for the file format. Standard library only.
+See docs/changes.d/README.rst for the file format. Standard library only.
 """
 import argparse
 import os
@@ -13,7 +13,7 @@ import sys
 import textwrap
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FRAGMENT_DIR = os.path.join(ROOT, "changes.d")
+FRAGMENT_DIR = os.path.join(ROOT, "docs", "changes.d")
 CHANGELOG = os.path.join(ROOT, "docs", "changelog.rst")
 
 # Category -> heading, in the order a release lists them.
@@ -177,7 +177,7 @@ def insert_into_changelog(text, version, frags):
 def cmd_check(args):
     frags, errors = load(args.dir)
     for e in errors:
-        print("changes.d/" + e, file=sys.stderr)
+        print("docs/changes.d/" + e, file=sys.stderr)
     if errors:
         return 1
     print("%d fragment(s) ok" % len(frags))
@@ -191,13 +191,13 @@ def cmd_build(args):
     frags, errors = load(args.dir)
     if errors:
         for e in errors:
-            print("changes.d/" + e, file=sys.stderr)
+            print("docs/changes.d/" + e, file=sys.stderr)
         return 1
     if not frags:
         print("no fragments", file=sys.stderr)
         return 1
     consumed = sorted(frags, key=lambda f: (f.category, f.sort_key()))
-    listing = "".join("changes.d/%s\n" % f.name for f in consumed)
+    listing = "".join("docs/changes.d/%s\n" % f.name for f in consumed)
     if args.write:
         with open(CHANGELOG, encoding="utf-8") as f:
             text = f.read()

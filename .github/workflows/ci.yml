@@ -18,7 +18,7 @@ permissions:
 jobs:
   changelog:
     # Every PR that touches src/, setup.py or .github/ adds a fragment to
-    # changes.d/ (see changes.d/README.rst), or says "no-changelog" on a line
+    # docs/changes.d/ (see docs/changes.d/README.rst), or says "no-changelog" on a line
     # of its own in the description.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -46,11 +46,11 @@ jobs:
           echo "nothing under src/, setup.py or .github/ changed"
           exit 0
         fi
-        if grep -qE '^A\s+changes\.d/.+\.rst$' /tmp/changes \
-            && grep -E '^A\s+changes\.d/' /tmp/changes | grep -qv 'README.rst'; then
+        if grep -qE '^A\s+docs/changes\.d/.+\.rst$' /tmp/changes \
+            && grep -E '^A\s+docs/changes\.d/' /tmp/changes | grep -qv 'README.rst'; then
           exit 0
         fi
-        echo "::error::Add a fragment to changes.d/ (see changes.d/README.rst), or put a line saying no-changelog in the PR description."
+        echo "::error::Add a fragment to docs/changes.d/ (see docs/changes.d/README.rst), or put a line saying no-changelog in the PR description."
         exit 1
 
   test:
