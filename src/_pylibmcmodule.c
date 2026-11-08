@@ -523,6 +523,15 @@ static PyObject *_PylibMC_parse_memcached_value(PylibMC_Client *self,
         char *value, Py_ssize_t size, uint32_t flags) {
     PyObject *retval = NULL;
 
+    /* libmemcached may hand back a NULL pointer for a zero-length value (it
+       does not allocate for an empty payload). Downstream code requires a
+       valid pointer: deserialize_native asserts on it, and Py_BuildValue("y#")
+       turns NULL into None for a user-defined deserialize(). */
+    if (value == NULL) {
+        value = "";
+        size = 0;
+    }
+
 #if USE_ZLIB
     PyObject *inflated = NULL;
 
