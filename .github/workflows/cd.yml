@@ -116,6 +116,7 @@ jobs:
           # repository as the working directory.
           CIBW_BEFORE_ALL_LINUX: >-
             dnf install -y bison flex cyrus-sasl-devel &&
+            .github/scripts/bundle-sasl-plugins.sh src/pylibmc/sasl2 &&
             pipx install cmake &&
             LIBMEMCACHED_VERSION=1.1.4 SASL=on JOBS=$(nproc)
             .github/scripts/build-libmemcached.sh /opt/libmemcached
@@ -166,6 +167,40 @@ jobs:
           name: wheels-${{ matrix.os }}
           path: ./wheelhouse/*.whl
 
+  # The Linux wheels bundle libsasl2 and the SASL plugins (#289). The wheel
+  # tests above run inside the manylinux container, whose plugin directory is
+  # the one libsasl2 was built to use, so they cannot see a broken plugin
+  # setup. This installs the wheel built by this very run on Debian-family
+  # systems, where that directory does not exist, without SASL_PATH.
+  test_sasl_login:
+    name: SASL login with the Linux wheel on ${{ matrix.name }}
+    needs: build_wheels
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: Ubuntu 24.04, image: ''}
+          - {name: Debian 12, image: 'debian:12'}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+      - name: Download the manylinux x86_64 wheels built by this run
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
+        with:
+          name: wheels-ubuntu-latest
+          path: wheels
+      - name: Log in with each mechanism the wheel ships (host)
+        if: ${{ matrix.image == '' }}
+        run: .github/scripts/test-sasl-wheel.sh wheels
+      - name: Log in with each mechanism the wheel ships (container)
+        if: ${{ matrix.image != '' }}
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          docker run --rm -v "$PWD:/w" "$IMAGE" /w/.github/scripts/test-sasl-wheel.sh /w/wheels
+
   build_sdist:
     name: Build source distribution
     needs: check_version
@@ -215,6 +250,7 @@ jobs:
     needs:
       - build_wheels
       - build_sdist
+      - test_sasl_login
     runs-on: ubuntu-latest
     permissions:
       contents: write
