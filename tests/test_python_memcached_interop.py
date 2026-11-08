@@ -48,8 +48,13 @@ LARGE = "compressible " * 2000
 
 
 @pytest.fixture(params=[False, True], ids=["text", "binary"])
-def lmc(request):
-    return make_test_client(binary=request.param)
+def binary(request):
+    return request.param
+
+
+@pytest.fixture
+def lmc(binary):
+    return make_test_client(binary=binary)
 
 
 @pytest.fixture
@@ -115,6 +120,21 @@ def test_python_memcached_reads_pylibmc_compressed_values(lmc, pm, key):
     assert pm.get(key) == LARGE
     lmc.set(key, LARGE.encode(), min_compress_len=100)
     assert pm.get(key) == LARGE.encode()
+
+
+def test_pylibmc_reads_python_memcached_compressed_cas(lmc, pm, key):
+    assert pm.set(key, "first")
+    assert pm.gets(key) == "first"
+    assert pm.cas(key, LARGE, min_compress_len=100)
+    assert lmc.get(key) == LARGE
+
+
+def test_python_memcached_reads_pylibmc_compressed_cas(binary, pm, key):
+    lmc = make_test_client(binary=binary, behaviors={"cas": True})
+    lmc.set(key, "first")
+    _, token = lmc.gets(key)
+    assert lmc.cas(key, LARGE, token, min_compress_len=100)
+    assert pm.get(key) == LARGE
 
 
 def test_multi_calls_interoperate(lmc, pm):

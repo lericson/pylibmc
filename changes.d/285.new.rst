@@ -1,0 +1,7 @@
+``cas`` takes ``min_compress_len`` and ``compress_level`` and compresses
+exactly like ``set``, so a value can be compressed when it is stored with
+``cas`` and not only with ``set``. ``cas`` and the other set commands now share
+one code path for serializing and compressing values, and the cas token is read
+as an unsigned 64-bit number, so tokens of ``2**63`` and above no longer
+overflow. A hard ``cas`` error names the function but no longer the key. ``cas`` also accepts ``master_key``
+and compresses with it too.

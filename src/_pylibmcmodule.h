@@ -401,7 +401,8 @@ static bool _PylibMC_RunSetCommand(PylibMC_Client *self, PyObject *group,
                                    _PylibMC_SetByKeyCommand fbk, char *fname,
                                    pylibmc_mset *msets, Py_ssize_t nkeys,
                                    Py_ssize_t min_compress,
-                                   int compress_level);
+                                   int compress_level,
+                                   const uint64_t *cas);
 static int _PylibMC_Deflate(char *value, Py_ssize_t value_len,
                             char **result, Py_ssize_t *result_len,
                             int compress_level);
