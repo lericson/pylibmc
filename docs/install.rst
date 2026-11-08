@@ -39,3 +39,24 @@ Homebrew and MacOS
 
     brew install libmemcached
     pip install pylibmc
+
+Choosing a libmemcached
+-----------------------
+
+With several libmemcached installs on one machine, point the build at the one
+you want, either with the ``LIBMEMCACHED`` environment variable or
+``--with-libmemcached``::
+
+    LIBMEMCACHED=/opt/libmemcached-1.1.4 pip install pylibmc
+
+The build then links that exact library file and records its directory as an
+rpath ahead of any library path supplied by the Python interpreter (some
+Python builds, e.g. pyenv on Homebrew systems, put ``-L/opt/homebrew/lib``
+first). Check what you got with ``pylibmc.build_info()``;
+``_pylibmc.libmemcached_runtime_version`` is the version of the library
+actually loaded, and importing pylibmc warns if its major.minor differs from
+the headers it was compiled against.
+
+When rebuilding, remove stale ``build/`` directories first, since ``pip``
+builds in the source tree and may reuse objects compiled against other
+headers.
