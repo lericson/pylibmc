@@ -15,6 +15,8 @@ jobs:
   build_wheels:
     name: Build wheel for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    # Linux aarch64 is built and tested under QEMU emulation, which is slow.
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -33,7 +35,7 @@ jobs:
 
       - name: Install cibuildwheel
         run: |
-          python -m pip install cibuildwheel
+          python -m pip install cibuildwheel==3.3.1
 
       # libmemcached is built from a checksum-verified source tarball (see
       # .github/scripts/build-libmemcached.sh). The deployment target is kept
@@ -56,9 +58,18 @@ jobs:
           lipo -info "$PREFIX/lib/libmemcached.11.dylib"
           otool -l "$PREFIX/lib/libmemcached.11.dylib" | grep -A3 LC_BUILD_VERSION
 
+      # The wheel tests need a memcached server. The Linux containers get it
+      # from CIBW_BEFORE_TEST_LINUX below.
+      - name: Install memcached for wheel tests (macOS)
+        if: ${{ matrix.os == 'macos-latest' }}
+        run: |
+          command -v memcached || brew install memcached
+          memcached --version
+
       - name: Build wheels
         env:
-          CIBW_SKIP: "*-musllinux* pp*"
+          # musllinux, PyPy and free-threaded CPython (untested) are skipped.
+          CIBW_SKIP: "*-musllinux* pp* cp314t-*"
           CIBW_ARCHS_MACOS: "x86_64 arm64"
           CIBW_ARCHS_LINUX: "x86_64 aarch64"
           # manylinux_2_28 (AlmaLinux 8, glibc 2.28) is the cibuildwheel 3
@@ -73,6 +84,24 @@ jobs:
             pipx install cmake &&
             LIBMEMCACHED_VERSION=1.1.4 SASL=on JOBS=$(nproc)
             .github/scripts/build-libmemcached.sh /opt/libmemcached
+          # Every wheel is installed into a fresh virtualenv and the test suite
+          # is run against it from a temporary directory (never the source
+          # tree). test-wheel.sh starts memcached, waits for it, and fails if
+          # pylibmc was not imported from site-packages. Warnings from the
+          # import-time libmemcached version check are errors.
+          CIBW_TEST_REQUIRES: pytest
+          # LD_LIBRARY_PATH (from CIBW_ENVIRONMENT_LINUX) is unset for the tests
+          # so that they use the libmemcached bundled in the wheel rather than
+          # the one in /opt/libmemcached.
+          CIBW_TEST_COMMAND: >-
+            env -u LD_LIBRARY_PATH
+            bash {project}/.github/scripts/test-wheel.sh
+            -W error::RuntimeWarning
+            --doctest-modules --doctest-glob='*.txt'
+            {project}/tests
+          # AlmaLinux 8 ships memcached in AppStream. No nc there, so the
+          # script falls back to bash's /dev/tcp.
+          CIBW_BEFORE_TEST_LINUX: dnf install -y memcached
           # LD_LIBRARY_PATH lets auditwheel find (and bundle) libmemcached,
           # libhashkit and whatever else they need.
           CIBW_ENVIRONMENT_LINUX: >-
@@ -168,9 +197,24 @@ jobs:
       - name: Make zip of artifacts
         run: |
           zip -0 artifacts.zip wheels/*.whl dist/*.tar.gz
+      - name: Detect pre-release tag
+        id: prerelease
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [[ "$TAG" =~ [0-9][.-]?(a|b|c|rc|alpha|beta|pre|preview|dev)[.-]?[0-9]* ]]; then
+            echo "value=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Release on GitHub
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b  # v2.5.0
         with:
+          # Publishing is a deliberate manual step: review the draft, then
+          # publish it. Tags like 1.7.0rc1, 1.7.0a2, 1.7.0b1, 1.7.0.dev0 are
+          # flagged as pre-releases.
+          draft: true
+          prerelease: ${{ steps.prerelease.outputs.value }}
           files: |
             wheels/*.whl
             dist/*.tar.gz
