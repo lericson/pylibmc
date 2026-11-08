@@ -56,6 +56,15 @@ Should you for some reason need the actual error code returned from
 
 If you're interested in exactly what maps to what, see ``_pylibmcmodule.h``.
 
+.. exception:: pylibmc.Timeout
+
+   Raised for ``MEMCACHED_TIMEOUT`` (``retcode`` 31); a subclass of
+   :exc:`pylibmc.Error`. With libmemcached 1.1.x, ``get`` and ``get_multi``
+   raise this when the server does not answer in time (see the
+   ``receive_timeout`` and ``send_timeout`` behaviors). libmemcached 1.0.x
+   instead reports such a timeout as a plain cache miss (``None`` / ``{}``),
+   so code that must tell the two apart should be prepared for both.
+
 .. warning:: Never ignore exceptional states. Any programmer worth his salt
              knows that an except block **must** handle the error, or make the
              error obvious to administrators (use logs, people!)
