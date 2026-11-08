@@ -35,31 +35,63 @@ jobs:
         run: |
           python -m pip install cibuildwheel
 
-      # TODO: replace this prebuilt binary tarball with a libmemcached built
-      # from source in this job; it is fetched and unpacked with no checksum.
-      - name: Install prebuilt Universal libraries for macOS
+      # libmemcached is built from a checksum-verified source tarball (see
+      # .github/scripts/build-libmemcached.sh). The deployment target is kept
+      # low on purpose: delocate refuses to bundle libraries whose minimum
+      # macOS version is newer than the wheel's, so Homebrew bottles (built for
+      # the runner's OS) would force wheels that only install on very recent
+      # macOS. One universal build serves both wheel architectures.
+      - name: Build universal libmemcached for macOS
         if: ${{ matrix.os == 'macos-latest' }}
+        env:
+          LIBMEMCACHED_VERSION: '1.1.4'
+          MACOSX_DEPLOYMENT_TARGET: '11.0'
+          ARCHS: 'x86_64;arm64'
+          SASL: 'on'
         run: |
-          curl --output libs.tgz https://bsg.lericson.se/pylibmc_macos_libs.tar.gz
-          tar -C /usr/local -xzmvf libs.tgz
-          rm libs.tgz
+          python -m pip install cmake
+          PREFIX="$RUNNER_TEMP/libmemcached"
+          .github/scripts/build-libmemcached.sh "$PREFIX"
+          echo "LIBMEMCACHED_PREFIX=$PREFIX" >> "$GITHUB_ENV"
+          lipo -info "$PREFIX/lib/libmemcached.11.dylib"
+          otool -l "$PREFIX/lib/libmemcached.11.dylib" | grep -A3 LC_BUILD_VERSION
 
       - name: Build wheels
         env:
           CIBW_SKIP: "*-musllinux* pp*"
           CIBW_ARCHS_MACOS: "x86_64 arm64"
           CIBW_ARCHS_LINUX: "x86_64 aarch64"
-          CIBW_BEFORE_BUILD_LINUX: "yum install -y libmemcached-devel"
+          # manylinux_2_28 (AlmaLinux 8, glibc 2.28) is the cibuildwheel 3
+          # default; manylinux2014 (CentOS 7) is end-of-life and its toolchain
+          # is too old for libmemcached 1.1.4 (C++11, modern cmake/bison).
+          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
+          CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_28"
+          # Runs once per architecture inside the container, with the
+          # repository as the working directory.
+          CIBW_BEFORE_ALL_LINUX: >-
+            dnf install -y bison flex cyrus-sasl-devel &&
+            pipx install cmake &&
+            LIBMEMCACHED_VERSION=1.1.4 SASL=on JOBS=$(nproc)
+            .github/scripts/build-libmemcached.sh /opt/libmemcached
+          # LD_LIBRARY_PATH lets auditwheel find (and bundle) libmemcached,
+          # libhashkit and whatever else they need.
+          CIBW_ENVIRONMENT_LINUX: >-
+            LIBMEMCACHED=/opt/libmemcached
+            LD_LIBRARY_PATH=/opt/libmemcached/lib:$LD_LIBRARY_PATH
+          CIBW_ENVIRONMENT_MACOS: >-
+            LIBMEMCACHED=$LIBMEMCACHED_PREFIX
+            MACOSX_DEPLOYMENT_TARGET=11.0
           # We set DYLD_LIBRARY_PATH because of what appears to be a bug in
           # `delocate`, the program that bundles up the shared library
           # dependencies into the wheel file. The linker makes a link like
           # @rpath/libmemcached.11.dylib or similar, and delocate is unable to
-          # resolve this @rpath macro into /usr/local/lib for some reason. It
-          # would appear that delocate expects an LC_RPATH command to be listed
-          # by `otool -l _pylibmc....so`, which it isn't. This does not seem to
-          # be a problem for the DYLD system itself though, so again, likely a
-          # bug in delocate. Fix by encouraging with DYLD_LIBRARY_PATH.
-          CIBW_REPAIR_WHEEL_COMMAND_MACOS: "env DYLD_LIBRARY_PATH=/usr/local/lib delocate-wheel --require-archs {delocate_archs} -w {dest_dir} {wheel}"
+          # resolve this @rpath macro into the libmemcached install prefix for
+          # some reason. It would appear that delocate expects an LC_RPATH
+          # command to be listed by `otool -l _pylibmc....so`, which it isn't.
+          # This does not seem to be a problem for the DYLD system itself
+          # though, so again, likely a bug in delocate. Fix by encouraging with
+          # DYLD_LIBRARY_PATH.
+          CIBW_REPAIR_WHEEL_COMMAND_MACOS: "env DYLD_LIBRARY_PATH=$LIBMEMCACHED_PREFIX/lib delocate-wheel --require-archs {delocate_archs} -w {dest_dir} {wheel}"
         run: |
           cibuildwheel --output-dir ./wheelhouse
 
