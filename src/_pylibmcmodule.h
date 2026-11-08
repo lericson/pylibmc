@@ -191,7 +191,7 @@ static PylibMC_McErr PylibMCExc_mc_errs[] = {
     { MEMCACHED_FAIL_UNIX_SOCKET, "UnixSocketError", NULL },
     { MEMCACHED_NOT_SUPPORTED, "NotSupportedError", NULL },
     { MEMCACHED_FETCH_NOTFINISHED, "FetchNotFinished", NULL },
-    //{ MEMCACHED_TIMEOUT, "TimeoutError", NULL },
+    { MEMCACHED_TIMEOUT, "Timeout", NULL },
     //{ MEMCACHED_BUFFERED, "Buffer, NULL },
     { MEMCACHED_BAD_KEY_PROVIDED, "BadKeyProvided", NULL },
     { MEMCACHED_INVALID_HOST_PROTOCOL, "InvalidHostProtocolError", NULL },
