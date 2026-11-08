@@ -1,0 +1,70 @@
+name: SASL check (experiment)
+# Throwaway: does SASL login work from the published manylinux wheel on
+# Ubuntu, where SASL plugins are not in the /usr/lib64/sasl2 the bundled
+# libsasl2 was built to look in? (issue #289)
+on:
+  push:
+    branches: [sasl-check]
+permissions: {}
+jobs:
+  sasl:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Install memcached with SASL and the SASL tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq memcached sasl2-bin libsasl2-modules
+          sudo systemctl stop memcached || true
+          memcached -h | grep -i -E "^memcached [0-9]|sasl" | head -4
+          echo "plugins on this system:"; ls /usr/lib/x86_64-linux-gnu/sasl2 | head -20
+      - name: Start memcached with SASL required
+        run: |
+          sudo mkdir -p /etc/sasl2
+          printf 'mech_list: plain\nlog_level: 5\nsasldb_path: /tmp/memcached-sasldb2\n' | sudo tee /etc/sasl2/memcached.conf
+          echo secretpw | saslpasswd2 -a memcached -c -p -f /tmp/memcached-sasldb2 testuser
+          chmod 644 /tmp/memcached-sasldb2
+          nohup memcached -S -B binary -l 127.0.0.1 -p 11211 -vv > /tmp/memcached.log 2>&1 &
+          for i in $(seq 1 20); do nc -z 127.0.0.1 11211 && break; sleep 0.5; done
+          nc -z 127.0.0.1 11211 && echo "memcached is up"
+      - name: The check script
+        run: |
+          cat > /tmp/sasl_check.py <<'PY'
+          import sys, pylibmc
+          print("pylibmc:", pylibmc.build_info())
+          def attempt(label, **kw):
+              try:
+                  c = pylibmc.Client(["127.0.0.1:11211"], binary=True, **kw)
+                  c.set("sasl-check", "ok")
+                  print("RESULT %-34s -> %r" % (label, c.get("sasl-check")))
+              except Exception as e:
+                  print("RESULT %-34s -> %s: %s" % (label, type(e).__name__, e))
+          attempt("no credentials (must be refused)")
+          attempt("wrong password (must be refused)", username="testuser", password="nope")
+          attempt("correct credentials", username="testuser", password="secretpw")
+          PY
+      - name: The published wheel, as shipped
+        continue-on-error: true
+        run: |
+          python3 -m venv /tmp/venv-wheel
+          /tmp/venv-wheel/bin/pip install -q --no-cache-dir --only-binary=:all: pylibmc==1.7.1
+          echo "bundled in the wheel:"; ls /tmp/venv-wheel/lib/python3*/site-packages/pylibmc.libs | grep -i -E "sasl|memcached"
+          echo "=== wheel, default plugin search path"
+          /tmp/venv-wheel/bin/python /tmp/sasl_check.py 2>&1
+      - name: The published wheel with SASL_PATH pointing at this system's plugins
+        continue-on-error: true
+        run: |
+          echo "=== wheel, SASL_PATH=/usr/lib/x86_64-linux-gnu/sasl2"
+          SASL_PATH=/usr/lib/x86_64-linux-gnu/sasl2 /tmp/venv-wheel/bin/python /tmp/sasl_check.py 2>&1
+      - name: Control, built from the sdist against this system's libsasl2
+        continue-on-error: true
+        run: |
+          sudo apt-get install -y -qq libmemcached-dev libsasl2-dev build-essential python3-dev
+          python3 -m venv /tmp/venv-src
+          /tmp/venv-src/bin/pip install -q --no-cache-dir --no-binary pylibmc pylibmc==1.7.1
+          ldd "$(/tmp/venv-src/bin/python -c 'import _pylibmc;print(_pylibmc.__file__)')" | grep -i -E "sasl|memcached"
+          echo "=== control (system libraries)"
+          /tmp/venv-src/bin/python /tmp/sasl_check.py 2>&1
+      - name: memcached log
+        if: always()
+        run: tail -40 /tmp/memcached.log || true
