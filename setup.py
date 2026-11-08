@@ -1,6 +1,7 @@
 import os
 import sys
 from setuptools import setup, Extension
+from setuptools.command.build_ext import build_ext as _build_ext
 
 ## Command-line argument parsing
 
@@ -25,6 +26,7 @@ def append_env(L, e):
 
 
 append_env(pkgdirs, "LIBMEMCACHED")
+lmc_dir = pkgdirs[0] if pkgdirs else None
 append_env(pkgdirs, "ZLIB")
 
 # Hack up sys.argv, yay
@@ -45,6 +47,8 @@ for arg in sys.argv[1:]:
         if arg.startswith("--with-libmemcached=") or \
            arg.startswith("--with-zlib="):
             pkgdirs.append(arg.split("=", 1)[1])
+            if arg.startswith("--with-libmemcached="):
+                lmc_dir = arg.split("=", 1)[1]
             continue
     unprocessed.append(arg)
 sys.argv[1:] = unprocessed
@@ -52,6 +56,29 @@ sys.argv[1:] = unprocessed
 for pkgdir in pkgdirs:
     incdirs.append(os.path.join(pkgdir, "include"))
     libdirs.append(os.path.join(pkgdir, "lib"))
+
+# When the user asked for a specific libmemcached, link that library by
+# absolute path and give it an rpath. Merely adding -L<dir>/lib is not enough:
+# the interpreter's own LDSHARED (e.g. pyenv on Homebrew systems) can carry
+# -L/opt/homebrew/lib, which precedes ours, so "-lmemcached" would silently
+# pick up a different libmemcached than the headers we compiled against.
+extra_objects = []
+extra_link_args = []
+lmc_rpath = None
+if lmc_dir and cmd != "gen-setup":
+    for ext in (".dylib", ".so", ".a"):
+        cand = os.path.join(lmc_dir, "lib", "libmemcached" + ext)
+        if os.path.exists(cand):
+            extra_objects.append(cand)
+            libs.remove("memcached")
+            if ext != ".a":
+                lmc_rpath = os.path.join(lmc_dir, "lib")
+            print("pylibmc: linking libmemcached from %s" % cand,
+                  file=sys.stderr)
+            break
+    else:
+        print("pylibmc: warning: no libmemcached found in %s/lib, falling "
+              "back to -lmemcached" % lmc_dir, file=sys.stderr)
 
 if use_zlib:
     libs.append("z")
@@ -73,11 +100,28 @@ if sys.platform == "darwin" and not os.environ.get("ARCHFLAGS"):
 # strict aliasing rules. Let's skip this flag for now.
 cflags = ["-fno-strict-aliasing", "-std=c99"]
 
+
+class build_ext(_build_ext):
+    """Put our rpath before whatever the interpreter's LDSHARED supplies.
+
+    Dynamic libraries are searched along the rpath entries in order (and on
+    macOS libmemcached 1.1's install name is @rpath/...), so e.g. pyenv's
+    -Wl,-rpath,/opt/homebrew/lib would otherwise win at runtime too."""
+
+    def build_extension(self, ext):
+        if lmc_rpath:
+            self.compiler.linker_so = (
+                self.compiler.linker_so[:1] + ["-Wl,-rpath," + lmc_rpath]
+                + self.compiler.linker_so[1:])
+        super().build_extension(ext)
+
 # Extension definitions
 
 pylibmc_ext = Extension("_pylibmc", ["src/_pylibmcmodule.c"],
                         libraries=libs, include_dirs=incdirs,
                         library_dirs=libdirs, define_macros=defs,
+                        extra_objects=extra_objects,
+                        extra_link_args=extra_link_args,
                         extra_compile_args=cflags)
 
 # Hidden secret: generate Setup file for statically compiling the extension.
@@ -110,6 +154,7 @@ setup(
     description="Quick and small memcached client for Python",
     long_description=readme_text,
     ext_modules=[pylibmc_ext],
+    cmdclass={'build_ext': build_ext},
     package_dir={'': 'src'},
     packages=['pylibmc'],
     python_requires='>=3.7',
