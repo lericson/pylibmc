@@ -61,6 +61,16 @@
              applies to the item keys only, not to the master key. ``touch``
              needs libmemcached 1.0.2 or later, with or without a master key.
 
+   .. Keys
+
+   .. note:: Keys are ``str`` (encoded as UTF-8) or ``bytes`` and must be
+             shorter than 250 bytes. With the text protocol a key must also not
+             contain whitespace or control characters (any byte at or below
+             ``0x20``, or ``0x7f``); with ``binary=True`` any byte is allowed.
+             A bad key raises ``ValueError`` in every method (and in ``in``
+             and ``client[key]``), before anything is sent. See
+             :ref:`verify-keys-notes`.
+
    .. Reading
 
    .. method:: get(key[, default, master_key=None]) -> value

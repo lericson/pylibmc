@@ -3,7 +3,7 @@
 import _pylibmc
 from .consts import (hashers, distributions, all_behaviors,
                      hashers_rvs, distributions_rvs,
-                     all_callbacks, BehaviorDict)
+                     all_callbacks, BehaviorDict, warn_verify_keys)
 
 _all_behaviors_set = set(all_behaviors)
 _all_behaviors_set.update(set(all_callbacks))
@@ -97,13 +97,23 @@ def _behaviors_symbolic(behaviors):
 
     return behaviors
 
-def _behaviors_numeric(behaviors):
-    """Inverse function of behaviors_symbolic"""
+def _behaviors_numeric(behaviors, stacklevel=3):
+    """Inverse function of behaviors_symbolic.
+
+    *stacklevel* is where a warning about ``verify_keys`` should point, counted
+    from the caller of this function.
+    """
 
     if not behaviors:
         return behaviors
 
     behaviors = behaviors.copy()
+
+    if "verify_keys" in behaviors:
+        # Keys are always verified by pylibmc itself; the libmemcached
+        # behavior is not forwarded (and not reported by get_behaviors).
+        del behaviors["verify_keys"]
+        warn_verify_keys(stacklevel)
 
     if "_retry_timeout" in behaviors:
         behaviors.setdefault("retry_timeout", behaviors.pop("_retry_timeout"))
@@ -136,6 +146,9 @@ class Client(_pylibmc.client):
         SASL authentication is supported if libmemcached supports it (check
         *pylibmc.support_sasl*). Requires both username and password.
         Note that SASL requires *binary*=True.
+
+        Keys are always checked (``ValueError``); the *verify_keys* behavior is
+        ignored and warns. See the "Key checks" section of the documentation.
         """
         self.binary = binary
         self.addresses = list(servers)

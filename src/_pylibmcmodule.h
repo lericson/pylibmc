@@ -244,7 +244,9 @@ static PylibMC_Behavior PylibMC_behaviors[] = {
     { MEMCACHED_BEHAVIOR_DISTRIBUTION, "distribution" },
     { MEMCACHED_BEHAVIOR_SUPPORT_CAS, "cas" },
     { MEMCACHED_BEHAVIOR_BUFFER_REQUESTS, "buffer_requests" },
-    { MEMCACHED_BEHAVIOR_VERIFY_KEY, "verify_keys" },
+    /* No "verify_keys": pylibmc checks every key itself (see
+     * _key_normalized_str) and does not pass the behavior on, because
+     * libmemcached's own check also rejects non-ASCII bytes. */
     { MEMCACHED_BEHAVIOR_CONNECT_TIMEOUT, "connect_timeout" },
     { MEMCACHED_BEHAVIOR_SND_TIMEOUT, "send_timeout" },
     { MEMCACHED_BEHAVIOR_RCV_TIMEOUT, "receive_timeout" },
@@ -376,8 +378,8 @@ static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *, const char *,
 static PyObject *_PylibMC_Unpickle(PylibMC_Client *, const char *, Py_ssize_t);
 static PyObject *_PylibMC_Unpickle_Bytes(PylibMC_Client *, PyObject *);
 static PyObject *_PylibMC_Pickle(PylibMC_Client *, PyObject *);
-static int _key_normalized_obj(PyObject **);
-static int _key_normalized_str(char **, Py_ssize_t *);
+static int _key_normalized_obj(PyObject **, int);
+static int _key_normalized_str(char **, Py_ssize_t *, int);
 static int _PylibMC_serialize_user(PylibMC_Client *, PyObject *, PyObject **, uint32_t *);
 static int _PylibMC_serialize_native(PylibMC_Client *, PyObject *, PyObject **, uint32_t *);
 static PyObject *_PylibMC_deserialize_native(PylibMC_Client *, PyObject *, char *, Py_ssize_t, uint32_t);
