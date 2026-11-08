@@ -165,6 +165,13 @@ kill %1
   (`gh run rerun <run-id> --failed`). Anything else gets investigated. Reruns
   replace the earlier attempt's result, so mention a flake in the PR.
 - There is no `timeout` command on macOS. Use `gh pr checks <n> --watch` to wait.
+- auditwheel only bundles what the extension is linked against. Things
+  libsasl2 `dlopen()`s at runtime (the SASL plugins) are invisible to it, and
+  the wheel tests run in the manylinux container, where libsasl2's compiled-in
+  plugin directory exists. So the plugins are copied into `pylibmc/sasl2` by
+  `.github/scripts/bundle-sasl-plugins.sh` and found through `SASL_PATH`, and
+  the `test_sasl_login` job in `cd.yml` logs in with the built wheel on Ubuntu
+  and Debian. Keep that job when touching the Linux build.
 - Release builds are `cd.yml`: it runs when a tag is pushed, builds wheels with
   cibuildwheel and the sdist, and creates the GitHub release. It also has a
   manual `workflow_dispatch` that builds everything without releasing.
