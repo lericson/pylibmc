@@ -61,13 +61,20 @@ License
 
 Released under the BSD 3-clause license; see `LICENSE <LICENSE>`_ for details.
 
-Maintainer
-==========
+Maintainers
+===========
+
+Ludvig Ericson
 
 - Website: `sendapatch.se/ <http://sendapatch.se/>`_
 - Github: `github.com/lericson <http://github.com/lericson>`_
 - IRC: ``lericson`` in ``#sendapatch`` on ``irc.libera.chat``
 - E-mail: ``ludvig`` at ``sendapatch.se``
+
+Amin Solhizadeh
+
+- Github: `github.com/mxamin <https://github.com/mxamin>`_
+- E-mail: ``amin.solhizadeh`` at ``gmail.com``
 
 ------
 
