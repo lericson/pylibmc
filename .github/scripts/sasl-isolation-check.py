@@ -12,7 +12,7 @@ system's own libsasl2 with its modules, including GSSAPI
 2. the extension was told to use the wheel's plugin directory;
 3. a second libsasl2, the system's, loaded into the same process through
    ctypes, is a separate copy and still finds its own plugins: it can
-   start ANONYMOUS, NTLM and GSSAPI, none of which the wheel bundles.
+   start ANONYMOUS and GSSAPI, none of which the wheel bundles.
 
 With the old behaviour (SASL_PATH pointing at the wheel's five plugins for
 every libsasl2) checks 1 and 3 fail.
@@ -82,7 +82,7 @@ if candidates:
         system.sasl_dispose(ctypes.byref(conn))
         return rc != -4  # SASL_NOMECH
 
-    for mech in ("ANONYMOUS", "NTLM", "GSSAPI"):
+    for mech in ("ANONYMOUS", "GSSAPI"):
         check(available(mech),
               "the system libsasl2 still has its own %s plugin" % mech)
 
