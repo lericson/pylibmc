@@ -1,0 +1,10 @@
+A cas token that does not fit in 64 bits (2**64 and above, or negative) raises
+``OverflowError`` again instead of being cut down to its low 64 bits. In
+1.8.0rc1 ``cas(key, value, 2**64)`` used the token ``0``, which the binary
+protocol treats as "no check", so the value was overwritten unconditionally;
+``2**64 + 5`` was silently taken as ``5``. Tokens up to ``2**64 - 1`` work as
+before. The same silent wrapping is gone from ``min_compress_len`` (in ``set``,
+``cas`` and ``set_multi``), the ``delta`` of ``incr_multi`` and ``decr_multi`` and
+the ``flags`` of ``deserialize``: a negative value now raises ``ValueError`` and
+one that is too large raises ``OverflowError``, where before it wrapped around to
+some other number.

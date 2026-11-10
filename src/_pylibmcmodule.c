@@ -792,10 +792,50 @@ static PyObject *_PylibMC_deserialize_native(PylibMC_Client *self, PyObject *val
     return retval;
 }
 
+/* Unsigned int arguments other than times (min_compress_len, the incr_multi
+   delta, the flags of deserialize): PyArg's "I" wraps silently, so these are
+   parsed as long long ("L" does check for overflow) and checked here. */
+static int _PylibMC_uint_arg(long long in, const char *name,
+                             unsigned int *out) {
+    if (in < 0) {
+        PyErr_Format(PyExc_ValueError, "%s must not be negative", name);
+        return 0;
+    }
+    if (in > (long long)UINT_MAX) {
+        PyErr_Format(PyExc_OverflowError, "%s is too large", name);
+        return 0;
+    }
+    *out = (unsigned int)in;
+    return 1;
+}
+
+/* A cas token is an unsigned 64-bit integer and every value of it is
+   meaningful, so it cannot be range-checked after a lossy conversion. "K"
+   keeps the low 64 bits (2**64 became 0, which the binary protocol takes as
+   "no cas check"), so take an int object and convert it with an overflow
+   check: OverflowError for negative numbers and for 2**64 and up, as 1.7.1
+   did for the latter. Anything with __index__ is accepted, like "L" did. */
+static int _PylibMC_cas_arg(PyObject *in, uint64_t *out) {
+    PyObject *num = PyNumber_Index(in);
+    unsigned long long v;
+    if (num == NULL) {
+        return 0;
+    }
+    v = PyLong_AsUnsignedLongLong(num);
+    Py_DECREF(num);
+    if (v == (unsigned long long)-1 && PyErr_Occurred()) {
+        return 0;
+    }
+    *out = (uint64_t)v;
+    return 1;
+}
+
 static PyObject *PylibMC_Client_deserialize(PylibMC_Client *self, PyObject *args) {
     PyObject *value;
+    long long flags_arg;
     unsigned int flags;
-    if (!PyArg_ParseTuple(args, "OI", &value, &flags)) {
+    if (!PyArg_ParseTuple(args, "OL", &value, &flags_arg)
+        || !_PylibMC_uint_arg(flags_arg, "flags", &flags)) {
         return NULL;
     }
     return _PylibMC_deserialize_native(self, value, NULL, 0, flags);
@@ -1029,6 +1069,7 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
                                NULL };
     const bool is_cas = (f == NULL);
     uint64_t cas = 0;
+    PyObject *cas_obj = NULL;
     const char *key_raw;
     PyObject *key;
     Py_ssize_t keylen;
@@ -1037,6 +1078,7 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
     unsigned int time = 0; /* this will be turned into a time_t */
     long long time_arg = 0;
     unsigned int min_compress = 0;
+    long long min_compress_arg = 0;
     int compress_level = -1;
 
     bool success = false;
@@ -1047,19 +1089,22 @@ static PyObject *_PylibMC_RunSetCommandSingle(PylibMC_Client *self,
      * the only sensible thing to do when the user attempts this
      */
     if (is_cas) {
-        if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#OK|LIi", cas_kws,
-                                         &key_raw, &keylen, &value, &cas,
-                                         &time_arg, &min_compress,
+        if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#OO|LLi", cas_kws,
+                                         &key_raw, &keylen, &value, &cas_obj,
+                                         &time_arg, &min_compress_arg,
                                          &compress_level)) {
             return NULL;
         }
-    } else if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#O|LIi", kws,
+    } else if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#O|LLi", kws,
                                             &key_raw, &keylen, &value,
-                                            &time_arg, &min_compress,
+                                            &time_arg, &min_compress_arg,
                                             &compress_level)) {
         return NULL;
     }
-    if (!_PylibMC_time_arg(time_arg, &time)) {
+    if (!_PylibMC_time_arg(time_arg, &time)
+        || !_PylibMC_uint_arg(min_compress_arg, "min_compress_len",
+                              &min_compress)
+        || (is_cas && !_PylibMC_cas_arg(cas_obj, &cas))) {
       return NULL;
     }
 
@@ -1126,6 +1171,7 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
     unsigned int time = 0;
     long long time_arg = 0;
     unsigned int min_compress = 0;
+    long long min_compress_arg = 0;
     int compress_level = -1;
     PyObject *failed = NULL;
     Py_ssize_t idx = 0;
@@ -1140,11 +1186,13 @@ static PyObject *_PylibMC_RunSetCommandMulti(PylibMC_Client *self,
                            "min_compress_len", "compress_level",
                            NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|Ls#Ii", kws,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|Ls#Li", kws,
                                      &PyDict_Type, &keys,
                                      &time_arg, &key_prefix_raw, &key_prefix_len,
-                                     &min_compress, &compress_level)
-        || !_PylibMC_time_arg(time_arg, &time)) {
+                                     &min_compress_arg, &compress_level)
+        || !_PylibMC_time_arg(time_arg, &time)
+        || !_PylibMC_uint_arg(min_compress_arg, "min_compress_len",
+                              &min_compress)) {
         return NULL;
     }
 
@@ -1715,14 +1763,21 @@ static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self, PyObject *group,
     PyObject *retval = NULL;
     PyObject *iterator = NULL;
     unsigned int delta = 1;
+    long long delta_arg = 1;
     Py_ssize_t nkeys = 0, i = 0;
     pylibmc_incr *incrs;
 
     static char *kws[] = { "keys", "key_prefix", "delta", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|s#I", kws,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|s#L", kws,
                                      &keys, &key_prefix_raw,
-                                     &key_prefix_len, &delta))
+                                     &key_prefix_len, &delta_arg))
+        return NULL;
+    if (delta_arg < 0) {
+        PyErr_SetString(PyExc_ValueError, "delta must be positive");
+        return NULL;
+    }
+    if (!_PylibMC_uint_arg(delta_arg, "delta", &delta))
         return NULL;
 
     nkeys = (Py_ssize_t)PySequence_Size(keys);
