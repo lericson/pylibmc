@@ -764,7 +764,12 @@ static PyObject *_PylibMC_deserialize_native(PylibMC_Client *self, PyObject *val
                 Py_INCREF(Py_False);
                 retval = Py_False;
             } else {
-                PyErr_SetString(PyExc_ValueError, "invalid boolean value");
+                /* The server keeps the flags when incr, decr, append or
+                   prepend change the value, so a stored bool can hold any
+                   number by now. Anything but 0 and 1 is a plain integer,
+                   and a payload that is not one fails like a corrupt
+                   integer does (ValueError). */
+                retval = _PyLong_FromStringAndSize((char *)s, n, NULL, 10);
             }
             break;
         }
