@@ -79,8 +79,8 @@ Fixes:
   systems whose SASL plugins are not where the bundled libsasl2 looks for them
   (#289). It failed with "no mechanism available". The wheels now ship the
   ``PLAIN``, ``LOGIN``, ``CRAM-MD5``, ``DIGEST-MD5`` and ``SCRAM-SHA-1``
-  plugins and point libsasl2 at them through ``SASL_PATH``, unless you have set
-  that yourself. The GSSAPI plugin is not included: if you use Kerberos, set
+  plugins and point the bundled libsasl2 at them, unless you have set
+  ``SASL_PATH`` yourself. The GSSAPI plugin is not included: if you use Kerberos, set
   ``SASL_PATH`` to your system's plugin directory.
 - ``delete_multi`` no longer leaks a reference to the key each time one of its
   keys is rejected (too long, or with the new key check) or the underlying

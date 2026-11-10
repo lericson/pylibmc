@@ -176,7 +176,9 @@ kill %1
   libsasl2 `dlopen()`s at runtime (the SASL plugins) are invisible to it, and
   the wheel tests run in the manylinux container, where libsasl2's compiled-in
   plugin directory exists. So the plugins are copied into `pylibmc/sasl2` by
-  `.github/scripts/bundle-sasl-plugins.sh` and found through `SASL_PATH`, and
+  `.github/scripts/bundle-sasl-plugins.sh` and handed to the bundled libsasl2 with `sasl_set_path` when the extension
+  loads (never through `SASL_PATH`, which every libsasl2 in the process and its
+  children would read, #358), and
   the `test_sasl_login` job in `cd.yml` logs in with the built wheel on Ubuntu
   and Debian. Keep that job when touching the Linux build.
 - Release builds are `cd.yml`: it runs when a tag is pushed, builds wheels with

@@ -32,6 +32,10 @@
  */
 
 #include "_pylibmcmodule.h"
+#if defined(__linux__)
+#  include <dlfcn.h>
+#  include <sys/stat.h>
+#endif
 #ifdef USE_ZLIB
 #  include <zlib.h>
 #  define ZLIB_BUFSZ (1 << 14)
@@ -2901,9 +2905,69 @@ static int _key_normalized_str(char **str, Py_ssize_t *size, int text) {
     return 1;
 }
 
-static int _init_sasl(void) {
+#if LIBMEMCACHED_WITH_SASL_SUPPORT && defined(__linux__)
+/* The Linux wheels carry the SASL plugins in pylibmc/sasl2, next to this
+ * extension. Return a malloc'd path to that directory, or NULL if there is
+ * none (source builds, or no wheel). */
+static char *_find_bundled_sasl_plugins(void) {
+    Dl_info info;
+    struct stat st;
+    const char *slash;
+    char *dir;
+    size_t n;
+    static const char sub[] = "/pylibmc/sasl2";
+
+    if (!dladdr((void *)&_find_bundled_sasl_plugins, &info) || !info.dli_fname)
+        return NULL;
+    slash = strrchr(info.dli_fname, '/');
+    if (slash == NULL)
+        return NULL;
+    n = (size_t)(slash - info.dli_fname);
+    dir = malloc(n + sizeof(sub));
+    if (dir == NULL)
+        return NULL;
+    memcpy(dir, info.dli_fname, n);
+    memcpy(dir + n, sub, sizeof(sub));
+    if (stat(dir, &st) != 0 || !S_ISDIR(st.st_mode)) {
+        free(dir);
+        return NULL;
+    }
+    return dir;
+}
+#endif
+
+static int _init_sasl(PyObject *module) {
 #if LIBMEMCACHED_WITH_SASL_SUPPORT
     int rc;
+    PyObject *plugin_dir = Py_None;
+    Py_INCREF(Py_None);
+
+#if defined(__linux__)
+    /* Point *this* copy of libsasl2 at the bundled plugins, before its
+     * initialisation reads its plugin directory. Unlike the SASL_PATH
+     * environment variable this reaches only the libsasl2 linked into the
+     * extension: another libsasl2 in the process (python-ldap's, say) and
+     * child processes keep their own plugins (issue #358). An explicit
+     * SASL_PATH wins, even an empty one. */
+    if (getenv("SASL_PATH") == NULL) {
+        char *dir = _find_bundled_sasl_plugins();
+        if (dir != NULL) {
+            if (sasl_set_path(SASL_PATH_TYPE_PLUGIN, dir) == SASL_OK) {
+                Py_DECREF(plugin_dir);
+                plugin_dir = PyUnicode_DecodeFSDefault(dir);
+                if (plugin_dir == NULL) {
+                    free(dir);
+                    return false;
+                }
+            }
+            free(dir);
+        }
+    }
+#endif
+    if (PyModule_AddObject(module, "sasl_plugin_dir", plugin_dir) < 0) {
+        Py_DECREF(plugin_dir);
+        return false;
+    }
 
     /* sasl_client_init needs to be called once before using SASL, and
      * sasl_done after all SASL usage is done (so basically, once per process
@@ -2933,6 +2997,8 @@ static int _init_sasl(void) {
         PyErr_Format(PyExc_RuntimeError, "Failed to register atexit handler");
         return false;
     }
+#else
+    (void)module;
 #endif
 
     return true;
@@ -3125,7 +3191,11 @@ by using comma-separation. Good luck with that.\n", PylibMC_functions);
     if (!_check_libmemcached_version())
         return MOD_ERROR_VAL;
 
-    if (!_init_sasl())
+    if (module == NULL) {
+        return MOD_ERROR_VAL;
+    }
+
+    if (!_init_sasl(module))
         return MOD_ERROR_VAL;
 
     if (PyType_Ready(&PylibMC_ClientType) < 0) {

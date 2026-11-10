@@ -1,0 +1,8 @@
+Importing pylibmc from a Linux wheel no longer sets the ``SASL_PATH``
+environment variable. It used to, for every libsasl2 in the process and for
+every program started from it, which hid the system's SASL plugins from other
+SASL users, for example Kerberos (GSSAPI) logins through python-ldap failing
+with "no mechanism available". The bundled plugins are now handed only to the
+libsasl2 that is bundled with pylibmc. A ``SASL_PATH`` that you set yourself
+still takes precedence, as before. If you added ``SASL_PATH`` to your
+environment as a workaround for 1.8.0rc1, you can remove it.
