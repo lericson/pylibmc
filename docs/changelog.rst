@@ -79,9 +79,11 @@ Fixes:
   systems whose SASL plugins are not where the bundled libsasl2 looks for them
   (#289). It failed with "no mechanism available". The wheels now ship the
   ``PLAIN``, ``LOGIN``, ``CRAM-MD5``, ``DIGEST-MD5`` and ``SCRAM-SHA-1``
-  plugins and point libsasl2 at them through ``SASL_PATH``, unless you have set
-  that yourself. The GSSAPI plugin is not included: if you use Kerberos, set
-  ``SASL_PATH`` to your system's plugin directory.
+  plugins and point their own copy of libsasl2 at them. Nothing in the
+  environment changes, so other SASL users in the same process keep their own
+  plugins. If you set ``SASL_PATH`` yourself, it is used instead. The GSSAPI
+  plugin is not included: if you use Kerberos with pylibmc, set ``SASL_PATH``
+  to your system's plugin directory.
 - ``delete_multi`` no longer leaks a reference to the key each time one of its
   keys is rejected (too long, or with the new key check) or the underlying
   ``delete`` fails, which made the process grow by that much on every such call.

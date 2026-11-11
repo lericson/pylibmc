@@ -68,9 +68,13 @@ libsasl2 loads its mechanisms (``PLAIN`` and so on) as plugins at runtime, from
 a directory that was fixed when libsasl2 was built. The Linux wheels bundle
 libsasl2 and therefore also ship the plugins for the ``PLAIN``, ``LOGIN``,
 ``CRAM-MD5``, ``DIGEST-MD5`` and ``SCRAM-SHA-1`` mechanisms, in the
-``pylibmc/sasl2`` directory of the installed package. On import, pylibmc sets
-the ``SASL_PATH`` environment variable to that directory, unless ``SASL_PATH``
-is already set, in which case it is left alone.
+``pylibmc/sasl2`` directory of the installed package. When pylibmc is
+imported, it tells its own, bundled copy of libsasl2 to load plugins from that
+directory, unless the ``SASL_PATH`` environment variable is set, in which case
+that is used as usual. pylibmc never sets or changes ``SASL_PATH`` itself, so
+other users of libsasl2 in the same process (python-ldap, for example) and
+programs you start from it keep the plugins and mechanisms of your system.
+``pylibmc.sasl_plugin_dir`` tells which directory was set, or ``None``.
 
 The wheels do not ship the GSSAPI (Kerberos) plugin. If you rely on the
 plugins installed on your system, for GSSAPI or any other mechanism, set
