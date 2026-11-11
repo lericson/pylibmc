@@ -23,7 +23,11 @@ Changes that can break existing code:
   (#245). They are stored as the integer ``1`` or ``0`` with an extra flag
   (bit 31), so readers that do not know the flag, such as older pylibmc and
   ``python-memcached``, still see the integer. Booleans stored by earlier
-  versions are integers and still read back as integers.
+  versions are integers and still read back as integers. If the server changes a
+  stored bool with ``incr``, ``decr``, ``append`` or ``prepend``, it reads back
+  as the number it now is (only the payloads ``0`` and ``1`` are bools), so a
+  counter seeded with ``True`` keeps working; text appended to a bool is not a
+  number and raises ``ValueError``, as a corrupt integer does (#356).
 - With the text protocol (the default), a key containing whitespace or a control
   character now raises ``ValueError`` in every method that takes a key,
   including ``get_multi``, ``set_multi`` and the other ``*_multi`` methods (and
@@ -67,7 +71,8 @@ New:
   ``cas`` and not only with ``set``. ``cas`` and the other set commands now
   share one code path for serializing and compressing values, and the cas token
   is read as an unsigned 64-bit number, so tokens of ``2**63`` and above no
-  longer overflow. A hard ``cas`` error names the function but no longer the
+  longer overflow. A token that does not fit in 64 bits (``2**64`` or more, or
+  negative) raises ``OverflowError``. A hard ``cas`` error names the function but no longer the
   key. ``cas`` also accepts ``master_key`` and compresses with it too (#285).
 
 Fixes:
@@ -84,6 +89,11 @@ Fixes:
   plugins. If you set ``SASL_PATH`` yourself, it is used instead. The GSSAPI
   plugin is not included: if you use Kerberos with pylibmc, set ``SASL_PATH``
   to your system's plugin directory.
+- ``min_compress_len`` (in ``set``, ``cas`` and ``set_multi``), the ``delta`` of
+  ``incr_multi`` and ``decr_multi`` and the ``flags`` of ``deserialize`` are
+  range-checked: a negative value raises ``ValueError`` and one that is too
+  large raises ``OverflowError``, where before it silently wrapped around to
+  some other number (#357).
 - ``delete_multi`` no longer leaks a reference to the key each time one of its
   keys is rejected (too long, or with the new key check) or the underlying
   ``delete`` fails, which made the process grow by that much on every such call.
