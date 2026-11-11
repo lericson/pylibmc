@@ -66,9 +66,9 @@ jobs:
         os: [ubuntu-22.04]
         libmemcached: ["1.0.18"]
         include:
-          - {os: ubuntu-latest, python-version: "3.8", libmemcached: "1.1.4"}
-          - {os: ubuntu-latest, python-version: "3.14", libmemcached: "1.1.4"}
-          - {os: ubuntu-latest, python-version: "pypy3.11", libmemcached: "1.1.4"}
+          - {os: ubuntu-24.04, python-version: "3.8", libmemcached: "1.1.4"}
+          - {os: ubuntu-24.04, python-version: "3.14", libmemcached: "1.1.4"}
+          - {os: ubuntu-24.04, python-version: "pypy3.11", libmemcached: "1.1.4"}
     runs-on: ${{ matrix.os }}
     name: "${{ matrix.os }} Python: ${{ matrix.python-version }} libmemcached: ${{ matrix.libmemcached }}"
     env:
