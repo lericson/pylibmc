@@ -1,0 +1,7 @@
+A value stored as a bool and then changed by the server with ``incr``,
+``decr``, ``append`` or ``prepend`` reads back as the number it now is, for
+example ``2``, instead of raising ``ValueError: invalid boolean value`` (a
+regression in 1.8.0rc1), and no longer makes ``get_multi`` fail for the other
+keys. Only the payloads ``0`` and ``1`` read as ``False`` and ``True``. A
+payload that is not a number at all (text appended to a bool) still raises
+``ValueError``, the same as a corrupt integer.
