@@ -190,7 +190,7 @@ jobs:
           # What the Homebrew formula is expected to provide. If Homebrew
           # moves, the job fails on purpose: change this, deliberately.
           - libmemcached: "1.0.18"
-            expect_sasl: ""
+            expect_sasl: "True"
             expect_compression: "True"
     env:
       EXPECT_LIBMEMCACHED: ${{ matrix.libmemcached }}
