@@ -47,6 +47,15 @@ jobs:
           version=$(sed -n 's/^#define PYLIBMC_VERSION "\(.*\)"$/\1/p' src/pylibmc-version.h)
           python3 bin/changelog check --version "${version}"
 
+  # The extra builds (no zlib, no SASL, strict flags, the sdist, macOS), as a
+  # gate for the release only: the wheel builds do not wait for it.
+  build_matrix:
+    name: Build matrix
+    needs: check_version
+    permissions:
+      contents: read
+    uses: ./.github/workflows/matrix.yml
+
   build_wheels:
     name: Build wheel for ${{ matrix.os }}
     needs: check_version
@@ -258,6 +267,7 @@ jobs:
       - build_wheels
       - build_sdist
       - test_sasl_login
+      - build_matrix
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -1,0 +1,2 @@
+# Compiler warnings the strict build (-Wall -Wextra -Wno-unused-parameter)
+# against libmemcached 1.1.4 is known to produce. See check-warnings.py.

@@ -1,0 +1,219 @@
+name: Build matrix
+# The build options pylibmc has (zlib, SASL, strict compiler flags, building
+# from the sdist, a source build on macOS), each exercised once on the newest
+# CPython. ci.yml runs the default build across Pythons; this runs the default
+# Python across builds. It is slower, so it only runs when something that can
+# change the build changed (doc-only pull requests skip it), on master, by
+# hand, and as a gate for releases (cd.yml calls it).
+#
+# No branch protection rule requires a check from this workflow, so a skipped
+# run blocks nothing.
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'setup.py'
+      - 'MANIFEST.in'
+      - 'tests/**'
+      - 'bin/**'
+      - '.github/**'
+  push:
+    branches: [master]
+  workflow_dispatch:
+  workflow_call:
+
+concurrency:
+  group: matrix-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: "${{ matrix.name }} (libmemcached ${{ matrix.libmemcached }})"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # Fields: libmemcached is "1.0.18" (Ubuntu 22.04's apt package) or
+        # "1.1.4" (built from source); sasl is the SASL setting of that source
+        # build; zlib "off" builds --without-zlib; strict is the allowlist
+        # key for the strict-flags build; expect_* are what build_info() must
+        # report, and the leg fails otherwise.
+        include:
+          - name: Source build without SASL
+            os: ubuntu-latest
+            libmemcached: "1.1.4"
+            sasl: "off"
+            expect_sasl: "False"
+            expect_compression: "True"
+          # Not libmemcached's SASL code: pylibmc's own #if branches. The
+          # headers are a copy with LIBMEMCACHED_WITH_SASL_SUPPORT set to 0.
+          - name: SASL compiled out of pylibmc
+            os: ubuntu-22.04
+            libmemcached: "1.0.18"
+            nosasl_headers: true
+            expect_sasl: "False"
+            expect_compression: "True"
+          - name: Without zlib
+            os: ubuntu-22.04
+            libmemcached: "1.0.18"
+            zlib: "off"
+            expect_sasl: "True"
+            expect_compression: "False"
+          - name: Without zlib
+            os: ubuntu-latest
+            libmemcached: "1.1.4"
+            sasl: "on"
+            zlib: "off"
+            expect_sasl: "True"
+            expect_compression: "False"
+          - name: Strict compiler flags, asserts on
+            os: ubuntu-22.04
+            libmemcached: "1.0.18"
+            strict: "1.0.18"
+            expect_sasl: "True"
+            expect_compression: "True"
+          - name: Strict compiler flags, asserts on
+            os: ubuntu-latest
+            libmemcached: "1.1.4"
+            sasl: "on"
+            strict: "1.1.4"
+            expect_sasl: "True"
+            expect_compression: "True"
+          - name: Debug allocators and dev mode
+            os: ubuntu-22.04
+            libmemcached: "1.0.18"
+            devmode: true
+            expect_sasl: "True"
+            expect_compression: "True"
+          - name: Installed from the sdist
+            os: ubuntu-22.04
+            libmemcached: "1.0.18"
+            sdist: true
+            expect_sasl: "True"
+            expect_compression: "True"
+    env:
+      PYTHON_VERSION: "3.14"
+      EXPECT_LIBMEMCACHED: ${{ matrix.libmemcached }}
+      EXPECT_SASL: ${{ matrix.expect_sasl }}
+      EXPECT_COMPRESSION: ${{ matrix.expect_compression }}
+      # Also read by .github/scripts/build-libmemcached.sh.
+      LIBMEMCACHED_VERSION: ${{ matrix.libmemcached }}
+    steps:
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+    - name: Set up Python 3.14
+      uses: ./.github/actions/setup-python-retry
+      with:
+        python-version: "3.14"
+    - name: Install test dependencies
+      run: pip install -r ./requirements_test.txt
+
+    # libmemcached 1.0.18 from apt
+    - name: Install libmemcached from apt
+      if: ${{ matrix.libmemcached == '1.0.18' }}
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y libmemcached-dev
+        apt-cache policy libmemcached-dev
+    - name: Make a copy of the headers with SASL switched off
+      if: ${{ matrix.nosasl_headers }}
+      run: |
+        .github/scripts/nosasl-headers.sh "$RUNNER_TEMP/libmemcached-nosasl"
+        echo "LIBMEMCACHED=$RUNNER_TEMP/libmemcached-nosasl" >> "$GITHUB_ENV"
+
+    # libmemcached 1.1.4 from source
+    - name: Install libmemcached build dependencies
+      if: ${{ matrix.libmemcached == '1.1.4' }}
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y bison flex libsasl2-dev
+    - name: Cache libmemcached ${{ matrix.libmemcached }}, SASL ${{ matrix.sasl }}
+      if: ${{ matrix.libmemcached == '1.1.4' }}
+      id: lmc-cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+      with:
+        path: ~/libmemcached-sasl-${{ matrix.sasl }}
+        key: libmemcached-${{ matrix.libmemcached }}-sasl-${{ matrix.sasl }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/scripts/build-libmemcached.sh') }}
+    - name: Build libmemcached ${{ matrix.libmemcached }} from source
+      if: ${{ matrix.libmemcached == '1.1.4' && steps.lmc-cache.outputs.cache-hit != 'true' }}
+      env:
+        SASL: ${{ matrix.sasl }}
+      run: |
+        JOBS="$(nproc)" .github/scripts/build-libmemcached.sh "$HOME/libmemcached-sasl-${{ matrix.sasl }}"
+    - name: Point the build at the source-built libmemcached
+      if: ${{ matrix.libmemcached == '1.1.4' }}
+      run: |
+        echo "LIBMEMCACHED=$HOME/libmemcached-sasl-${{ matrix.sasl }}" >> "$GITHUB_ENV"
+        echo "LD_LIBRARY_PATH=$HOME/libmemcached-sasl-${{ matrix.sasl }}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
+
+    - name: Install memcached
+      run: |
+        sudo apt-get install -y memcached netcat-openbsd
+        # The package starts a server on 11211; the test script starts its own.
+        sudo systemctl stop memcached || sudo service memcached stop || true
+    - name: Build and install pylibmc
+      env:
+        CI_MODE: ${{ matrix.sdist && 'sdist' || 'tree' }}
+        CI_ZLIB: ${{ matrix.zlib }}
+        CI_STRICT: ${{ matrix.strict && '1' || '' }}
+        CI_STRICT_KEY: ${{ matrix.strict }}
+      run: .github/scripts/ci-install.sh
+    - name: Check what was built
+      run: |
+        python .github/scripts/check-build-info.py
+        ldd "$(python -c 'import _pylibmc; print(_pylibmc.__file__)')" | grep memcached
+    - name: Run tests
+      if: ${{ !matrix.devmode }}
+      run: |
+        cd "${CI_TEST_DIR:-.}"
+        "$GITHUB_WORKSPACE/.github/scripts/test-wheel.sh" -v -W error::RuntimeWarning --doctest-modules --doctest-glob='*.txt' tests
+    - name: Run tests with PYTHONMALLOC=debug and python -X dev
+      if: ${{ matrix.devmode }}
+      env:
+        PYTHONMALLOC: debug
+        PYTHONDEVMODE: "1"
+      run: |
+        python -c 'import sys; print(sys.flags.dev_mode, sys.flags.dev_mode and "dev mode on")'
+        .github/scripts/test-wheel.sh -v -W error::RuntimeWarning --doctest-modules --doctest-glob='*.txt' tests
+
+  macos:
+    name: "Source build on macOS (Homebrew libmemcached ${{ matrix.libmemcached }})"
+    runs-on: macos-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # What the Homebrew formula is expected to provide. If Homebrew
+          # moves, the job fails on purpose: change this, deliberately.
+          - libmemcached: "1.0.18"
+            expect_sasl: ""
+            expect_compression: "True"
+    env:
+      EXPECT_LIBMEMCACHED: ${{ matrix.libmemcached }}
+      EXPECT_SASL: ${{ matrix.expect_sasl }}
+      EXPECT_COMPRESSION: ${{ matrix.expect_compression }}
+    steps:
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+    - name: Set up Python 3.14
+      uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
+      with:
+        python-version: "3.14"
+    - name: Install test dependencies
+      run: pip install -r ./requirements_test.txt
+    - name: Install libmemcached and memcached from Homebrew
+      run: |
+        brew install libmemcached memcached
+        brew info libmemcached
+        echo "LIBMEMCACHED=$(brew --prefix libmemcached)" >> "$GITHUB_ENV"
+    - name: Build and install pylibmc
+      run: .github/scripts/ci-install.sh
+    - name: Check what was built
+      run: |
+        python .github/scripts/check-build-info.py
+        otool -L "$(python -c 'import _pylibmc; print(_pylibmc.__file__)')" | grep memcached
+    - name: Run tests
+      run: .github/scripts/test-wheel.sh -v -W error::RuntimeWarning --doctest-modules --doctest-glob='*.txt' tests
