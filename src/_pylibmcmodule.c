@@ -2998,7 +2998,12 @@ static int _init_sasl(PyObject *module) {
         return false;
     }
 #else
-    (void)module;
+    /* No SASL: there is no plugin directory, but the name always exists. */
+    Py_INCREF(Py_None);
+    if (PyModule_AddObject(module, "sasl_plugin_dir", Py_None) < 0) {
+        Py_DECREF(Py_None);
+        return false;
+    }
 #endif
 
     return true;
