@@ -1,0 +1,10 @@
+# Compiler warnings the strict build (-Wall -Wextra -Wno-unused-parameter)
+# against libmemcached 1.0.18 is known to produce, as "file: text" (no line
+# numbers). All are in pylibmc's own sources or the CPython headers they
+# expand: missing field initializers, casts of method functions, and a static
+# declared in _pylibmcmodule.h but never defined. See check-warnings.py.
+src/_pylibmcmodule.c: missing initializer for field ‘m_slots’ of ‘struct PyModuleDef’ [-Wmissing-field-initializers]
+src/_pylibmcmodule.h: cast between incompatible function types from ‘PyObject * (*)(PylibMC_Client *)’ {aka ‘struct _object * (*)(PylibMC_Client *)’} to ‘PyObject * (*)(PyObject *, PyObject *)’ {aka ‘struct _object * (*)(struct _object *, struct _object *)’} [-Wcast-function-type]
+src/_pylibmcmodule.h: cast between incompatible function types from ‘PyObject * (*)(PylibMC_Client *, PyObject *, PyObject *)’ {aka ‘struct _object * (*)(PylibMC_Client *, struct _object *, struct _object *)’} to ‘PyObject * (*)(PyObject *, PyObject *)’ {aka ‘struct _object * (*)(struct _object *, struct _object *)’} [-Wcast-function-type]
+src/_pylibmcmodule.h: missing initializer for field ‘tp_version_tag’ of ‘PyTypeObject’ {aka ‘struct _typeobject’} [-Wmissing-field-initializers]
+src/_pylibmcmodule.h: ‘_PylibMC_RunCasCommand’ declared ‘static’ but never defined [-Wunused-function]

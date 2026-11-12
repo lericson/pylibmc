@@ -16,6 +16,7 @@ import uuid
 
 import pytest
 
+import pylibmc
 from pylibmc.test import make_test_client
 
 memcache = pytest.importorskip("memcache")
@@ -45,6 +46,9 @@ VALUES = [
 ]
 IDS = [i for i, _ in VALUES]
 LARGE = "compressible " * 2000
+
+needs_zlib = pytest.mark.skipif(not pylibmc.support_compression,
+                                reason="pylibmc built without zlib")
 
 
 @pytest.fixture(params=[False, True], ids=["text", "binary"])
@@ -108,6 +112,7 @@ def test_python_memcached_reads_pylibmc_bools_as_ints(lmc, pm, key):
         assert got == int(value) and type(got) is int
 
 
+@needs_zlib
 def test_pylibmc_reads_python_memcached_compressed_values(lmc, pm, key):
     pm.set(key, LARGE, min_compress_len=100)
     assert lmc.get(key) == LARGE
@@ -115,6 +120,7 @@ def test_pylibmc_reads_python_memcached_compressed_values(lmc, pm, key):
     assert lmc.get(key) == LARGE.encode()
 
 
+@needs_zlib
 def test_python_memcached_reads_pylibmc_compressed_values(lmc, pm, key):
     lmc.set(key, LARGE, min_compress_len=100)
     assert pm.get(key) == LARGE
@@ -122,6 +128,7 @@ def test_python_memcached_reads_pylibmc_compressed_values(lmc, pm, key):
     assert pm.get(key) == LARGE.encode()
 
 
+@needs_zlib
 def test_pylibmc_reads_python_memcached_compressed_cas(lmc, pm, key):
     assert pm.set(key, "first")
     assert pm.gets(key) == "first"
@@ -129,6 +136,7 @@ def test_pylibmc_reads_python_memcached_compressed_cas(lmc, pm, key):
     assert lmc.get(key) == LARGE
 
 
+@needs_zlib
 def test_python_memcached_reads_pylibmc_compressed_cas(binary, pm, key):
     lmc = make_test_client(binary=binary, behaviors={"cas": True})
     lmc.set(key, "first")

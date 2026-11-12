@@ -153,6 +153,20 @@ kill %1
 - `ci.yml` runs on pull requests, and on pushes to `master` only (a push to a PR
   branch would otherwise run everything twice). The matrix covers CPython and
   PyPy.
+- `matrix.yml` runs the build options on the newest CPython, where `ci.yml`
+  runs the default build across Pythons: libmemcached 1.1.4 built without SASL;
+  1.0.18 with `LIBMEMCACHED_WITH_SASL_SUPPORT` set to 0 in a copy of the headers
+  (this exercises pylibmc's own `#if` branches, not libmemcached's SASL);
+  `--without-zlib` on both families; strict flags on both families (the job
+  fails on any compiler warning not listed in
+  `.github/scripts/strict-warnings-<version>.txt`, and on `-DNDEBUG`, so
+  asserts are live); `PYTHONMALLOC=debug` with dev mode; installing the sdist
+  into a clean venv and testing from the unpacked sdist (catches a broken
+  `MANIFEST.in`); and a Homebrew source build on macOS. Each leg states the
+  `build_info()` it expects and fails if it differs. It runs on PRs that touch
+  `src/`, `setup.py`, `MANIFEST.in`, `tests/`, `bin/` or `.github/`, on
+  `master`, by hand, and `cd.yml` calls it before the release job (the wheel
+  builds do not wait for it). No ruleset requires its checks.
 - CI should test both libmemcached families and prove which one each job used.
   The apt package depends on the runner image (Ubuntu 22.04 has 1.0.18, 24.04
   has 1.1.4), so never assume it: a job should fail unless
