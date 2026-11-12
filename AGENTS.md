@@ -216,7 +216,8 @@ maintainer's explicit go-ahead.
    `setup.py`, `tox.ini`, `docs/install.rst`, the CI matrix, and the
    interpreters cibuildwheel builds must all say the same thing. In particular,
    don't ship wheels for interpreters CI doesn't test (cibuildwheel also builds
-   free-threaded `cp314t` unless told to skip it), and pin the cibuildwheel
+   free-threaded `cp314t` and `cp315t`, and PyPy 3.12 when PyPy is
+   enabled, unless told to skip them), and pin the cibuildwheel
    version in the release job so a new upstream release can't change what gets
    built. Decide deliberately which Python and libmemcached versions you stop
    supporting, and say so in the notes.

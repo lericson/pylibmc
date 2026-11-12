@@ -58,7 +58,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14", "pypy3.11"]
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15", "pypy3.11"]
         # 1.0.18 is the legacy floor: Ubuntu 22.04 is the last runner image
         # whose libmemcached-dev package is 1.0.18 (24.04 ships 1.1.4). The
         # maintained 1.1.x series is built from source, on a subset of
@@ -67,7 +67,7 @@ jobs:
         libmemcached: ["1.0.18"]
         include:
           - {os: ubuntu-latest, python-version: "3.11", libmemcached: "1.1.4"}
-          - {os: ubuntu-latest, python-version: "3.14", libmemcached: "1.1.4"}
+          - {os: ubuntu-latest, python-version: "3.15", libmemcached: "1.1.4"}
           - {os: ubuntu-latest, python-version: "pypy3.11", libmemcached: "1.1.4"}
     runs-on: ${{ matrix.os }}
     name: "${{ matrix.os }} Python: ${{ matrix.python-version }} libmemcached: ${{ matrix.libmemcached }}"
@@ -141,11 +141,11 @@ jobs:
     # newest Python of each libmemcached family (1.0.18 and 1.1.4), against
     # the package installed above.
     - name: Install a SASL memcached
-      if: ${{ matrix.python-version == '3.14' }}
+      if: ${{ matrix.python-version == '3.15' }}
       run: |
         sudo apt-get install -y -qq memcached sasl2-bin libsasl2-modules netcat-openbsd
     - name: SASL login against a real server (libmemcached ${{ matrix.libmemcached }})
-      if: ${{ matrix.python-version == '3.14' }}
+      if: ${{ matrix.python-version == '3.15' }}
       env:
         PYLIBMC_TEST_SASL_SERVER: 127.0.0.1:11311
         PYLIBMC_TEST_SASL_USER: testuser
