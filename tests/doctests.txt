@@ -129,7 +129,7 @@ TypeError: delete() takes exactly 1 argument (2 given)
 nope
 
 Now for keys with funny types.
->>> c.set(1, "hi")
+>>> c.set(1, "hi")  # doctest: +IGNORE_EXCEPTION_DETAIL
 Traceback (most recent call last):
   ...
 TypeError: a bytes-like object is required, not 'int'
