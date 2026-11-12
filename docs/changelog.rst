@@ -14,6 +14,11 @@ upgrading.
 
 Changes that can break existing code:
 
+- Python 3.8, 3.9 and 3.10 and PyPy 3.9 and 3.10 are no longer supported: they
+  have reached end of life. pylibmc now requires CPython 3.11 or later, or PyPy
+  3.11, and no wheels are built for the older versions. pip on an older Python
+  keeps installing pylibmc 1.7.x; pin ``pylibmc<1.8`` if your environment
+  resolves packages some other way.
 - A negative expiry time now raises ``ValueError``, as does one that does not
   fit in 32 bits, in ``set``, ``add``, ``replace``, ``append``, ``prepend``,
   ``cas``, ``touch`` and the ``*_multi`` variants (#202). It used to be turned
@@ -105,6 +110,11 @@ Fixes:
   client when libmemcached cannot clone, and a clone of a client with SASL
   credentials is tested to authenticate, as are the pools' clones.
 
+
+Thanks to Tim Graham for dropping the end-of-life Pythons and restoring the
+commented-out doctests, and to @mxamin, whose testing and review of the release
+candidates found the bool, cas token and SASL plugin path problems fixed before
+1.8.0.
 
 New in version 1.7.0
 --------------------
