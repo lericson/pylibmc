@@ -94,9 +94,11 @@ kill %1
   macros such as `PyBytes_AS_STRING`; they do not.
 - Release the GIL around blocking libmemcached calls and touch no Python object
   while it is released.
-- Keep the code buildable across the supported libmemcached and Python ranges
-  (guard on `LIBMEMCACHED_VERSION_HEX`). Don't use a C API that only newer
-  Pythons have without a shim.
+- Keep the code buildable across the supported libmemcached and Python ranges.
+  The libmemcached floor is 1.0.18 (the header refuses older ones with
+  `#error`); guard only on `LIBMEMCACHED_VERSION_HEX` values above it. We claim
+  what CI tests, so raise the floor only together with the CI matrix. Don't use
+  a C API that only newer Pythons have without a shim.
 - Keep `assert`s and fix their callers when one fires. They are how latent bugs
   get found.
 
