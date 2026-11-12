@@ -165,12 +165,6 @@ kill %1
 - Workflows can only really be tested on GitHub. Say what you could not run
   locally in the PR, and read the logs of the first run instead of trusting
   the colour.
-- A known flake: `setup-python` downloads CPython 3.8–3.10 (not on the runner
-  image) from a GitHub release asset, and that sometimes returns HTTP 504. The
-  local `setup-python-retry` action caches the interpreter and retries once. For
-  an infrastructure failure, rerun only the failed jobs
-  (`gh run rerun <run-id> --failed`). Anything else gets investigated. Reruns
-  replace the earlier attempt's result, so mention a flake in the PR.
 - There is no `timeout` command on macOS. Use `gh pr checks <n> --watch` to wait.
 - auditwheel only bundles what the extension is linked against. Things
   libsasl2 `dlopen()`s at runtime (the SASL plugins) are invisible to it, and

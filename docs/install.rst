@@ -5,7 +5,7 @@
 Requirements
 ============
 
-* Python 3.8+ (CPython, or PyPy 3.9+)
+* Python 3.11+ (CPython or PyPy)
 * libmemcached 1.0.8 or later (tested with 1.0.18 and 1.1.4; 1.1.x is the
   maintained `awesomized/libmemcached <https://github.com/awesomized/libmemcached>`_
   fork, which builds with CMake)
