@@ -51,23 +51,7 @@
       PyModule_AddObject(mod, nam, obj); }
 
 
-/* Some Python 3 porting stuff */
-#ifndef Py_TYPE
-#define Py_TYPE(ob) (((PyObject*)(ob))->ob_type)
-#endif
-#ifndef PyInt_Check
-#define PyInt_Check PyLong_Check
-#endif
-
-#define MOD_ERROR_VAL NULL
-#define MOD_SUCCESS_VAL(val) val
-#define MOD_INIT(name) PyMODINIT_FUNC PyInit_##name(void)
-#define MOD_DEF(ob, name, doc, methods)                     \
-    static struct PyModuleDef moduledef = {                 \
-        PyModuleDef_HEAD_INIT, name, doc, -1, methods, };   \
-    ob = PyModule_Create(&moduledef);
-
-/* Cache the values of {cP,p}ickle.{load,dump}s */
+/* Cache the values of pickle.{load,dump}s */
 static PyObject *_PylibMC_pickle_loads = NULL;
 static PyObject *_PylibMC_pickle_dumps = NULL;
 
@@ -2483,7 +2467,7 @@ static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *self,
             continue;
         } else if ((py_v = PyMapping_GetItemString(behaviors, b->name)) == NULL) {
             goto error;
-        } else if (!(PyInt_Check(py_v) || PyLong_Check(py_v) || PyBool_Check(py_v))) {
+        } else if (!(PyLong_Check(py_v) || PyBool_Check(py_v))) {
             PyErr_Format(PyExc_TypeError, "behavior %.32s must be int, not %s",
                 b->name, Py_TYPE(py_v)->tp_name);
             goto error;
@@ -2829,12 +2813,7 @@ static PyObject *_PylibMC_GetPickles(const char *attname) {
     PyObject *pickle, *pickle_attr;
 
     pickle_attr = NULL;
-    /* Import cPickle or pickle. */
-    pickle = PyImport_ImportModule("cPickle");
-    if (pickle == NULL) {
-        PyErr_Clear();
-        pickle = PyImport_ImportModule("pickle");
-    }
+    pickle = PyImport_ImportModule("pickle");
 
     /* Find attribute and return it. */
     if (pickle != NULL) {
@@ -3235,10 +3214,10 @@ static PyMethodDef PylibMC_functions[] = {
     {NULL, NULL, 0, NULL}
 };
 
-MOD_INIT(_pylibmc) {
-    PyObject *module;
-
-    MOD_DEF(module, "_pylibmc", "Hand-made wrapper for libmemcached.\n\
+static struct PyModuleDef PylibMC_module = {
+    PyModuleDef_HEAD_INIT,
+    "_pylibmc",
+    "Hand-made wrapper for libmemcached.\n\
 \n\
 You should really use the Python wrapper around this library.\n\
 \n\
@@ -3251,34 +3230,42 @@ no port should be given. libmemcached can parse strings as well::\n\
 \n\
 See libmemcached's memcached_servers_parse for more info on that. I'm told \n\
 you can use UNIX domain sockets by specifying paths, and multiple servers \n\
-by using comma-separation. Good luck with that.\n", PylibMC_functions);
+by using comma-separation. Good luck with that.\n",
+    -1,
+    PylibMC_functions,
+};
+
+PyMODINIT_FUNC PyInit__pylibmc(void) {
+    PyObject *module;
+
+    module = PyModule_Create(&PylibMC_module);
 
     if (!_check_libmemcached_version())
-        return MOD_ERROR_VAL;
+        return NULL;
 
     if (module == NULL) {
-        return MOD_ERROR_VAL;
+        return NULL;
     }
 
     if (!_init_sasl(module))
-        return MOD_ERROR_VAL;
+        return NULL;
 
     if (PyType_Ready(&PylibMC_ClientType) < 0) {
-        return MOD_ERROR_VAL;
+        return NULL;
     }
 
     if (module == NULL) {
-        return MOD_ERROR_VAL;
+        return NULL;
     }
 
     _make_excs(module);
 
     if (!(_PylibMC_pickle_loads = _PylibMC_GetPickles("loads"))) {
-        return MOD_ERROR_VAL;
+        return NULL;
     }
 
     if (!(_PylibMC_pickle_dumps = _PylibMC_GetPickles("dumps"))) {
-        return MOD_ERROR_VAL;
+        return NULL;
     }
 
     PyModule_AddStringConstant(module, "__version__", PYLIBMC_VERSION);
@@ -3288,7 +3275,7 @@ by using comma-separation. Good luck with that.\n", PylibMC_functions);
     PyModule_AddIntConstant(module,
             "libmemcached_version_hex", LIBMEMCACHED_VERSION_HEX);
     if (!_check_libmemcached_runtime(module))
-        return MOD_ERROR_VAL;
+        return NULL;
     _probe_remove_failed();
 
 #if LIBMEMCACHED_WITH_SASL_SUPPORT
@@ -3308,5 +3295,5 @@ by using comma-separation. Good luck with that.\n", PylibMC_functions);
     PyModule_AddIntConstant(module, "server_type_unix", PYLIBMC_SERVER_UNIX);
 
     _make_behavior_consts(module);
-    return MOD_SUCCESS_VAL(module);
+    return module;
 }
