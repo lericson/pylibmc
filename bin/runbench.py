@@ -18,9 +18,10 @@ Participant = namedtuple('Participant', 'name connect')
 
 
 def build_lib_dirname():
-    from setuptools import Distribution
-    from setuptools.command import build
-    build_cmd = build(Distribution({"ext_modules": True}))
+    from setuptools import Distribution, Extension
+    from setuptools.command.build import build
+    dist = Distribution({"ext_modules": [Extension("_pylibmc", [])]})
+    build_cmd = build(dist)
     build_cmd.finalize_options()
     return build_cmd.build_lib
 
@@ -29,10 +30,10 @@ class Stopwatch:
     "A stopwatch that never stops"
 
     def __init__(self):
-        self.t0 = time.clock()
+        self.t0 = time.perf_counter()
         self.laps = []
 
-    def __unicode__(self):
+    def __str__(self):
         mean, diff = self.interval()
         return f"{mean:.3g} ± {diff:.3g} secs"
 
@@ -53,15 +54,15 @@ class Stopwatch:
         return mean, diff
 
     def total(self):
-        return time.clock() - self.t0
+        return time.perf_counter() - self.t0
 
     @contextmanager
     def timing(self):
-        t0 = time.clock()
+        t0 = time.perf_counter()
         try:
             yield
         finally:
-            te = time.clock()
+            te = time.perf_counter()
             self.laps.append(te - t0)
 
 
@@ -113,7 +114,7 @@ benchmarks = [
     bench_get_set('Small I/O', b'abc', b'all work no play jack is a dull boy'),
     bench_get_set_multi('Multi I/O', *multi_pairs(10, b'abc', b'def', b'ghi', b'kjl')),
     bench_get_set('4k uncompressed I/O', b'abc' * 8, b'defb' * 1000),
-    bench_get_set('4k compressed I/O', b'abc' * 8, b'a' + 'defb' * 1000),
+    bench_get_set('4k compressed I/O', b'abc' * 8, b'a' + b'defb' * 1000),
     bench_get_set('Complex data I/O', b'abc', complex_data_type),
     bench_incr_decr('Incr/decr I/O', b'abc'),
 ]
@@ -184,8 +185,8 @@ class Workout:
         # while still "filling the rectangle" by the greatest divisor of the
         # number of benchmarks.
         n = len(self.benchmarks)
-        rows = next(i for i in range(n - 1, 0, -1) if i*(n/i) == n)
-        cols = n/rows
+        rows = next(i for i in range(n - 1, 0, -1) if n % i == 0)
+        cols = n // rows
         assert cols*rows == n
 
         plt.figure(figsize=(6*cols, 2.5*rows))
