@@ -58,7 +58,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "pypy3.9", "pypy3.10", "pypy3.11"]
+        python-version: ["3.11", "3.12", "3.13", "3.14", "pypy3.11"]
         # 1.0.18 is the legacy floor: Ubuntu 22.04 is the last runner image
         # whose libmemcached-dev package is 1.0.18 (24.04 ships 1.1.4). The
         # maintained 1.1.x series is built from source, on a subset of
@@ -66,7 +66,7 @@ jobs:
         os: [ubuntu-22.04]
         libmemcached: ["1.0.18"]
         include:
-          - {os: ubuntu-latest, python-version: "3.8", libmemcached: "1.1.4"}
+          - {os: ubuntu-latest, python-version: "3.11", libmemcached: "1.1.4"}
           - {os: ubuntu-latest, python-version: "3.14", libmemcached: "1.1.4"}
           - {os: ubuntu-latest, python-version: "pypy3.11", libmemcached: "1.1.4"}
     runs-on: ${{ matrix.os }}
