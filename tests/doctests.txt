@@ -129,9 +129,10 @@ TypeError: delete() takes exactly 1 argument (2 given)
 nope
 
 Now for keys with funny types.
-# moved to unit test; restore with doctest IGNORE_EXCEPTION_DETAIL directive
-# after dropping 2.6 support:
->>> # c.set(1, "hi")
+>>> c.set(1, "hi")
+Traceback (most recent call last):
+  ...
+TypeError: a bytes-like object is required, not 'int'
 >>> c.get(1)
 Traceback (most recent call last):
   ...
@@ -249,17 +250,18 @@ True
 True
 >>> c.add('a', 1)
 True
-
-# moved to unit test; restore with doctest IGNORE_EXCEPTION_DETAIL directive
-# after dropping 2.6 support:
->>> # c.incr_multi(('a', 'b', 'c'), key_prefix='x', delta=1)
+>>> c.incr_multi(('a', 'b', 'c'), key_prefix='x', delta=1)
+Traceback (most recent call last):
+  ...
+pylibmc.NotFound: 3 keys not found
 >>> c.delete('xa')
 False
 
 Empty server lists are bad for your health.
-# moved to unit test; restore with doctest IGNORE_EXCEPTION_DETAIL directive
-# after dropping 2.6 support:
->>> # c = _pylibmc.client([])
+>>> c = _pylibmc.client([])
+Traceback (most recent call last):
+  ...
+pylibmc.Error: empty server list
 
 Python-wrapped behaviors dict
 >>> pc = make_test_client()
