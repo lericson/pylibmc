@@ -219,10 +219,8 @@ static PylibMC_McErr PylibMCExc_mc_errs[] = {
     { MEMCACHED_BAD_KEY_PROVIDED, "BadKeyProvided", NULL },
     { MEMCACHED_INVALID_HOST_PROTOCOL, "InvalidHostProtocolError", NULL },
     { MEMCACHED_SERVER_MARKED_DEAD, "ServerDead", NULL },
-#if LIBMEMCACHED_VERSION_HEX >= 0x01000002
     { MEMCACHED_SERVER_TEMPORARILY_DISABLED, "ServerDown", NULL },
     { MEMCACHED_E2BIG, "TooBig", NULL },
-#endif
     { MEMCACHED_UNKNOWN_STAT_KEY, "UnknownStatKey", NULL },
     //{ MEMCACHED_E2BIG, "TooBigError", NULL },
     { 0, NULL, NULL }
@@ -238,9 +236,7 @@ typedef struct {
 static PylibMC_Behavior PylibMC_behaviors[] = {
     { MEMCACHED_BEHAVIOR_NO_BLOCK, "no_block" },
     { MEMCACHED_BEHAVIOR_TCP_NODELAY, "tcp_nodelay" },
-#if LIBMEMCACHED_VERSION_HEX >= 0x00044000
     { MEMCACHED_BEHAVIOR_TCP_KEEPALIVE, "tcp_keepalive" },
-#endif
     { MEMCACHED_BEHAVIOR_HASH, "hash" },
     { MEMCACHED_BEHAVIOR_KETAMA_HASH, "ketama_hash" },
     { MEMCACHED_BEHAVIOR_KETAMA, "ketama" },
@@ -257,9 +253,7 @@ static PylibMC_Behavior PylibMC_behaviors[] = {
     { MEMCACHED_BEHAVIOR_NUMBER_OF_REPLICAS, "num_replicas" },
     { MEMCACHED_BEHAVIOR_AUTO_EJECT_HOSTS, "auto_eject" },
     { MEMCACHED_BEHAVIOR_RETRY_TIMEOUT, "retry_timeout" },
-#if LIBMEMCACHED_VERSION_HEX >= 0x00049000
     { MEMCACHED_BEHAVIOR_REMOVE_FAILED_SERVERS, "remove_failed" },
-#endif
     { MEMCACHED_BEHAVIOR_SERVER_FAILURE_LIMIT, "failure_limit" },
 
     { MEMCACHED_BEHAVIOR_IO_MSG_WATERMARK, "_io_msg_watermark" },
@@ -271,9 +265,7 @@ static PylibMC_Behavior PylibMC_behaviors[] = {
     { MEMCACHED_BEHAVIOR_POLL_TIMEOUT, "_poll_timeout" },
     { MEMCACHED_BEHAVIOR_SOCKET_SEND_SIZE, "_socket_send_size" },
     { MEMCACHED_BEHAVIOR_SOCKET_RECV_SIZE, "_socket_recv_size" },
-#if LIBMEMCACHED_VERSION_HEX >= 0x01000003
     { MEMCACHED_BEHAVIOR_DEAD_TIMEOUT, "dead_timeout" },
-#endif
     { PYLIBMC_BEHAVIOR_PICKLE_PROTOCOL, "pickle_protocol" },
     { 0, NULL }
 };
@@ -306,14 +298,10 @@ static PylibMC_Behavior PylibMC_distributions[] = {
     { MEMCACHED_DISTRIBUTION_CONSISTENT, "consistent" },
     { MEMCACHED_DISTRIBUTION_RANDOM, "random" },
     { MEMCACHED_DISTRIBUTION_CONSISTENT_KETAMA, "consistent_ketama" },
-#if LIBMEMCACHED_VERSION_HEX >= 0x00044000
     { MEMCACHED_DISTRIBUTION_CONSISTENT_KETAMA_SPY, "consistent_ketama_spy" },
-#endif
-#if LIBMEMCACHED_VERSION_HEX >= 0x01000000
     { MEMCACHED_DISTRIBUTION_CONSISTENT_WEIGHTED, "consistent_weighted" },
     { MEMCACHED_DISTRIBUTION_VIRTUAL_BUCKET, "virtual_bucket" },
     { MEMCACHED_DISTRIBUTION_CONSISTENT_MAX, "consistent_max" },
-#endif
     { 0, NULL }
 };
 /* }}} */
