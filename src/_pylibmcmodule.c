@@ -339,10 +339,6 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
                  * with use_udp libmemcached sends datagrams, turns noreply on
                  * and reads no replies, so the client is write-only. */
                 case PYLIBMC_SERVER_UDP:
-#if LIBMEMCACHED_VERSION_HEX <= 0x00053000
-                    rc = memcached_server_add_udp_with_weight(self->mc, hostname, port, weight);
-                    break;
-#endif
                 case PYLIBMC_SERVER_TCP:
                     rc = memcached_server_add_with_weight(self->mc, hostname, port, weight);
                     break;
@@ -1681,7 +1677,6 @@ static PyObject *PylibMC_Client_touch(PylibMC_Client *self, PyObject *args,
 
 static PyObject *_PylibMC_touch(PylibMC_Client *self, PyObject *group,
                                 PyObject *args) {
-#if LIBMEMCACHED_VERSION_HEX >= 0x01000002
     char *key;
     long seconds;
     long long seconds_arg;
@@ -1719,11 +1714,6 @@ static PyObject *_PylibMC_touch(PylibMC_Client *self, PyObject *group,
     }
 
     return NULL;
-#else
-    PyErr_Format(PylibMCExc_Error,
-                 "memcached_touch isn't available; upgrade libmemcached to >= 1.0.2");
-    return NULL;
-#endif
 }
 
 
@@ -2462,12 +2452,10 @@ static PyObject *PylibMC_Client_get_behaviors(PylibMC_Client *self) {
         case PYLIBMC_BEHAVIOR_PICKLE_PROTOCOL:
             bval = self->pickle_protocol;
             break;
-#if LIBMEMCACHED_VERSION_HEX >= 0x00049000
         case MEMCACHED_BEHAVIOR_REMOVE_FAILED_SERVERS:
             bval = memcached_behavior_get(self->mc, PylibMC_remove_failed_is_alias
                     ? MEMCACHED_BEHAVIOR_SERVER_FAILURE_LIMIT : b->flag);
             break;
-#endif
         default:
             bval = memcached_behavior_get(self->mc, b->flag);
         }
@@ -2513,7 +2501,6 @@ static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *self,
         case PYLIBMC_BEHAVIOR_PICKLE_PROTOCOL:
             self->pickle_protocol = v;
             break;
-#if LIBMEMCACHED_VERSION_HEX >= 0x00049000
         case MEMCACHED_BEHAVIOR_REMOVE_FAILED_SERVERS:
             if (PylibMC_remove_failed_is_alias) {
                 /* N > 0: failure limit N, and turn removal on; 0: turn off */
@@ -2533,7 +2520,6 @@ static PyObject *PylibMC_Client_set_behaviors(PylibMC_Client *self,
                 goto error;
             }
             break;
-#endif
         default:
             r = memcached_behavior_set(self->mc, b->flag, (uint64_t)v);
             if (r != MEMCACHED_SUCCESS) {
@@ -2575,13 +2561,7 @@ error:
 
 static memcached_return
 _PylibMC_AddServerCallback(memcached_st *mc,
-#if LIBMEMCACHED_VERSION_HEX >= 0x01000017
                            memcached_instance_st* instance,
-#elif LIBMEMCACHED_VERSION_HEX >= 0x00039000
-                           memcached_server_instance_st instance,
-#else
-                           memcached_server_st *server,
-#endif
                            void *user) {
     _PylibMC_StatsContext *context = (_PylibMC_StatsContext *)user;
     PylibMC_Client *self = (PylibMC_Client *)context->self;
@@ -2627,11 +2607,7 @@ _PylibMC_AddServerCallback(memcached_st *mc,
     free(stat_keys);
 
     desc = PyBytes_FromFormat("%s:%d (%u)",
-#if LIBMEMCACHED_VERSION_HEX >= 0x00039000
             memcached_server_name(instance), memcached_server_port(instance),
-#else /* ver < libmemcached 0.39 */
-            server->hostname, server->port,
-#endif
             (unsigned int)context->index);
 
     PyList_SET_ITEM(context->retval, context->index++,
@@ -2651,11 +2627,9 @@ static PyObject *PylibMC_Client_get_stats(PylibMC_Client *self, PyObject *args) 
     char *mc_args;
     Py_ssize_t nservers;
     _PylibMC_StatsContext context;
-#if LIBMEMCACHED_VERSION_HEX >= 0x00038000
     memcached_server_function callbacks[] = {
         (memcached_server_function)_PylibMC_AddServerCallback
     };
-#endif
 
     mc_args = NULL;
     if (!PyArg_ParseTuple(args, "|s:get_stats", &mc_args))
@@ -2681,20 +2655,7 @@ static PyObject *PylibMC_Client_get_stats(PylibMC_Client *self, PyObject *args) 
     context.servers = NULL;  /* DEPRECATED */
     context.index = 0;
 
-#if LIBMEMCACHED_VERSION_HEX >= 0x00038000
     rc = memcached_server_cursor(self->mc, callbacks, (void *)&context, 1);
-#else /* ver < libmemcached 0.38 */
-    context.servers = memcached_server_list(self->mc);
-
-    for (; context.index < nservers; context.index++) {
-        memcached_server_st *server = context.servers + context.index;
-        memcached_return rc;
-
-        rc = _PylibMC_AddServerCallback(self->mc, server, (void *)&context);
-        if (rc != MEMCACHED_SUCCESS)
-            break;
-    }
-#endif
 
     if (rc != MEMCACHED_SUCCESS) {
         if (!PyErr_Occurred())
@@ -2794,20 +2755,16 @@ static void _set_error(memcached_st *mc, memcached_return error, char *lead) {
                      lead, strerror(errno));
     } else if (error == MEMCACHED_SUCCESS) {
         PyErr_Format(PyExc_RuntimeError, "error == MEMCACHED_SUCCESS");
-#if LIBMEMCACHED_VERSION_HEX >= 0x01000002
     } else if (error == MEMCACHED_E2BIG) {
         PyErr_SetNone(_exc_by_rc(error));
-#endif
     } else {
         PyObject *exc = _exc_by_rc(error);
         const char *text = memcached_strerror(mc, error);
         const char *detail = NULL;
         if (text == NULL)
             text = "unknown error";
-#if LIBMEMCACHED_VERSION_HEX >= 0x00049000
         if (memcached_last_error(mc) != MEMCACHED_SUCCESS)
             detail = memcached_last_error_message(mc);
-#endif
         /* libmemcached's own detail message (when it has one) names the host
          * and normally includes the generic text; make sure the generic text
          * is always there so that the number is never the only clue. */
@@ -3106,7 +3063,6 @@ static int _check_libmemcached_runtime(PyObject *module) {
 }
 
 static void _probe_remove_failed(void) {
-#if LIBMEMCACHED_VERSION_HEX >= 0x00049000
     memcached_st *mc = memcached_create(NULL);
     if (mc == NULL)
         return;
@@ -3116,7 +3072,6 @@ static void _probe_remove_failed(void) {
             == MEMCACHED_SUCCESS &&
         memcached_behavior_get(mc, MEMCACHED_BEHAVIOR_REMOVE_FAILED_SERVERS) != 3;
     memcached_free(mc);
-#endif
 }
 
 /* Append the tuple (name, obj) to list. PyList_Append does not steal, so the
