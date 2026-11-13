@@ -45,6 +45,10 @@
 #  define LIBMEMCACHED_VERSION_HEX 0x0
 #endif
 
+#if LIBMEMCACHED_VERSION_HEX < 0x01000018
+#  error "pylibmc needs libmemcached 1.0.18 or later"
+#endif
+
 #include "pylibmc-version.h"
 
 /* Py_ssize_t appeared in Python 2.5. */

@@ -59,7 +59,7 @@
              otherwise). It is passed down with the call and never stored on
              the client. The *key_prefix* argument of the ``*_multi`` methods
              applies to the item keys only, not to the master key. ``touch``
-             needs libmemcached 1.0.2 or later, with or without a master key.
+             works with or without a master key.
 
    .. Keys
 

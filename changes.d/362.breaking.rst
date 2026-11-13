@@ -1,0 +1,7 @@
+libmemcached older than 1.0.18 is no longer supported. The documentation said
+1.0.8, but only 1.0.18 and 1.1.4 were ever tested. Building against an older
+libmemcached now stops with the compiler error "pylibmc needs libmemcached
+1.0.18 or later" instead of producing a module that may misbehave. If you see
+it, install libmemcached 1.0.18 or 1.1.x and point the build at it with
+``LIBMEMCACHED=<prefix>`` or ``--with-libmemcached=<dir>``. Wheels from PyPI
+are not affected.
