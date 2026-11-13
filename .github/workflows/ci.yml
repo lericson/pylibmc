@@ -137,6 +137,19 @@ jobs:
         echo "LIBMEMCACHED_VERSION=${LIBMEMCACHED_VERSION}"
     - name: Run test
       run: python bin/runtests.py -v tests --with-doctest
+    # The UDP and unix socket tests start their own memcached (the service
+    # above has no UDP), so they need the binary; on 3.14 they must run.
+    - name: Install memcached for the UDP and unix socket tests
+      if: ${{ matrix.python-version == '3.14' }}
+      run: sudo apt-get install -y -qq memcached
+    - name: UDP and unix socket tests must run (libmemcached ${{ matrix.libmemcached }})
+      if: ${{ matrix.python-version == '3.14' }}
+      env:
+        PYLIBMC_TEST_MEMCACHED_REQUIRED: "1"
+      run: |
+        python -m pytest tests/test_udp.py tests/test_unix_socket.py -v -rA | tee transports.log
+        test "$(grep -c ' PASSED' transports.log)" -ge 20
+        if grep -e SKIPPED -e ' FAILED' transports.log; then exit 1; fi
     # A real memcached that requires SASL, on its own port. Runs on the
     # newest Python of each libmemcached family (1.0.18 and 1.1.4), against
     # the package installed above.
