@@ -326,6 +326,7 @@ typedef struct {
     uint8_t native_serialization;
     uint8_t native_deserialization;
     int pickle_protocol;
+    uint8_t udp;  /* servers are udp: (write-only, noreply) */
 } PylibMC_Client;
 
 /* {{{ Prototypes */
