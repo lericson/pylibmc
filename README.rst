@@ -12,10 +12,12 @@ New in version 1.8.0
 
 pylibmc now checks every key itself (a key with whitespace or control characters
 raises ``ValueError`` on the text protocol instead of corrupting the connection),
-accepts a ``master_key=`` keyword on the data methods, returns booleans as
-booleans, compresses ``cas`` values like ``set``, and the Linux wheels now log in
-with SASL. Python 3.11 or later is required. The change log lists what can break
-existing code.
+returns booleans as booleans, and refuses numbers that do not fit instead of
+letting them wrap around. New are a ``master_key=`` keyword on the data methods,
+``exists()``, ``incr`` and ``decr`` with ``initial=``, more behaviors and more
+exception classes, and the Linux wheels now log in with SASL. Python 3.11 or
+later and, for source builds, libmemcached 1.0.18 or later are required. The
+change log lists what can break existing code.
 
 See the `change log`__ for the details.
 
