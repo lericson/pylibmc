@@ -11,8 +11,9 @@ import pytest
 import _pylibmc
 import pylibmc
 import pylibmc.consts
+from tests import server_address
 
-SERVER = "127.0.0.1:11211"
+SERVER = server_address()
 
 
 def make(binary=False, **behaviors):
