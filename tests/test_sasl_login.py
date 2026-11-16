@@ -41,13 +41,16 @@ class SaslLogin(unittest.TestCase):
     def good(self):
         return self.make(username=USER, password=PASSWORD)
 
+    # Both are refused with AuthFailure (a subclass of pylibmc.Error, which
+    # is all that older pylibmc raised here).
     def test_no_credentials_refused(self):
-        with self.assertRaises(pylibmc.Error):
+        with self.assertRaises(pylibmc.AuthFailure):
             roundtrip(self.make())
 
     def test_wrong_password_refused(self):
-        with self.assertRaises(pylibmc.Error):
+        with self.assertRaises(pylibmc.AuthFailure) as info:
             roundtrip(self.make(username=USER, password=PASSWORD + "-wrong"))
+        self.assertIsInstance(info.exception, pylibmc.Error)
 
     def test_correct_login_works(self):
         self.assertEqual(roundtrip(self.good()), "ok")

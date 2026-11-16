@@ -179,9 +179,14 @@ static PylibMC_McErr PylibMCExc_mc_errs[] = {
     { MEMCACHED_PROTOCOL_ERROR, "ProtocolError", NULL },
     { MEMCACHED_CLIENT_ERROR, "ClientError", NULL },
     { MEMCACHED_SERVER_ERROR, "ServerError", NULL },
-    { MEMCACHED_CONNECTION_SOCKET_CREATE_FAILURE, "SocketCreateError", NULL },
+    /* The server replied "ERROR". The class used to be called
+     * SocketCreateError after libmemcached's alias for the code,
+     * MEMCACHED_CONNECTION_SOCKET_CREATE_FAILURE; see _make_excs. */
+    { MEMCACHED_ERROR, "ErrorReply", NULL },
     { MEMCACHED_DATA_EXISTS, "DataExists", NULL },
     { MEMCACHED_DATA_DOES_NOT_EXIST, "DataDoesNotExist", NULL },
+    /* No NotStored: storage commands report NOTSTORED as a False return
+     * or a failed key. */
     //{ MEMCACHED_NOTSTORED, "NotStored", NULL },
     //{ MEMCACHED_STORED, "Stored", NULL },
     { MEMCACHED_NOTFOUND, "NotFound", NULL },
@@ -194,7 +199,7 @@ static PylibMC_McErr PylibMCExc_mc_errs[] = {
     //{ MEMCACHED_VALUE, "", NULL },
     //{ MEMCACHED_STAT, "", NULL },
     //{ MEMCACHED_ITEM, "", NULL },
-    //{ MEMCACHED_ERRNO, "", NULL },
+    { MEMCACHED_ERRNO, "SystemCallError", NULL },
     { MEMCACHED_FAIL_UNIX_SOCKET, "UnixSocketError", NULL },
     { MEMCACHED_NOT_SUPPORTED, "NotSupportedError", NULL },
     { MEMCACHED_FETCH_NOTFINISHED, "FetchNotFinished", NULL },
@@ -208,6 +213,15 @@ static PylibMC_McErr PylibMCExc_mc_errs[] = {
     { MEMCACHED_E2BIG, "TooBig", NULL },
 #endif
     { MEMCACHED_UNKNOWN_STAT_KEY, "UnknownStatKey", NULL },
+    /* Not mapped, because pylibmc cannot get them: KEY_TOO_BIG (only
+     * memcached_fetch, which pylibmc does not use, and namespaces, which
+     * set_behaviors checks itself) and PARSE_ERROR (only configuration
+     * strings). */
+    { MEMCACHED_INVALID_ARGUMENTS, "InvalidArguments", NULL },
+    { MEMCACHED_AUTH_PROBLEM, "AuthProblem", NULL },
+    { MEMCACHED_AUTH_FAILURE, "AuthFailure", NULL },
+    { MEMCACHED_IN_PROGRESS, "InProgress", NULL },
+    { MEMCACHED_SERVER_MEMORY_ALLOCATION_FAILURE, "ServerAllocationError", NULL },
     //{ MEMCACHED_E2BIG, "TooBigError", NULL },
     { 0, NULL, NULL }
 };

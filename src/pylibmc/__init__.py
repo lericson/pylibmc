@@ -68,6 +68,8 @@ Further Reading
 See http://sendapatch.se/projects/pylibmc/
 """
 
+import warnings
+
 import _pylibmc
 from _pylibmc import *
 from _pylibmc import __version__
@@ -82,5 +84,21 @@ def build_info():
                support_compression,
                support_sasl))
 
+# Old name -> new name. The old names still work (they are the same class),
+# but warn, and star imports do not pick them up.
+_deprecated_names = {"SocketCreateError": "ErrorReply"}
+for _name in _deprecated_names:
+    globals().pop(_name, None)
+del _name
+
+def __getattr__(name):
+    if name in _deprecated_names:
+        new = _deprecated_names[name]
+        warnings.warn(f"pylibmc.{name} is deprecated, use pylibmc.{new} "
+                      f"(the same class)", DeprecationWarning, stacklevel=2)
+        return globals()[new]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 __all__ = ["hashers", "distributions", "Client",
-           "ClientPool", "ThreadMappedPool"] + dir(_pylibmc)
+           "ClientPool", "ThreadMappedPool"] + [
+    name for name in dir(_pylibmc) if name not in _deprecated_names]

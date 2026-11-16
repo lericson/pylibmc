@@ -2756,7 +2756,7 @@ static char *_get_lead(memcached_st *mc, char *buf, int n, const char *what,
 
 static void _set_error(memcached_st *mc, memcached_return error, char *lead) {
     if (error == MEMCACHED_ERRNO) {
-        PyErr_Format(PylibMCExc_Error, "%s: %s",
+        PyErr_Format(_exc_by_rc(error), "%s: %s",
                      lead, strerror(errno));
     } else if (error == MEMCACHED_SUCCESS) {
         PyErr_Format(PyExc_RuntimeError, "error == MEMCACHED_SUCCESS");
@@ -3119,7 +3119,7 @@ static void _append_name_obj(PyObject *list, const char *name, PyObject *obj) {
 }
 
 static void _make_excs(PyObject *module) {
-    PyObject *exc_objs;
+    PyObject *exc_objs, *exc;
     PylibMC_McErr *err;
 
     PylibMCExc_Error = PyErr_NewException(
@@ -3144,6 +3144,15 @@ static void _make_excs(PyObject *module) {
         }
         PyModule_AddObject(module, err->name, (PyObject *)err->exc);
         _append_name_obj(exc_objs, err->name, (PyObject *)err->exc);
+    }
+
+    /* Deprecated name of ErrorReply, the same class. Not in exc_objs, so
+     * that the pylibmc package can warn when it is used. */
+    exc = _exc_by_rc(MEMCACHED_ERROR);
+    if (exc != NULL) {
+        Py_INCREF(exc);
+        if (PyModule_AddObject(module, "SocketCreateError", exc) < 0)
+            Py_DECREF(exc);
     }
 
     PyModule_AddObject(module, "Error",
