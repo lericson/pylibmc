@@ -319,7 +319,12 @@ configuration of strictly pylibmc-level things. These are described below.
 .. _pickle_protocol:
 
 ``"pickle_protocol"``
-   Specifies the default pickling protocol. This is by default set to -1, which
-   means the pickle module will use the latest protocol it understands. This is
-   an issue for interoperability, and so for example to work between Python 2
-   and 3, set this explicitly to 2 or whatever you prefer.
+   The pickle protocol used for values that are stored pickled. The default is
+   ``-1``, which means the highest protocol the running Python supports.
+
+   Pin it to a number if more than one Python version reads and writes the same
+   cache, for example during a rolling upgrade. With ``-1``, a newer Python that
+   adds a pickle protocol starts writing values that older Pythons cannot read.
+   ``5`` is the highest protocol of every Python pylibmc supports today::
+
+       mc = pylibmc.Client(servers, behaviors={"pickle_protocol": 5})
