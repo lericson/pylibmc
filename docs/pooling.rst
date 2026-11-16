@@ -61,7 +61,7 @@ threads concurrently and still not have issues with races:
                 self.append(mc)
 
     mc = pylibmc.Client(mc_addrs)
-    mc_pool = ClientPool(mc.clone() for i in xrange(mc_pool_size))
+    mc_pool = ClientPool(mc.clone() for i in range(mc_pool_size))
 
     @Request.application
     def my_app(request):

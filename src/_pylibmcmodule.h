@@ -51,20 +51,10 @@
 
 #include "pylibmc-version.h"
 
-/* Py_ssize_t appeared in Python 2.5. */
-#ifndef PY_SSIZE_T_MAX
-typedef ssize_t Py_ssize_t;
-#endif
-
-/* Python 3.4 and up use PyMem_New/PyMem_Del to refer to the Python memory
- * allocator which requires the GIL. These are our GIL free alternatives. */
-#if PY_VERSION_HEX >= 0x03040000
-#  define PyMem_RawNew(type, nelem) ((type *)PyMem_RawMalloc((nelem)*sizeof(type)))
-#  define PyMem_RawDel(ptr) PyMem_RawFree(ptr)
-#else
-#  define PyMem_RawNew PyMem_New
-#  define PyMem_RawDel(ptr) PyMem_Del
-#endif
+/* PyMem_New/PyMem_Del use the Python memory allocator, which requires the
+ * GIL. These are our GIL free alternatives. */
+#define PyMem_RawNew(type, nelem) ((type *)PyMem_RawMalloc((nelem)*sizeof(type)))
+#define PyMem_RawDel(ptr) PyMem_RawFree(ptr)
 
 /* Server types. */
 #define PYLIBMC_SERVER_TCP   (1 << 0)
@@ -100,12 +90,6 @@ enum PylibMC_Flags {
 enum PylibMC_Behaviors {
     PYLIBMC_BEHAVIOR_PICKLE_PROTOCOL = 0xcafe0000,
 };
-
-/* Python 3 stuff */
-#ifndef PyVarObject_HEAD_INIT
-#define PyVarObject_HEAD_INIT(type, size)       \
-    PyObject_HEAD_INIT(type) size,
-#endif
 
 typedef memcached_return (*_PylibMC_SetCommand)(memcached_st *, const char *,
         size_t, const char *, size_t, time_t, uint32_t);
