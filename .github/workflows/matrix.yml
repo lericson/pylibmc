@@ -89,14 +89,19 @@ jobs:
             devmode: true
             expect_sasl: "True"
             expect_compression: "True"
-          - name: Installed from the sdist
+          # How a packager runs the tests, so the test server is on a
+          # port other than the default (issue #376).
+          - name: Installed from the sdist, memcached on port 11299
             os: ubuntu-22.04
             libmemcached: "1.0.18"
             sdist: true
+            memcached_port: "11299"
             expect_sasl: "True"
             expect_compression: "True"
     env:
       PYTHON_VERSION: "3.15"
+      # Read by test-wheel.sh and the tests; empty means the default, 11211.
+      MEMCACHED_PORT: ${{ matrix.memcached_port }}
       EXPECT_LIBMEMCACHED: ${{ matrix.libmemcached }}
       EXPECT_SASL: ${{ matrix.expect_sasl }}
       EXPECT_COMPRESSION: ${{ matrix.expect_compression }}

@@ -66,9 +66,10 @@ kill %1
 - **`bin/with-memcached` starts memcached in the background and runs the command
   at once**, so the first tests race its startup and fail with `NotAlive`. Start
   memcached yourself as above.
-- **The full suite expects memcached on `127.0.0.1:11211`**
-  (`tests/test_autoconf.py` assumes the default port). `MEMCACHED_HOST`,
-  `MEMCACHED_PORT` and `MEMCACHED_TYPE` only steer the test client helper.
+- **The suite looks for memcached on `MEMCACHED_HOST:MEMCACHED_PORT`**
+  (default `127.0.0.1:11211`; packagers use another port). Only TCP works, so
+  leave `MEMCACHED_TYPE` alone. The `matrix.yml` sdist leg runs on port 11299
+  with nothing on 11211, so a test that hard-codes the address fails there.
 - **Two libmemcached families behave differently.** 1.0.x is the legacy floor
   (Homebrew, Ubuntu 22.04's apt package). 1.1.x is the maintained fork
   (awesomized/libmemcached; Ubuntu 24.04's apt package is 1.1.4). Timeouts,
@@ -111,6 +112,9 @@ kill %1
   or interned strings, whose counts change for unrelated reasons. A single
   before/after reading can't tell a leak from noise; repeat the operation many
   times so a leak grows with the count.
+- Tests reach the shared server through `make_test_client()` or
+  `tests.server_address()`, never a literal address (#376). Tests that need
+  their own server start one (`tests/memcached_proc.py`).
 - Don't assert which exception third-party code raises: PyPy's `pickle` raises
   `EOFError` where CPython's raises `TypeError`.
 - Tests must pass on CPython and PyPy. A test that needs one libmemcached
