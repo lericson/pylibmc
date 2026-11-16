@@ -14,6 +14,7 @@ import pytest
 
 import _pylibmc
 import pylibmc
+from tests import server_address
 
 # libmemcached's return codes, the same in 1.0.18 and 1.1.4 (return.h).
 NEW_CLASSES = {
@@ -211,6 +212,6 @@ def test_invalid_server_raises_invalid_arguments(server):
 
 
 def test_unknown_stat_raises_invalid_arguments():
-    mc = pylibmc.Client(["127.0.0.1:11211"])
+    mc = pylibmc.Client([server_address()])
     with pytest.raises(pylibmc.InvalidArguments):
         mc.get_stats("no-such-stat-group")
