@@ -3085,29 +3085,6 @@ static void _probe_remove_failed(void) {
 #endif
 }
 
-static int _check_libmemcached_version(void) {
-    uint8_t maj, min;
-    char *ver, *dot, *tmp;
-
-    ver = dot = strdup(LIBMEMCACHED_VERSION_STRING);
-    while ((tmp = strrchr(ver, '.')) != NULL) {
-        dot = tmp;
-        *dot = 0;
-    }
-
-    maj = atoi(ver);
-    min = atoi(dot + 1);
-
-    if (maj == 0 && min < 32) {
-        PyErr_Format(PyExc_RuntimeError,
-            "pylibmc requires >= libmemcached 0.32, was compiled with %s",
-            LIBMEMCACHED_VERSION_STRING);
-        return false;
-    } else {
-        return true;
-    }
-}
-
 /* Append the tuple (name, obj) to list. PyList_Append does not steal, so the
  * temporary tuple has to be released here. */
 static void _append_name_obj(PyObject *list, const char *name, PyObject *obj) {
@@ -3239,34 +3216,23 @@ PyMODINIT_FUNC PyInit__pylibmc(void) {
     PyObject *module;
 
     module = PyModule_Create(&PylibMC_module);
-
-    if (!_check_libmemcached_version())
-        return NULL;
-
     if (module == NULL) {
         return NULL;
     }
 
     if (!_init_sasl(module))
-        return NULL;
+        goto error;
 
-    if (PyType_Ready(&PylibMC_ClientType) < 0) {
-        return NULL;
-    }
-
-    if (module == NULL) {
-        return NULL;
-    }
+    if (PyType_Ready(&PylibMC_ClientType) < 0)
+        goto error;
 
     _make_excs(module);
 
-    if (!(_PylibMC_pickle_loads = _PylibMC_GetPickles("loads"))) {
-        return NULL;
-    }
+    if (!(_PylibMC_pickle_loads = _PylibMC_GetPickles("loads")))
+        goto error;
 
-    if (!(_PylibMC_pickle_dumps = _PylibMC_GetPickles("dumps"))) {
-        return NULL;
-    }
+    if (!(_PylibMC_pickle_dumps = _PylibMC_GetPickles("dumps")))
+        goto error;
 
     PyModule_AddStringConstant(module, "__version__", PYLIBMC_VERSION);
     PyModule_ADD_REF(module, "client", (PyObject *)&PylibMC_ClientType);
@@ -3275,7 +3241,7 @@ PyMODINIT_FUNC PyInit__pylibmc(void) {
     PyModule_AddIntConstant(module,
             "libmemcached_version_hex", LIBMEMCACHED_VERSION_HEX);
     if (!_check_libmemcached_runtime(module))
-        return NULL;
+        goto error;
     _probe_remove_failed();
 
 #if LIBMEMCACHED_WITH_SASL_SUPPORT
@@ -3296,4 +3262,8 @@ PyMODINIT_FUNC PyInit__pylibmc(void) {
 
     _make_behavior_consts(module);
     return module;
+
+error:
+    Py_DECREF(module);
+    return NULL;
 }
