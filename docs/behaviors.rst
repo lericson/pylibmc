@@ -113,6 +113,18 @@ libmemcached behavior constants.
    keepalive settings, not to :mod:`pylibmc`. Like ``"tcp_nodelay"`` this only
    makes sense for TCP connections. The default is off.
 
+.. _tcp_keepidle:
+
+``"tcp_keepidle"``
+   The idle time, in seconds, before the operating system sends the first
+   keepalive probe on a connection, set as the ``TCP_KEEPIDLE`` socket option
+   when libmemcached opens a connection. Probes are only sent with
+   ``"tcp_keepalive"`` on. libmemcached sets the option only where the system
+   has it: Linux does, macOS does not (there the behavior is accepted and
+   reported back but does nothing). ``0``, the default, leaves the system's
+   setting alone. Changing it closes the client's open connections, so the
+   new value applies when they reconnect.
+
 .. _connect_timeout:
 
 ``"connect_timeout"``
@@ -163,6 +175,15 @@ libmemcached behavior constants.
    replicas in, but instead it will store the replicas together with all of the
    other objects (on the 'n' next servers specified in your server list)."
 
+.. _randomize_replica_read:
+
+``"randomize_replica_read"``
+   With ``"num_replicas"`` set, read each key from a randomly chosen copy
+   instead of always starting with the primary server, to spread reads over
+   the replicas. libmemcached only applies it to ``get_multi`` (and the
+   ``get`` it is built on) over the binary protocol; other commands and the
+   text protocol ignore it. The default is off.
+
 .. _dead_timeout:
 
 ``"dead_timeout"``
@@ -192,6 +213,15 @@ libmemcached behavior constants.
    If set, a server will be removed from the server list after this many
    operations on it in a row have failed.
 
+.. _server_timeout_limit:
+
+``"server_timeout_limit"``
+   How many times in a row connecting to a server may fail before libmemcached
+   stops trying it for ``"retry_timeout"`` seconds. Failures are counted once
+   per request, and the count starts over once a connection succeeds. The
+   default, ``0``, takes the server out of rotation on the first failure, as
+   does ``1``.
+
 .. _auto_eject:
 
 ``"auto_eject"`` : deprecated
@@ -215,10 +245,22 @@ The available hashers are:
 * ``"fnv1a_64"`` - 64-bit FNV-1a
 * ``"fnv1_32"`` - 32-bit FNV-1
 * ``"fnv1a_32"`` - 32-bit FNV-1a
-* ``"murmur"`` - MurmurHash_
+* ``"murmur"`` - MurmurHash_ (MurmurHash2)
+* ``"murmur3"`` - MurmurHash3, the 32-bit x86 variant, which libmemcached seeds
+  with the key length times ``0xdeadbeef``. Only offered when :mod:`pylibmc`
+  is built against libmemcached 1.1 or later: libmemcached 1.0 accepts the
+  constant but hashes with ``"murmur"`` instead, so there ``"murmur3"`` is not
+  in ``pylibmc.hashers`` and setting it raises :exc:`KeyError`.
+* ``"jenkins"`` - Bob Jenkins' hash
 
 If :mod:`pylibmc` was built against a libmemcached using
-``--enable-hash_hsieh``, you can also use ``"hsieh"``.
+``--enable-hash_hsieh``, you can also use ``"hsieh"``. ``"murmur"`` and
+``"murmur3"`` also depend on how libmemcached was built; setting one that is
+not compiled in raises :exc:`pylibmc.Error`.
+
+``get_behaviors()`` reports a hash or distribution that :mod:`pylibmc` has no
+name for (one added in a newer libmemcached) as the integer libmemcached
+returned, and accepts that integer back when setting behaviors.
 
 .. _hashing-and-python-memcached:
 

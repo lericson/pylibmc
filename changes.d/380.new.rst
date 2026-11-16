@@ -1,0 +1,9 @@
+New behaviors ``tcp_keepidle`` (seconds idle before the first TCP keepalive
+probe), ``randomize_replica_read`` (spread binary-protocol multi-gets over the
+``num_replicas`` copies) and ``server_timeout_limit`` (connection failures in a
+row before a server is skipped for ``retry_timeout``), and the ``murmur3``
+hash. ``murmur3`` is only available when pylibmc is built against libmemcached
+1.1 or later; the wheels are. ``get_behaviors()`` no longer raises
+``KeyError`` when libmemcached reports a hash or distribution that pylibmc has
+no name for: the value is returned as an integer, and ``hash`` and
+``distribution`` now also accept integers when set.

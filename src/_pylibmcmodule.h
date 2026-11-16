@@ -247,6 +247,7 @@ static PylibMC_Behavior PylibMC_behaviors[] = {
     { MEMCACHED_BEHAVIOR_NO_BLOCK, "no_block" },
     { MEMCACHED_BEHAVIOR_TCP_NODELAY, "tcp_nodelay" },
     { MEMCACHED_BEHAVIOR_TCP_KEEPALIVE, "tcp_keepalive" },
+    { MEMCACHED_BEHAVIOR_TCP_KEEPIDLE, "tcp_keepidle" },
     { MEMCACHED_BEHAVIOR_HASH, "hash" },
     { MEMCACHED_BEHAVIOR_KETAMA_HASH, "ketama_hash" },
     { MEMCACHED_BEHAVIOR_KETAMA, "ketama" },
@@ -261,10 +262,12 @@ static PylibMC_Behavior PylibMC_behaviors[] = {
     { MEMCACHED_BEHAVIOR_SND_TIMEOUT, "send_timeout" },
     { MEMCACHED_BEHAVIOR_RCV_TIMEOUT, "receive_timeout" },
     { MEMCACHED_BEHAVIOR_NUMBER_OF_REPLICAS, "num_replicas" },
+    { MEMCACHED_BEHAVIOR_RANDOMIZE_REPLICA_READ, "randomize_replica_read" },
     { MEMCACHED_BEHAVIOR_AUTO_EJECT_HOSTS, "auto_eject" },
     { MEMCACHED_BEHAVIOR_RETRY_TIMEOUT, "retry_timeout" },
     { MEMCACHED_BEHAVIOR_REMOVE_FAILED_SERVERS, "remove_failed" },
     { MEMCACHED_BEHAVIOR_SERVER_FAILURE_LIMIT, "failure_limit" },
+    { MEMCACHED_BEHAVIOR_SERVER_TIMEOUT_LIMIT, "server_timeout_limit" },
 
     { MEMCACHED_BEHAVIOR_IO_MSG_WATERMARK, "_io_msg_watermark" },
     { MEMCACHED_BEHAVIOR_IO_BYTES_WATERMARK, "_io_bytes_watermark" },
@@ -296,10 +299,14 @@ static PylibMC_Behavior PylibMC_hashers[] = {
     { MEMCACHED_HASH_FNV1A_64, "fnv1a_64" },
     { MEMCACHED_HASH_FNV1_32, "fnv1_32" },
     { MEMCACHED_HASH_FNV1A_32, "fnv1a_32" },
-    { MEMCACHED_HASH_MURMUR, "murmur" },
     { MEMCACHED_HASH_HSIEH, "hsieh" },
     { MEMCACHED_HASH_MURMUR, "murmur" },
     { MEMCACHED_HASH_JENKINS, "jenkins" },
+#if LIBMEMCACHED_VERSION_HEX >= 0x01001000
+    /* libmemcached 1.0.x accepts MURMUR3 but hashes with MURMUR (and reports
+     * MURMUR back), so the name is only offered where it means MurmurHash3. */
+    { MEMCACHED_HASH_MURMUR3, "murmur3" },
+#endif
     { 0, NULL }
 };
 

@@ -45,8 +45,9 @@ class ClientTests(PylibmcTestCase):
             'auto_eject', 'buffer_requests', 'cas', 'connect_timeout',
             'distribution', 'failure_limit', 'hash', 'ketama', 'ketama_hash',
             'ketama_weighted', 'no_block', 'num_replicas', 'pickle_protocol',
-            'receive_timeout', 'retry_timeout', 'send_timeout',
-            'tcp_keepalive', 'tcp_nodelay']
+            'randomize_replica_read', 'receive_timeout', 'retry_timeout',
+            'send_timeout', 'server_timeout_limit', 'tcp_keepalive',
+            'tcp_keepidle', 'tcp_nodelay']
 
         # Since some parts of pyblibmc's functionality depend on the
         # libmemcached version, programatically check for the expected values
