@@ -1,6 +1,8 @@
 #!/bin/bash
 # Run the test suite against the INSTALLED pylibmc, with a throwaway memcached
-# on 127.0.0.1:11211 (tests/test_autoconf.py assumes the default port).
+# on MEMCACHED_HOST:MEMCACHED_PORT (default 127.0.0.1:11211), which is where
+# the tests look for it. On another port, 11211 must be free, so that a test
+# that ignores MEMCACHED_PORT fails instead of finding some other server.
 #
 # Usage: test-wheel.sh PYTEST_ARGS...
 #
@@ -10,19 +12,26 @@
 # than site-packages (for example the source tree).
 set -u
 
-HOST=127.0.0.1
-PORT=11211
+HOST=${MEMCACHED_HOST:-127.0.0.1}
+PORT=${MEMCACHED_PORT:-11211}
+# Set but empty (an unset matrix field) would reach the tests as int("").
+export MEMCACHED_HOST="$HOST" MEMCACHED_PORT="$PORT"
 
 port_open() {
+    local host=${1:-$HOST} port=${2:-$PORT}
     if command -v nc >/dev/null 2>&1; then
-        nc -z "$HOST" "$PORT" >/dev/null 2>&1
+        nc -z "$host" "$port" >/dev/null 2>&1
     else
-        (exec 3<>"/dev/tcp/$HOST/$PORT") >/dev/null 2>&1
+        (exec 3<>"/dev/tcp/$host/$port") >/dev/null 2>&1
     fi
 }
 
 if port_open; then
     echo "test-wheel.sh: something is already listening on $HOST:$PORT" >&2
+    exit 1
+fi
+if [ "$PORT" != 11211 ] && port_open 127.0.0.1 11211; then
+    echo "test-wheel.sh: MEMCACHED_PORT=$PORT, but 127.0.0.1:11211 is taken" >&2
     exit 1
 fi
 
@@ -54,6 +63,7 @@ if [ -z "$up" ]; then
     exit 1
 fi
 
+echo "test-wheel.sh: memcached is up on $HOST:$PORT"
 python - <<'PY' || exit 1
 import sys, pylibmc, _pylibmc
 print("python", sys.version.split()[0], "| pylibmc", pylibmc.__version__,

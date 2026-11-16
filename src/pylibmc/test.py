@@ -46,12 +46,15 @@ def is_alive(addr):
         version = None
     return bool(version), version
 
-def make_test_client(cls=pylibmc.Client, env=None, server_type="tcp",
-                     host="127.0.0.1", port=11211, **kwds):
-    """Make a test client. `env` overrides keyword arguments.
+def get_test_server(env=None, server_type="tcp", host="127.0.0.1",
+                    port=11211):
+    """The (server type, host, port) of the test memcached.
 
-    >>> make_test_client() is not None
-    True
+    MEMCACHED_TYPE, MEMCACHED_HOST and MEMCACHED_PORT in `env` (by default
+    os.environ) override the keyword arguments.
+
+    >>> get_test_server({"MEMCACHED_PORT": "11299"})
+    (1, '127.0.0.1', 11299)
     """
     server_types = {"tcp": _pylibmc.server_type_tcp,
                     "udp": _pylibmc.server_type_udp,
@@ -64,7 +67,17 @@ def make_test_client(cls=pylibmc.Client, env=None, server_type="tcp",
     host = env.get("MEMCACHED_HOST", host)
     port = env.get("MEMCACHED_PORT", port)
 
-    test_server = (server_types[styp], str(host), int(port))
+    return (server_types[styp], str(host), int(port))
+
+def make_test_client(cls=pylibmc.Client, env=None, server_type="tcp",
+                     host="127.0.0.1", port=11211, **kwds):
+    """Make a test client. `env` overrides keyword arguments.
+
+    >>> make_test_client() is not None
+    True
+    """
+    test_server = get_test_server(env=env, server_type=server_type,
+                                  host=host, port=port)
     alive, version = is_alive(test_server)
 
     if alive:

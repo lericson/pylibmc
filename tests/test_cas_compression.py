@@ -5,7 +5,6 @@ min_compress_len or compress_level. It now goes through the same serialization
 and compression as set.
 """
 
-import os
 import socket
 import time
 import uuid
@@ -14,7 +13,7 @@ import pytest
 
 import pylibmc
 from pylibmc.test import make_test_client
-from tests import get_refcounts
+from tests import get_refcounts, server_address
 
 f_pickle, f_int, f_long, f_zlib, f_text = (1 << i for i in range(5))
 
@@ -36,10 +35,8 @@ class RawClient(pylibmc.Client):
 
 def stored(key):
     """(flags, length) of what memcached holds, asking it over a socket."""
-    sock = socket.create_connection((os.environ.get("MEMCACHED_HOST",
-                                                    "127.0.0.1"),
-                                     int(os.environ.get("MEMCACHED_PORT",
-                                                        11211))))
+    host, port = server_address().rsplit(":", 1)
+    sock = socket.create_connection((host, int(port)))
     try:
         sock.sendall(b"get " + key.encode() + b"\r\n")
         buf = b""

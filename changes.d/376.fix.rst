@@ -1,0 +1,4 @@
+For packagers: the test suite again runs against a memcached on any address
+given by ``MEMCACHED_HOST`` and ``MEMCACHED_PORT``, as it did in 1.6.3. Tests
+added in 1.7 had ``127.0.0.1:11211`` written into them and failed (or quietly
+used another server) when the test memcached was elsewhere.

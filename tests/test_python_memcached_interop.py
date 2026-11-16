@@ -11,20 +11,15 @@ reads python-memcached's bools as bools). Skipped if python-memcached is not
 installed.
 """
 
-import os
 import uuid
 
 import pytest
 
 import pylibmc
 from pylibmc.test import make_test_client
+from tests import server_address
 
 memcache = pytest.importorskip("memcache")
-
-
-def address():
-    return "%s:%s" % (os.environ.get("MEMCACHED_HOST", "127.0.0.1"),
-                      os.environ.get("MEMCACHED_PORT", "11211"))
 
 
 # (id, value): each must come back equal, and of the same type, from the other
@@ -63,7 +58,7 @@ def lmc(binary):
 
 @pytest.fixture
 def pm():
-    client = memcache.Client([address()])
+    client = memcache.Client([server_address()])
     yield client
     client.disconnect_all()
 

@@ -16,7 +16,7 @@ import textwrap
 import pytest
 
 from pylibmc.test import make_test_client
-from tests import PylibmcTestCase
+from tests import PylibmcTestCase, server_address
 
 
 def _run_with_debug_malloc(script, timeout=10):
@@ -46,15 +46,14 @@ class TestGetsUseAfterFree(PylibmcTestCase):
         This test runs in a subprocess so that PYTHONMALLOC=debug is
         active regardless of how the outer test runner was invoked.
         """
-        host = os.environ.get("MEMCACHED_HOST", "127.0.0.1")
-        port = os.environ.get("MEMCACHED_PORT", "11211")
+        address = server_address()
 
         result = _run_with_debug_malloc(textwrap.dedent(f"""\
             import sys
             import pylibmc
 
             mc = pylibmc.Client(
-                ["{host}:{port}"], behaviors={{"cas": True}},
+                ["{address}"], behaviors={{"cas": True}},
             )
 
             key_str = "test_gets_uaf"
