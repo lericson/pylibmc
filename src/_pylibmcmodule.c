@@ -1726,6 +1726,85 @@ static PyObject *_PylibMC_touch(PylibMC_Client *self, PyObject *group,
 #endif
 }
 
+static PyObject *PylibMC_Client_exists(PylibMC_Client *self, PyObject *args,
+                                       PyObject *kwds) {
+    WITH_MASTER_KEY(0, _PylibMC_exists(self, group, args));
+}
+
+/* memcached_exist sends an add of an empty item with an expiry already in the
+ * past: memcached answers NOT_STORED if the key is there and otherwise stores
+ * an item that is dead on arrival. Measured on 1.0.18 and 1.1.4, that answer
+ * is wrong or never comes when replies are not read one by one: with
+ * buffer_requests on the binary protocol it reads the reply of an earlier
+ * buffered command instead (true and false come out swapped), and with
+ * noreply on the binary protocol 1.0.18 spins forever on a missing key. Those
+ * clients fetch the item instead and drop the value. */
+static PyObject *_PylibMC_exists(PylibMC_Client *self, PyObject *group,
+                                 PyObject *args) {
+    PyObject *key;
+    PyObject *retval = NULL;
+    memcached_return rc;
+    bool fetch;
+
+    if (!PyArg_UnpackTuple(args, "exists", 1, 1, &key)) {
+        return NULL;
+    }
+    if (!_key_normalized_obj(&key, KEYS_ARE_TEXT(self))) {
+        return NULL;
+    }
+    if (PyBytes_GET_SIZE(key) == 0) {
+        /* get() treats the empty key as a miss; so does `in`. */
+        Py_DECREF(key);
+        Py_RETURN_FALSE;
+    }
+
+    fetch = memcached_behavior_get(self->mc, MEMCACHED_BEHAVIOR_NOREPLY)
+         || memcached_behavior_get(self->mc, MEMCACHED_BEHAVIOR_BUFFER_REQUESTS);
+
+    Py_BEGIN_ALLOW_THREADS;
+    if (fetch) {
+        size_t val_size;
+        uint32_t flags;
+        char *val;
+        if (group == NULL) {
+            val = memcached_get(self->mc,
+                    PyBytes_AS_STRING(key), PyBytes_GET_SIZE(key),
+                    &val_size, &flags, &rc);
+        } else {
+            val = memcached_get_by_key(self->mc,
+                    GROUP_KEY(group), GROUP_KEY_LEN(group),
+                    PyBytes_AS_STRING(key), PyBytes_GET_SIZE(key),
+                    &val_size, &flags, &rc);
+        }
+        free(val);
+    } else if (group == NULL) {
+        rc = memcached_exist(self->mc,
+                PyBytes_AS_STRING(key), PyBytes_GET_SIZE(key));
+    } else {
+        rc = memcached_exist_by_key(self->mc,
+                GROUP_KEY(group), GROUP_KEY_LEN(group),
+                PyBytes_AS_STRING(key), PyBytes_GET_SIZE(key));
+    }
+    Py_END_ALLOW_THREADS;
+
+    switch (rc) {
+        case MEMCACHED_SUCCESS:
+            retval = Py_True;
+            Py_INCREF(retval);
+            break;
+        case MEMCACHED_NOTFOUND:
+            retval = Py_False;
+            Py_INCREF(retval);
+            break;
+        default:
+            PylibMC_ErrFromMemcachedWithKey(self,
+                    fetch ? "memcached_get" : "memcached_exist", rc,
+                    PyBytes_AS_STRING(key), PyBytes_GET_SIZE(key));
+    }
+    Py_DECREF(key);
+    return retval;
+}
+
 
 
 /* {{{ Increment & decrement */

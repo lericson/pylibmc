@@ -344,12 +344,14 @@ static PyObject *PylibMC_Client_flush_all(PylibMC_Client *, PyObject *, PyObject
 static PyObject *PylibMC_Client_disconnect_all(PylibMC_Client *);
 static PyObject *PylibMC_Client_clone(PylibMC_Client *);
 static PyObject *PylibMC_Client_touch(PylibMC_Client *, PyObject *, PyObject *);
+static PyObject *PylibMC_Client_exists(PylibMC_Client *, PyObject *, PyObject *);
 /* Workers behind the methods above. *group* is the normalized master key (a
  * bytes object) to pick the server by, or NULL for the usual hashing. */
 static PyObject *_PylibMC_get(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *_PylibMC_gets(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *_PylibMC_delete(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *_PylibMC_touch(PylibMC_Client *, PyObject *, PyObject *);
+static PyObject *_PylibMC_exists(PylibMC_Client *, PyObject *, PyObject *);
 static PyObject *_PylibMC_get_multi(PylibMC_Client *, PyObject *, PyObject *,
         PyObject *);
 static PyObject *_PylibMC_delete_multi(PylibMC_Client *, PyObject *, PyObject *,
@@ -460,6 +462,8 @@ static PyMethodDef PylibMC_ClientType_methods[] = {
         "another thread. This creates a new connection."},
     {"touch", (PyCFunction)PylibMC_Client_touch, METH_VARARGS|METH_KEYWORDS,
         "Change the TTL of a key."},
+    {"exists", (PyCFunction)PylibMC_Client_exists, METH_VARARGS|METH_KEYWORDS,
+        "Whether a key is stored, without fetching its value."},
     {NULL, NULL, 0, NULL}
 };
 /* }}} */

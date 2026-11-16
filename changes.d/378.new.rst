@@ -1,0 +1,8 @@
+New ``Client.exists(key, master_key=None)`` tells whether a key is stored
+without the value being sent, which saves the transfer for large values.
+``None`` and empty values count as present, as with ``key in client``. It is
+not free on the server: libmemcached asks with an ``add`` of an empty item
+that expires at once, so a miss counts as a store and can evict another item
+when the cache is full (or raise on a server run with ``-M``). For that reason
+``key in client`` keeps using ``get``. With ``buffer_requests`` or
+``_noreply`` on, ``exists`` falls back to fetching the item.

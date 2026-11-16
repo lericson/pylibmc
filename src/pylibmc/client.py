@@ -183,6 +183,8 @@ class Client(_pylibmc.client):
             raise KeyError(key)
 
     def __contains__(self, key):
+        # Not self.exists(key): that is an add on the server, and a miss can
+        # evict another item from a full cache. See exists in the docs.
         return self.get(key, _MISS_SENTINEL) is not _MISS_SENTINEL
     # }}}
 

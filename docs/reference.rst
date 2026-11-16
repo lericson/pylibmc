@@ -74,7 +74,8 @@
 
    .. note:: Every data method below (``get``, ``gets``, ``set``, ``add``,
              ``replace``, ``append``, ``prepend``, ``cas``, ``delete``,
-             ``touch``, ``incr``, ``decr``, ``get_multi``, ``set_multi``,
+             ``touch``, ``exists``, ``incr``, ``decr``, ``get_multi``,
+             ``set_multi``,
              ``add_multi``, ``delete_multi`` and ``incr_multi``) takes a
              keyword-only *master_key* argument. The default, ``None``, is the
              usual behavior. When given, libmemcached hashes the master key
@@ -117,6 +118,42 @@
       Returns a mapping of each unprefixed key to its corresponding value in
       memcached. If a key doesn't exist, no corresponding key is set in the
       returned mapping.
+
+   .. method:: exists(key[, master_key=None]) -> bool
+
+      ``True`` if *key* is stored, ``False`` if not, without the value being
+      sent over the network, which saves the transfer for large values. Any
+      stored value counts, ``None`` and empty values included. As the value is
+      never fetched, :meth:`deserialize` is not called, so a value it would
+      turn into a miss (``CacheMiss``) counts as present. The empty key is
+      ``False``, a bad key raises like it does in :meth:`get`, and a server
+      error (a server that is down, say) raises.
+
+      ``key in client`` still calls :meth:`get` and discards the value; it
+      does not use ``exists``, for the reason in the note.
+
+      .. note:: memcached has no command that only checks for a key, so
+                libmemcached asks with an ``add`` of an empty item whose expiry
+                is already in the past. A present key is left as it was and a
+                missing key stays missing, but to the server a miss is a store
+                of an item that expires at once. It counts in the
+                ``cmd_set`` and ``total_items`` statistics, and when the cache
+                is full it can evict a live item: with memcached 1.6.45 and a
+                full cache of small items, every miss evicted one. A server run
+                with ``-M`` (no evictions) answers a miss on a full cache with
+                an out-of-memory error, which ``exists`` raises. A proxy in
+                front of memcached sees a write. Where that matters, use
+                :meth:`get`.
+
+                With the ``buffer_requests`` or ``_noreply`` behavior on (and
+                so on a UDP client, which runs in noreply mode), ``exists``
+                fetches the item and drops the value instead, because
+                libmemcached's answer cannot be trusted there: with
+                ``buffer_requests`` on the binary protocol it reads the reply
+                of an earlier buffered command, and with ``_noreply``
+                libmemcached 1.0.18 can wait forever. It then answers what
+                :meth:`get` would, including not seeing a store still in the
+                buffer, and a UDP client raises ``NotSupportedError``.
 
    .. Writing
 
