@@ -39,7 +39,8 @@
      ``get_multi``, ``key in mc``, ``mc[key]``, ``touch`` and ``get_stats``.
    * Calls whose result would be taken from the server's answer also raise
      :exc:`pylibmc.NotSupportedError`, rather than return something made up:
-     ``incr``, ``decr``, ``incr_multi`` and ``cas``. Nothing is sent.
+     ``incr``, ``decr``, ``incr_multi``, ``cas`` and ``exists``. Nothing is
+     sent.
    * Writes are fire and forget: ``set``, ``add``, ``replace``, ``append``,
      ``prepend``, ``delete``, ``set_multi``, ``add_multi``, ``delete_multi``
      and ``flush_all`` return ``True`` (``set_multi`` and ``add_multi`` return
@@ -145,15 +146,14 @@
                 front of memcached sees a write. Where that matters, use
                 :meth:`get`.
 
-                With the ``buffer_requests`` or ``_noreply`` behavior on (and
-                so on a UDP client, which runs in noreply mode), ``exists``
-                fetches the item and drops the value instead, because
+                With the ``buffer_requests`` or ``_noreply`` behavior on,
+                ``exists`` fetches the item and drops the value instead, because
                 libmemcached's answer cannot be trusted there: with
                 ``buffer_requests`` on the binary protocol it reads the reply
                 of an earlier buffered command, and with ``_noreply``
                 libmemcached 1.0.18 can wait forever. It then answers what
                 :meth:`get` would, including not seeing a store still in the
-                buffer, and a UDP client raises ``NotSupportedError``.
+                buffer. A UDP client raises ``NotSupportedError``, see above.
 
    .. Writing
 

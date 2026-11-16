@@ -300,8 +300,7 @@ class ExistsRoutingBinaryTests(ExistsRoutingTests):
 
 
 def test_udp_client_refuses_exists():
-    # A UDP client is in noreply mode, so this is the get fallback, which
-    # libmemcached refuses on UDP like any read.
+    # It needs the server's answer, which a UDP client never reads (#383).
     mc = pylibmc.Client(["udp:127.0.0.1:1"])
-    with pytest.raises(pylibmc.NotSupportedError):
+    with pytest.raises(pylibmc.NotSupportedError, match="UDP"):
         mc.exists(rnd())

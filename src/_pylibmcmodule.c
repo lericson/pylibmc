@@ -1728,6 +1728,9 @@ static PyObject *_PylibMC_touch(PylibMC_Client *self, PyObject *group,
 
 static PyObject *PylibMC_Client_exists(PylibMC_Client *self, PyObject *args,
                                        PyObject *kwds) {
+    if (_PylibMC_udp_refuses(self, "exists")) {
+        return NULL;
+    }
     WITH_MASTER_KEY(0, _PylibMC_exists(self, group, args));
 }
 
@@ -1738,7 +1741,8 @@ static PyObject *PylibMC_Client_exists(PylibMC_Client *self, PyObject *args,
  * buffer_requests on the binary protocol it reads the reply of an earlier
  * buffered command instead (true and false come out swapped), and with
  * noreply on the binary protocol 1.0.18 spins forever on a missing key. Those
- * clients fetch the item instead and drop the value. */
+ * clients fetch the item instead and drop the value. A UDP client never sees
+ * an answer and is refused before this. */
 static PyObject *_PylibMC_exists(PylibMC_Client *self, PyObject *group,
                                  PyObject *args) {
     PyObject *key;

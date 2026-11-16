@@ -5,7 +5,7 @@ send. libmemcached runs it in noreply mode, so the server's answers are never
 read. Stores, deletes and flush are written as fire-and-forget datagrams and
 their return values mean "sent", not "stored". Reads are refused with
 NotSupportedError by libmemcached; calls whose result would come from a reply
-(incr, decr, incr_multi, cas, gets) are refused by pylibmc with the same
+(incr, decr, incr_multi, cas, gets, exists) are refused by pylibmc with the same
 NotSupportedError instead of returning a made-up value (#377).
 
 The end-to-end tests start their own memcached with UDP enabled (modern
@@ -112,6 +112,8 @@ class UdpRoundTrip(object):
             lambda: mc.get(k, "default"),
             lambda: mc.get_multi([k]),
             lambda: k in mc,
+            lambda: mc.exists(k),
+            lambda: mc.exists(k, master_key="g"),
             lambda: mc[k],
             lambda: mc.touch(k, 10),
             lambda: mc.get_stats(),
