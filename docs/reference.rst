@@ -21,13 +21,42 @@
    default transport type is TCP.
 
    To specify UDP, the server address should be prefixed with ``"udp:"``, as in
-   ``"udp:127.0.0.1"``.
+   ``"udp:127.0.0.1"``. A UDP client is **write-only**, see below.
 
    To specify UNIX domain socket, the server address must start with a slash, as
    in ``"/run/foo.sock"``.
 
    Mixing transport types is prohibited by :mod:`pylibmc` as this is not supported by
    libmemcached.
+
+   .. rubric:: UDP is write-only
+
+   libmemcached runs a UDP client in noreply mode (``get_behaviors()["_noreply"]``
+   is ``1`` and cannot be turned off): commands are sent as datagrams and the
+   server's answers are never read. So a UDP client can only send.
+
+   * Reads raise :exc:`pylibmc.NotSupportedError`: ``get``, ``gets``,
+     ``get_multi``, ``key in mc``, ``mc[key]``, ``touch`` and ``get_stats``.
+   * Calls whose result would be taken from the server's answer also raise
+     :exc:`pylibmc.NotSupportedError`, rather than return something made up:
+     ``incr``, ``decr``, ``incr_multi`` and ``cas``. Nothing is sent.
+   * Writes are fire and forget: ``set``, ``add``, ``replace``, ``append``,
+     ``prepend``, ``delete``, ``set_multi``, ``add_multi``, ``delete_multi``
+     and ``flush_all`` return ``True`` (``set_multi`` and ``add_multi`` return
+     an empty list), and that means *sent*, not *stored*. ``add`` returns
+     ``True`` although the key exists, and ``delete`` although it does not;
+     the server's refusal is not seen. Use a TCP client to read the result.
+   * The rules also hold for clones and for the pools in :mod:`pylibmc.pools`.
+
+   memcached must listen for UDP, which is off by default since memcached 1.5.6:
+   start it with ``-U <port>`` (it can serve TCP and UDP at once, for example
+   ``memcached -p 11211 -U 11211``). A datagram has to hold the whole command,
+   so large values do not work: about 5 kB arrives, but values of 100 kB fail
+   with :exc:`pylibmc.WriteError` (the limit is what the operating system
+   accepts in one datagram, not measured per platform), and on the binary
+   protocol the server is then marked failed and later calls raise
+   :exc:`pylibmc.ServerDown` until the retry timeout has passed (measured with
+   libmemcached 1.0.18).
 
    .. method:: clone() -> clone
 
