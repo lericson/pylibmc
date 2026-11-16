@@ -71,9 +71,10 @@ New:
   evict another item. ``key in client`` therefore keeps using ``get``.
 - ``incr`` and ``decr`` take ``initial=`` and ``expire=``, which create a
   missing key with that value in one round trip instead of a racy ``add``
-  followed by ``incr`` (#379). This needs ``binary=True``; a text-protocol client raises
-  ``NotSupportedError``. A key created this way holds plain digits, so ``get``
-  returns ``bytes``. ``delta`` may now be up to ``2**32 - 1``.
+  followed by ``incr`` (#379). This needs ``binary=True``; a text-protocol
+  client raises ``NotSupportedError``. A key created this way holds plain
+  digits, so ``get`` returns ``bytes``. ``delta`` may now be up to
+  ``2**32 - 1``.
 - ``cas`` takes ``min_compress_len`` and ``compress_level`` and compresses like
   ``set``, and cas tokens of ``2**63`` and above work (#285).
 - New behaviors ``tcp_keepidle``, ``randomize_replica_read`` and
