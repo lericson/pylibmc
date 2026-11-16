@@ -115,9 +115,10 @@ The number is also available as the ``retcode`` attribute of the exception
 class, so ``pylibmc.ConnectionError.retcode == 3``. The module-level list
 ``pylibmc.exceptions`` holds ``(name, class)`` pairs for all exception classes.
 ``pylibmc.Error`` and ``pylibmc.CacheMiss`` have no ``retcode``, and a
-libmemcached error without an exception class of its own (``MEMCACHED_ERRNO``,
-for instance, whose message carries the C library's ``strerror`` text) is raised
-as a plain :exc:`pylibmc.Error`. ``TooBig`` is raised with an empty message.
+libmemcached error without an exception class of its own is raised as a plain
+:exc:`pylibmc.Error`. Every class below is a subclass of :exc:`pylibmc.Error`,
+so ``except pylibmc.Error`` catches them all. ``TooBig`` is raised with an
+empty message, and ``SystemCallError`` with the C library's ``strerror`` text.
 
 .. warning:: The numbers belong to libmemcached, not to :mod:`pylibmc`. They
              are not guaranteed to be the same between libmemcached versions,
@@ -142,13 +143,14 @@ Exception                     Code  libmemcached text
 ``ProtocolError``             8     PROTOCOL ERROR
 ``ClientError``               9     CLIENT ERROR
 ``ServerError``               10    SERVER ERROR
-``SocketCreateError``         11    ERROR was returned by server
+``ErrorReply``                11    ERROR was returned by server
 ``DataExists``                12    CONNECTION DATA EXISTS
 ``DataDoesNotExist``          13    CONNECTION DATA DOES NOT EXIST
 ``NotFound``                  16    NOT FOUND
 ``AllocationError``           17    MEMORY ALLOCATION FAILURE
 ``SomeErrors``                19    SOME ERRORS WERE REPORTED
 ``NoServers``                 20    NO SERVERS DEFINED
+``SystemCallError``           26    SYSTEM ERROR
 ``UnixSocketError``           27    COULD NOT OPEN UNIX SOCKET
 ``NotSupportedError``         28    ACTION NOT SUPPORTED
 ``FetchNotFinished``          30    FETCH WAS NOT COMPLETED
@@ -159,7 +161,47 @@ Exception                     Code  libmemcached text
 ``ServerDown``                47    SERVER HAS FAILED AND IS DISABLED UNTIL TIMED RETRY
 ``TooBig``                    37    ITEM TOO BIG
 ``UnknownStatKey``            36    ENCOUNTERED AN UNKNOWN STAT KEY
+``InvalidArguments``          38    INVALID ARGUMENTS
+``AuthProblem``               40    FAILED TO SEND AUTHENTICATION TO SERVER
+``AuthFailure``               41    AUTHENTICATION FAILURE
+``InProgress``                46    OPERATION IN PROCESS
+``ServerAllocationError``     48    SERVER FAILED TO ALLOCATE OBJECT
 ============================  ====  =============================================================
+
+Some codes are worth a word:
+
+.. exception:: pylibmc.ErrorReply
+
+   The server answered ``ERROR``, which memcached does for a command it does
+   not know (text protocol only). Up to pylibmc 1.7 this class was called
+   ``SocketCreateError``, after libmemcached's other name for the same code,
+   although no socket is involved. ``pylibmc.SocketCreateError`` still works
+   and is the very same class, so ``except pylibmc.SocketCreateError`` keeps
+   catching it, but using that name emits a :class:`DeprecationWarning`; it
+   will be removed in a future release.
+
+.. exception:: pylibmc.AuthFailure
+
+   The server refused the SASL login (a wrong user name or password), or
+   refused a command because the client has not logged in. Raised by the first
+   command that connects, not by the :class:`pylibmc.Client` constructor.
+   Before pylibmc 1.8 this was a plain :exc:`pylibmc.Error`.
+
+.. exception:: pylibmc.AuthProblem
+
+   The SASL login could not even be attempted, for example because the
+   client's SASL library has none of the mechanisms the server offers.
+
+.. exception:: pylibmc.InvalidArguments
+
+   libmemcached rejected an argument, for example a server address whose host
+   name or unix socket path is too long, or an unknown statistics group passed
+   to ``get_stats`` over the text protocol.
+
+.. exception:: pylibmc.ServerAllocationError
+
+   The server could not allocate memory to store an item (memcached answers
+   ``SERVER_ERROR out of memory storing object``).
 
 .. exception:: pylibmc.Timeout
 
