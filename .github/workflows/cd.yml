@@ -81,7 +81,7 @@ jobs:
 
       - name: Install cibuildwheel
         run: |
-          python -m pip install cibuildwheel==3.3.1
+          python -m pip install cibuildwheel==4.3.5
 
       # libmemcached is built from a checksum-verified source tarball (see
       # .github/scripts/build-libmemcached.sh). The deployment target is kept
@@ -115,14 +115,16 @@ jobs:
       - name: Build wheels
         env:
           # musllinux and free-threaded CPython (untested) are skipped. PyPy is
-          # opt-in in cibuildwheel 3, which offers PyPy 3.11 only; CI tests
-          # pypy3.11, so those wheels are covered. The wheel tests run on it too.
+          # opt-in in cibuildwheel 4, which offers PyPy 3.11 and 3.12; CI tests
+          # pypy3.11 only, so those are the PyPy wheels we ship. The wheel tests
+          # run on it too.
           CIBW_ENABLE: pypy
-          # cp314t: free-threaded builds are not tested.
-          CIBW_SKIP: "*-musllinux* cp314t-*"
+          # cp314t, cp315t: free-threaded builds are not tested.
+          # pp312: not tested in CI.
+          CIBW_SKIP: "*-musllinux* cp314t-* cp315t-* pp312-*"
           CIBW_ARCHS_MACOS: "x86_64 arm64"
           CIBW_ARCHS_LINUX: ${{ matrix.linux_archs }}
-          # manylinux_2_28 (AlmaLinux 8, glibc 2.28) is the cibuildwheel 3
+          # manylinux_2_28 (AlmaLinux 8, glibc 2.28) is the cibuildwheel 4
           # default; manylinux2014 (CentOS 7) is end-of-life and its toolchain
           # is too old for libmemcached 1.1.4 (C++11, modern cmake/bison).
           CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
