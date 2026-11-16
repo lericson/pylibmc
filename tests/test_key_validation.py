@@ -18,6 +18,7 @@ import pytest
 
 import pylibmc
 from pylibmc.test import make_test_client
+from tests import server_address
 
 
 def fresh(prefix="kv-"):
@@ -30,7 +31,7 @@ def text(**kw):
 
 def client(**kw):
     """Built right here, so a warning's stack level can be checked."""
-    return pylibmc.Client(["127.0.0.1"], **kw)
+    return pylibmc.Client([server_address()], **kw)
 
 
 def binary(**kw):

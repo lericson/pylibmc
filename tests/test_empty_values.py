@@ -7,11 +7,11 @@ issue #291.
 
 import pylibmc
 from pylibmc.test import make_test_client
-from tests import PylibmcTestCase
+from tests import PylibmcTestCase, server_address
 
 f_pickle, f_int, f_long, f_zlib, f_text = (1 << i for i in range(5))
 
-SERVERS = ["127.0.0.1:11211"]
+SERVERS = [server_address()]
 
 
 class CustomDeserializeClient(pylibmc.Client):

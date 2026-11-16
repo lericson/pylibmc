@@ -3,6 +3,7 @@
 import pytest
 
 import pylibmc
+from tests import server_address
 
 pytestmark = pytest.mark.skipif(
     pylibmc._pylibmc.libmemcached_version_hex < 0x00049000,
@@ -10,7 +11,7 @@ pytestmark = pytest.mark.skipif(
 
 
 def make(**behaviors):
-    return pylibmc.Client(["127.0.0.1:11211"], behaviors=behaviors)
+    return pylibmc.Client([server_address()], behaviors=behaviors)
 
 
 def test_default_reads_failure_limit():

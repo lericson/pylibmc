@@ -3,7 +3,7 @@
 import uuid
 
 import pylibmc
-from tests import PylibmcTestCase
+from tests import PylibmcTestCase, server_address
 
 
 class Overriding(pylibmc.Client):
@@ -16,7 +16,7 @@ class Overriding(pylibmc.Client):
 
 class CloneTests(PylibmcTestCase):
     def test_behaviors_and_pickle_protocol(self):
-        mc = pylibmc.Client(["127.0.0.1:11211"], binary=True,
+        mc = pylibmc.Client([server_address()], binary=True,
                             behaviors={"tcp_nodelay": True, "ketama": True,
                                        "pickle_protocol": 2})
         clone = mc.clone()
@@ -26,7 +26,7 @@ class CloneTests(PylibmcTestCase):
         assert b["pickle_protocol"] == 2
 
     def test_serialization_overrides(self):
-        mc = Overriding(["127.0.0.1:11211"])
+        mc = Overriding([server_address()])
         clone = mc.clone()
         assert type(clone) is Overriding
         key = uuid.uuid4().hex

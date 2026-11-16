@@ -10,8 +10,9 @@ import pytest
 
 import pylibmc
 import _pylibmc
+from tests import server_address
 
-HOST = "127.0.0.1:11211"
+HOST = server_address()
 
 # memcached_get() flushes queued writes first on 1.1.x only; on 1.0.x a read
 # neither flushes them nor sees them.
