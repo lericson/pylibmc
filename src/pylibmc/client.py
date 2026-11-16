@@ -88,12 +88,18 @@ def translate_server_specs(servers):
     return addr_tups
 
 def _behaviors_symbolic(behaviors):
-    """Turn numeric constants into symbolic strings"""
+    """Turn numeric constants into symbolic strings
+
+    A value pylibmc has no name for (a hash or distribution added in a newer
+    libmemcached, say) stays the integer libmemcached reported, rather than
+    making get_behaviors() raise KeyError.
+    """
 
     behaviors = behaviors.copy()
 
-    behaviors["hash"] = hashers_rvs[behaviors["hash"]]
-    behaviors["distribution"] = distributions_rvs[behaviors["distribution"]]
+    behaviors["hash"] = hashers_rvs.get(behaviors["hash"], behaviors["hash"])
+    behaviors["distribution"] = distributions_rvs.get(
+        behaviors["distribution"], behaviors["distribution"])
 
     return behaviors
 
@@ -123,11 +129,14 @@ def _behaviors_numeric(behaviors, stacklevel=3):
         names = ", ".join(map(str, sorted(unknown)))
         raise ValueError(f"unknown behavior names: {names}")
 
-    if behaviors.get("hash") is not None:
+    # Integers pass through as libmemcached constants, so that whatever
+    # get_behaviors() returned (see _behaviors_symbolic) can be set again.
+    if behaviors.get("hash") is not None and not isinstance(behaviors["hash"], int):
         behaviors["hash"] = hashers[behaviors["hash"]]
     if behaviors.get("ketama_hash") in hashers:
         behaviors["ketama_hash"] = hashers[behaviors["ketama_hash"]]
-    if behaviors.get("distribution") is not None:
+    if (behaviors.get("distribution") is not None
+            and not isinstance(behaviors["distribution"], int)):
         behaviors["distribution"] = distributions[behaviors["distribution"]]
 
     return behaviors
