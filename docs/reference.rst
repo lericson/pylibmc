@@ -200,28 +200,47 @@
       .. note:: Uses memcached's prepending support, and therefore should never
                 be used on keys which may be compressed or non-string values.
 
-   .. method:: incr(key[, delta=1, master_key=None]) -> value
+   .. method:: incr(key[, delta=1, initial=None, expire=0, master_key=None]) -> value
 
       Increment value at *key* by *delta*.
 
       Returns the new value for *key*, after incrementing.
 
-      Works for both strings and integer types.
+      Works for both strings and integer types. *delta* is 0 to ``2**32 - 1``
+      (``ValueError`` below, ``OverflowError`` above).
 
-      .. note:: There is currently no way to set a default for *key* when
-                incrementing.
+      Without *initial*, a missing key raises :exc:`pylibmc.NotFound`. With
+      *initial* (0 to ``2**64 - 1``), a missing key is created with that value
+      in the same round trip, and the call returns *initial*: *delta* is not
+      added to a key that was just created. An existing key is incremented and
+      *initial* is ignored. This replaces ``add(key, 0)`` followed by
+      ``incr(key)``, which is two round trips and races.
 
-   .. method:: decr(key[, delta=1, master_key=None]) -> value
+      *expire* is the expiry time of a key that *initial* creates, interpreted
+      like *time* in :meth:`set` (0 means never). It does not change the expiry
+      of an existing key, and without *initial* it must be 0 (``ValueError``
+      otherwise). ``4294967295`` is reserved by the protocol and raises
+      ``ValueError``.
+
+      .. note:: *initial* needs the binary protocol (``binary=True``). memcached's
+                text protocol has no way to create a key in ``incr``, so on a
+                text-protocol client *initial* raises
+                :exc:`pylibmc.NotSupportedError` before anything is sent.
+
+      .. note:: A key created by *initial* holds the number as ASCII digits with
+                no pylibmc flags, so :meth:`get` returns it as ``bytes``
+                (``b"10"``), not ``int``. Use ``int(mc.get(key))``, or keep using
+                the return value of ``incr``.
+
+   .. method:: decr(key[, delta=1, initial=None, expire=0, master_key=None]) -> value
 
       Decrement value at *key* by *delta*.
 
       Returns the new value for *key*, after decrementing.
 
       Works for both strings and integer types, but will never decrement below
-      zero.
-
-      .. note:: There is currently no way to set a default for *key* when
-                decrementing.
+      zero. *initial* and *expire* work as in :meth:`incr`: a missing key is
+      created with *initial* and *initial* is returned.
 
    .. Atomic operations
 

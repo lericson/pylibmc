@@ -101,6 +101,12 @@ typedef memcached_return (*_PylibMC_SetByKeyCommand)(memcached_st *,
         time_t, uint32_t);
 typedef memcached_return (*_PylibMC_IncrByKeyCommand)(memcached_st *,
         const char *, size_t, const char *, size_t, uint64_t, uint64_t*);
+/* memcached_{in,de}crement_with_initial and their *_by_key forms. */
+typedef memcached_return (*_PylibMC_IncrInitialCommand)(memcached_st *,
+        const char *, size_t, uint64_t, uint64_t, time_t, uint64_t*);
+typedef memcached_return (*_PylibMC_IncrInitialByKeyCommand)(memcached_st *,
+        const char *, size_t, const char *, size_t, uint64_t, uint64_t, time_t,
+        uint64_t*);
 
 typedef struct {
   char *key;
@@ -143,6 +149,12 @@ typedef struct {
   _PylibMC_IncrByKeyCommand incr_by_key_func;
   unsigned int delta;
   uint64_t result;
+  /* With *initial_func* set, the key is created with *initial* (and
+   * *expire*) if missing, through the *_with_initial functions. */
+  _PylibMC_IncrInitialCommand initial_func;
+  _PylibMC_IncrInitialByKeyCommand initial_by_key_func;
+  uint64_t initial;
+  time_t expire;
 } pylibmc_incr;
 
 typedef struct {
@@ -357,7 +369,9 @@ static PyObject *_PylibMC_delete_multi(PylibMC_Client *, PyObject *, PyObject *,
 static PyObject *_PylibMC_RunCasCommand(PylibMC_Client *, PyObject *,
         PyObject *, PyObject *);
 static PyObject *_PylibMC_IncrSingle(PylibMC_Client *, PyObject *,
-        _PylibMC_IncrCommand, _PylibMC_IncrByKeyCommand, PyObject *);
+        _PylibMC_IncrCommand, _PylibMC_IncrByKeyCommand,
+        _PylibMC_IncrInitialCommand, _PylibMC_IncrInitialByKeyCommand,
+        PyObject *, PyObject *);
 static PyObject *_PylibMC_IncrMulti(PylibMC_Client *, PyObject *,
         _PylibMC_IncrCommand, _PylibMC_IncrByKeyCommand, PyObject *, PyObject *);
 static PyObject *PylibMC_ErrFromMemcachedWithKey(PylibMC_Client *, const char *,
