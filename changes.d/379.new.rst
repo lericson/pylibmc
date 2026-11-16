@@ -1,0 +1,10 @@
+``incr`` and ``decr`` take ``initial=`` and ``expire=``: with ``initial``, a
+missing key is created with that value (and ``expire`` as its expiry) in one
+round trip, instead of ``add(key, 0)`` followed by ``incr(key)``, which races.
+The call then returns ``initial``; an existing key is changed as before. This
+needs the binary protocol: a text-protocol client raises
+``NotSupportedError`` before sending anything. A created key holds plain
+digits, so ``get`` returns it as ``bytes``. Without ``initial`` nothing
+changes, except that ``delta`` may now be up to ``2**32 - 1`` (it was
+``2**31 - 1``) and can be passed by keyword. ``incr_multi`` does not take
+``initial``.

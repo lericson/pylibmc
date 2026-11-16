@@ -119,6 +119,8 @@ class UdpRoundTrip:
             lambda: mc.get_stats(),
             lambda: mc.incr(k),
             lambda: mc.decr(k, 2),
+            lambda: mc.incr(k, initial=1),
+            lambda: mc.decr(k, 1, initial=5, expire=10),
             lambda: mc.incr_multi([k]),
             lambda: mc.cas(k, "v", 1),
             lambda: mc.gets(k),

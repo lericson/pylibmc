@@ -1802,23 +1802,105 @@ static PyObject *_PylibMC_exists(PylibMC_Client *self, PyObject *group,
 
 
 /* {{{ Increment & decrement */
+/* The initial value of a counter: any unsigned 64-bit integer. Negative
+ * numbers are a ValueError and 2**64 and up an OverflowError, as for the other
+ * unsigned arguments (_PylibMC_uint_arg). */
+static int _PylibMC_initial_arg(PyObject *in, uint64_t *out) {
+    PyObject *num = PyNumber_Index(in);
+    int overflow;
+    long long sv;
+    unsigned long long v;
+    if (num == NULL) {
+        return 0;
+    }
+    sv = PyLong_AsLongLongAndOverflow(num, &overflow);
+    if (sv == -1 && PyErr_Occurred()) {
+        Py_DECREF(num);
+        return 0;
+    }
+    if (overflow < 0 || (overflow == 0 && sv < 0)) {
+        Py_DECREF(num);
+        PyErr_SetString(PyExc_ValueError, "initial must not be negative");
+        return 0;
+    }
+    v = PyLong_AsUnsignedLongLong(num);
+    Py_DECREF(num);
+    if (v == (unsigned long long)-1 && PyErr_Occurred()) {
+        PyErr_SetString(PyExc_OverflowError, "initial is too large");
+        return 0;
+    }
+    *out = (uint64_t)v;
+    return 1;
+}
+
 static PyObject *_PylibMC_IncrSingle(PylibMC_Client *self, PyObject *group,
                                      _PylibMC_IncrCommand incr_func,
                                      _PylibMC_IncrByKeyCommand incr_by_key_func,
-                                     PyObject *args) {
+                                     _PylibMC_IncrInitialCommand initial_func,
+                                     _PylibMC_IncrInitialByKeyCommand initial_by_key_func,
+                                     PyObject *args, PyObject *kwds) {
+    static char *kws[] = { "key", "delta", "initial", "expire", NULL };
     char *key;
     Py_ssize_t key_len = 0;
-    int delta = 1;
+    long long delta_arg = 1;
+    unsigned int delta;
+    PyObject *initial_arg = Py_None;
+    long long expire_arg = 0;
+    unsigned int expire = 0;
     pylibmc_incr incr;
 
-    if (!PyArg_ParseTuple(args, "s#|i", &key, &key_len, &delta)) {
-        return NULL;
-    } else if (!_key_normalized_str(&key, &key_len, KEYS_ARE_TEXT(self))) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s#|LOL", kws,
+                                     &key, &key_len, &delta_arg,
+                                     &initial_arg, &expire_arg)) {
         return NULL;
     }
 
-    if (delta < 0L) {
+    if (delta_arg < 0) {
         PyErr_SetString(PyExc_ValueError, "delta must be positive");
+        return NULL;
+    }
+    if (!_PylibMC_uint_arg(delta_arg, "delta", &delta)
+            || !_PylibMC_time_arg(expire_arg, &expire)) {
+        return NULL;
+    }
+
+    incr.initial_func = NULL;
+    incr.initial_by_key_func = NULL;
+    incr.initial = 0;
+    incr.expire = 0;
+
+    if (initial_arg != Py_None) {
+        if (!_PylibMC_initial_arg(initial_arg, &incr.initial)) {
+            return NULL;
+        }
+        /* The binary protocol reserves this expiry for "do not create"
+         * (libmemcached's MEMCACHED_EXPIRATION_NOT_ADD). */
+        if (expire == UINT_MAX) {
+            PyErr_SetString(PyExc_ValueError,
+                            "expire 4294967295 is reserved by the binary "
+                            "protocol; use at most 4294967294");
+            return NULL;
+        }
+        /* libmemcached answers MEMCACHED_INVALID_ARGUMENTS for this on the
+         * text protocol, which has no such command; say why up front. */
+        if (!memcached_behavior_get(self->mc,
+                                    MEMCACHED_BEHAVIOR_BINARY_PROTOCOL)) {
+            PyErr_SetString(_exc_by_rc(MEMCACHED_NOT_SUPPORTED),
+                            "initial= needs the binary protocol "
+                            "(binary=True); the text protocol cannot create "
+                            "a key in incr or decr");
+            return NULL;
+        }
+        incr.initial_func = initial_func;
+        incr.initial_by_key_func = initial_by_key_func;
+        incr.expire = (time_t)expire;
+    } else if (expire != 0) {
+        PyErr_SetString(PyExc_ValueError,
+                        "expire applies only to a key created with initial=");
+        return NULL;
+    }
+
+    if (!_key_normalized_str(&key, &key_len, KEYS_ARE_TEXT(self))) {
         return NULL;
     }
 
@@ -1837,7 +1919,7 @@ static PyObject *_PylibMC_IncrSingle(PylibMC_Client *self, PyObject *group,
     }
 
     /* might be NULL, but if that's true then it's the right return value */
-    return PyLong_FromUnsignedLong((unsigned long)incr.result);
+    return PyLong_FromUnsignedLongLong((unsigned long long)incr.result);
 }
 
 static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self, PyObject *group,
@@ -1939,6 +2021,10 @@ static PyObject *_PylibMC_IncrMulti(PylibMC_Client *self, PyObject *group,
         incr->delta = delta;
         incr->incr_func = incr_func;
         incr->incr_by_key_func = incr_by_key_func;
+        incr->initial_func = NULL;
+        incr->initial_by_key_func = NULL;
+        incr->initial = 0;
+        incr->expire = 0;
         /* After incring we have no way of knowing whether the real result is 0
          * or if the incr wasn't successful (or if noreply is set), but since
          * we're not actually returning the result that's okay for now */
@@ -1975,8 +2061,11 @@ static PyObject *PylibMC_Client_incr(PylibMC_Client *self, PyObject *args,
     if (_PylibMC_udp_refuses(self, "incr")) {
         return NULL;
     }
-    WITH_MASTER_KEY(0, _PylibMC_IncrSingle(self, group, memcached_increment,
-                                           memcached_increment_by_key, args));
+    WITH_MASTER_KEY(1, _PylibMC_IncrSingle(self, group, memcached_increment,
+                                           memcached_increment_by_key,
+                                           memcached_increment_with_initial,
+                                           memcached_increment_with_initial_by_key,
+                                           args, rest));
 }
 
 static PyObject *PylibMC_Client_decr(PylibMC_Client *self, PyObject *args,
@@ -1984,8 +2073,11 @@ static PyObject *PylibMC_Client_decr(PylibMC_Client *self, PyObject *args,
     if (_PylibMC_udp_refuses(self, "decr")) {
         return NULL;
     }
-    WITH_MASTER_KEY(0, _PylibMC_IncrSingle(self, group, memcached_decrement,
-                                           memcached_decrement_by_key, args));
+    WITH_MASTER_KEY(1, _PylibMC_IncrSingle(self, group, memcached_decrement,
+                                           memcached_decrement_by_key,
+                                           memcached_decrement_with_initial,
+                                           memcached_decrement_with_initial_by_key,
+                                           args, rest));
 }
 
 static PyObject *PylibMC_Client_incr_multi(PylibMC_Client *self, PyObject *args,
@@ -2009,7 +2101,17 @@ static bool _PylibMC_IncrDecr(PylibMC_Client *self, PyObject *group,
         pylibmc_incr *incr = &incrs[i];
         uint64_t result = 0;
 
-        if (group == NULL) {
+        if (incr->initial_func != NULL && group == NULL) {
+            rc = incr->initial_func(self->mc, incr->key, incr->key_len,
+                                    incr->delta, incr->initial, incr->expire,
+                                    &result);
+        } else if (incr->initial_func != NULL) {
+            rc = incr->initial_by_key_func(self->mc,
+                                           GROUP_KEY(group), GROUP_KEY_LEN(group),
+                                           incr->key, incr->key_len,
+                                           incr->delta, incr->initial,
+                                           incr->expire, &result);
+        } else if (group == NULL) {
             f = incr->incr_func;
             rc = f(self->mc, incr->key, incr->key_len, incr->delta, &result);
         } else {
