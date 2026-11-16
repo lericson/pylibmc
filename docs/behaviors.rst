@@ -10,7 +10,9 @@ interface.
 
 Not all of the available behaviors make sense for Python, or are hard to make
 use of, and as such some behaviors have been intentionally hidden or exposed in
-some other way (UDP and the binary protocol are examples of this.)
+some other way (UDP and the binary protocol are examples of this.) A ``udp:``
+client always runs with the ``_noreply`` behavior on, which makes it write-only;
+see :class:`pylibmc.Client`.
 
 Generally, a behavior's value should be an integer value. The exceptions are
 hashing and distribution, which :mod:`pylibmc` translates with the C constants'

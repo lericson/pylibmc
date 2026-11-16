@@ -136,6 +136,19 @@ static int _PylibMC_split_kwds(PyObject *kwds, int allow_rest,
     return 1;
 }
 
+/* A UDP client runs in noreply mode: nothing is read back, so a call whose
+ * result comes from a reply would have to make one up. Refuse those calls with
+ * the error libmemcached gives for reads. Returns 1 with the exception set. */
+static int _PylibMC_udp_refuses(PylibMC_Client *self, const char *what) {
+    if (!self->udp) {
+        return 0;
+    }
+    PyErr_Format(_exc_by_rc(MEMCACHED_NOT_SUPPORTED),
+                 "%s is not supported on a UDP client: UDP clients only send "
+                 "(noreply) and never see the server's answer", what);
+    return 1;
+}
+
 /* Run *call* (an expression using `group` and `rest`) and release both. */
 #define WITH_MASTER_KEY(allow_rest, call)                                   \
     do {                                                                    \
@@ -210,6 +223,7 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
     memcached_return rc;
 
     self->pickle_protocol = -1;
+    self->udp = 0;
 
     static char *kws[] = { "servers", "binary", "username", "password",
                            "behaviors", NULL };
@@ -311,6 +325,7 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
             } else {
                 set_stype = stype;
                 if (stype == PYLIBMC_SERVER_UDP) {
+                    self->udp = 1;
                     rc = memcached_behavior_set(self->mc, MEMCACHED_BEHAVIOR_USE_UDP, 1);
                     if (rc != MEMCACHED_SUCCESS) {
                         PyErr_SetString(PyExc_RuntimeError, "udp behavior set failed");
@@ -320,6 +335,9 @@ static int PylibMC_Client_init(PylibMC_Client *self, PyObject *args,
             }
 
             switch (stype) {
+                /* UDP is the use_udp behavior set above plus a normal add:
+                 * with use_udp libmemcached sends datagrams, turns noreply on
+                 * and reads no replies, so the client is write-only. */
                 case PYLIBMC_SERVER_UDP:
 #if LIBMEMCACHED_VERSION_HEX <= 0x00053000
                     rc = memcached_server_add_udp_with_weight(self->mc, hostname, port, weight);
@@ -930,6 +948,9 @@ static PyObject *PylibMC_Client_gets(PylibMC_Client *self, PyObject *args,
                                      PyObject *kwds) {
     PyObject *arg;
     if (!PyArg_UnpackTuple(args, "gets", 1, 1, &arg)) {
+        return NULL;
+    }
+    if (_PylibMC_udp_refuses(self, "gets")) {
         return NULL;
     }
     WITH_MASTER_KEY(0, _PylibMC_gets(self, group, arg));
@@ -1606,6 +1627,9 @@ static PyObject *PylibMC_Client_append(PylibMC_Client *self, PyObject *args,
 
 static PyObject *PylibMC_Client_cas(PylibMC_Client *self, PyObject *args,
         PyObject *kwds) {
+    if (_PylibMC_udp_refuses(self, "cas")) {
+        return NULL;
+    }
   WITH_MASTER_KEY(1, _PylibMC_RunSetCommandSingle(
           self, group, NULL, NULL, "memcached_cas", args, rest));
 }
@@ -1875,18 +1899,27 @@ cleanup:
 
 static PyObject *PylibMC_Client_incr(PylibMC_Client *self, PyObject *args,
                                      PyObject *kwds) {
+    if (_PylibMC_udp_refuses(self, "incr")) {
+        return NULL;
+    }
     WITH_MASTER_KEY(0, _PylibMC_IncrSingle(self, group, memcached_increment,
                                            memcached_increment_by_key, args));
 }
 
 static PyObject *PylibMC_Client_decr(PylibMC_Client *self, PyObject *args,
                                      PyObject *kwds) {
+    if (_PylibMC_udp_refuses(self, "decr")) {
+        return NULL;
+    }
     WITH_MASTER_KEY(0, _PylibMC_IncrSingle(self, group, memcached_decrement,
                                            memcached_decrement_by_key, args));
 }
 
 static PyObject *PylibMC_Client_incr_multi(PylibMC_Client *self, PyObject *args,
                                            PyObject *kwds) {
+    if (_PylibMC_udp_refuses(self, "incr_multi")) {
+        return NULL;
+    }
     WITH_MASTER_KEY(1, _PylibMC_IncrMulti(self, group, memcached_increment,
                                           memcached_increment_by_key,
                                           args, rest));
@@ -2731,6 +2764,7 @@ static PyObject *PylibMC_Client_clone(PylibMC_Client *self) {
     clone->native_serialization = self->native_serialization;
     clone->native_deserialization = self->native_deserialization;
     clone->pickle_protocol = self->pickle_protocol;
+    clone->udp = self->udp;
     return (PyObject *)clone;
 }
 /* }}} */

@@ -1,0 +1,9 @@
+``incr``, ``decr``, ``incr_multi`` and ``cas`` on a ``udp:``
+client now raise ``pylibmc.NotSupportedError``. They used to return a
+meaningless value (``18446744073709551615`` for ``incr`` and ``decr``, ``True``
+for ``cas``) because a UDP client never reads the server's answer. If you call
+them on a UDP client, use a TCP client for those calls: the increment or store
+never told you its outcome. The other writes (``set``, ``add``, ``delete``,
+``flush_all`` and so on) still return ``True``, which means "sent", not
+"stored". Reads already raised ``NotSupportedError``. The documentation now
+says that UDP is write-only and that memcached needs ``-U <port>`` for it.
