@@ -47,7 +47,7 @@ def test_missing_socket_is_an_error_not_a_crash(binary, tmp_path):
         mc.get(key())
 
 
-class UnixRoundTrip(object):
+class UnixRoundTrip:
     binary = False
     flavor = {"unix": True}
 

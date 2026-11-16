@@ -34,7 +34,7 @@ VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:[-.]?[A-Za-z][A-Za-z0-9.]*)?$")
 MINOR_ONLY = ("breaking", "new")
 
 
-class Fragment(object):
+class Fragment:
     def __init__(self, name, ident, category, text):
         self.name = name
         self.ident = ident

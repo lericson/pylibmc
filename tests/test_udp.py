@@ -55,12 +55,12 @@ def test_udp_to_closed_port_still_refuses_reads():
         mc.get(key())
 
 
-class UdpRoundTrip(object):
+class UdpRoundTrip:
     binary = False
     flavor = {"udp": True}
 
     def setUp(self):
-        super(UdpRoundTrip, self).setUp()
+        super().setUp()
         s = self.server
         self.udp = pylibmc.Client(["udp:127.0.0.1:%d" % s.udp_port],
                                   binary=self.binary)

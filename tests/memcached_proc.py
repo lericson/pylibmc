@@ -59,7 +59,7 @@ def _can_connect(family, address):
         s.close()
 
 
-class Memcached(object):
+class Memcached:
     """A memcached subprocess. Raises Unavailable if it cannot be started."""
 
     def __init__(self, unix=False, udp=False):

@@ -96,7 +96,7 @@ class CasTokenTests(PylibmcTestCase):
         self.assertEqual(c.get(k), 1)
 
 
-class FakeCasServer(object):
+class FakeCasServer:
     """Records the command lines of a text-protocol server that answers
     every storage command with EXISTS. This is how the exact token that
     reaches the wire is checked, since the real server only ever hands out
