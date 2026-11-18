@@ -58,19 +58,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15", "pypy3.11"]
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
         # 1.0.18 is the legacy floor: Ubuntu 22.04 is the last runner image
         # whose libmemcached-dev package is 1.0.18 (24.04 ships 1.1.4). The
         # maintained 1.1.x series is built from source, on a subset of
-        # Pythons (oldest, newest, one PyPy) to keep CI time sane.
+        # Pythons (oldest, newest, the PyPys) to keep CI time sane.
         os: [ubuntu-22.04]
         libmemcached: ["1.0.18"]
+        # PyPy 3.11 is tested on both PyPy series we ship wheels for: 8.0
+        # (pypy3.11 is the newest PyPy for 3.11) and 7.3, pinned to its last
+        # release. `pypy` is the PyPy major.minor the leg must run; it fails
+        # otherwise, so a new PyPy release cannot move a leg unnoticed.
         include:
+          - {os: ubuntu-22.04, python-version: "pypy3.11", pypy: "8.0", libmemcached: "1.0.18"}
+          - {os: ubuntu-22.04, python-version: "pypy3.11-v7.3.23", pypy: "7.3", libmemcached: "1.0.18"}
           - {os: ubuntu-latest, python-version: "3.11", libmemcached: "1.1.4"}
           - {os: ubuntu-latest, python-version: "3.15", libmemcached: "1.1.4"}
-          - {os: ubuntu-latest, python-version: "pypy3.11", libmemcached: "1.1.4"}
+          - {os: ubuntu-latest, python-version: "pypy3.11", pypy: "8.0", libmemcached: "1.1.4"}
+          - {os: ubuntu-latest, python-version: "pypy3.11-v7.3.23", pypy: "7.3", libmemcached: "1.1.4"}
     runs-on: ${{ matrix.os }}
-    name: "${{ matrix.os }} Python: ${{ matrix.python-version }} libmemcached: ${{ matrix.libmemcached }}"
+    name: "${{ matrix.os }} Python: ${{ matrix.python-version }}${{ matrix.pypy && format(' (PyPy {0})', matrix.pypy) || '' }} libmemcached: ${{ matrix.libmemcached }}"
     env:
       # Also read by .github/scripts/build-libmemcached.sh.
       LIBMEMCACHED_VERSION: ${{ matrix.libmemcached }}
@@ -87,6 +94,19 @@ jobs:
       uses: ./.github/actions/setup-python-retry
       with:
         python-version: ${{ matrix.python-version }}
+    - name: Check the expected PyPy is used
+      if: ${{ matrix.pypy }}
+      env:
+        EXPECTED: ${{ matrix.pypy }}
+      run: |
+        python - <<'PY'
+        import os, platform, sys
+        print(sys.version)
+        print(platform.python_implementation(), platform.python_version())
+        got = "%d.%d" % sys.pypy_version_info[:2]
+        print("expected PyPy %s, got %s" % (os.environ["EXPECTED"], got))
+        sys.exit(got != os.environ["EXPECTED"])
+        PY
     - name: Install dependencies
       run: |
         pip install -r ./requirements_test.txt
