@@ -57,20 +57,31 @@ jobs:
     uses: ./.github/workflows/matrix.yml
 
   build_wheels:
-    name: Build wheel for ${{ matrix.os }}
+    name: Build wheels for ${{ matrix.os }} (${{ matrix.label }})
     needs: check_version
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
+        # cibuildwheel builds each PyPy with the newest PyPy release it knows,
+        # and the wheel's ABI tag follows it: cibuildwheel 4.3 builds PyPy 3.11
+        # with PyPy 8.0 (pypy311_pp80), and those wheels install only on PyPy
+        # 8.0.x. Most users and distributions still run PyPy 7.3
+        # (pypy311_pp73), so a second set of jobs builds just the pp311 wheels
+        # with cibuildwheel 4.2.1, the newest release that uses PyPy 7.3
+        # (7.3.23). Everything else about those jobs is the same. CI tests
+        # both PyPy 7.3 and 8.0. pypy_abi is checked after the build.
         include:
           # Linux is split by architecture so that aarch64 builds and tests run
           # natively on an ARM runner. Under QEMU emulation they took about 17
           # of the 21 minutes the whole Linux job needed.
-          - {os: ubuntu-latest, linux_archs: x86_64}
-          - {os: ubuntu-24.04-arm, linux_archs: aarch64}
-          - {os: macos-latest}
+          - {os: ubuntu-latest, linux_archs: x86_64, label: all, cibuildwheel: 4.3.5, build: '*', pypy_abi: pp80}
+          - {os: ubuntu-24.04-arm, linux_archs: aarch64, label: all, cibuildwheel: 4.3.5, build: '*', pypy_abi: pp80}
+          - {os: macos-latest, label: all, cibuildwheel: 4.3.5, build: '*', pypy_abi: pp80}
+          - {os: ubuntu-latest, linux_archs: x86_64, label: PyPy 7.3, cibuildwheel: 4.2.1, build: 'pp311-*', pypy_abi: pp73, artifact_suffix: -pypy73}
+          - {os: ubuntu-24.04-arm, linux_archs: aarch64, label: PyPy 7.3, cibuildwheel: 4.2.1, build: 'pp311-*', pypy_abi: pp73, artifact_suffix: -pypy73}
+          - {os: macos-latest, label: PyPy 7.3, cibuildwheel: 4.2.1, build: 'pp311-*', pypy_abi: pp73, artifact_suffix: -pypy73}
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
@@ -79,9 +90,11 @@ jobs:
         with:
           python-version: 3.13
 
-      - name: Install cibuildwheel
+      - name: Install cibuildwheel ${{ matrix.cibuildwheel }}
+        env:
+          CIBUILDWHEEL_VERSION: ${{ matrix.cibuildwheel }}
         run: |
-          python -m pip install cibuildwheel==4.3.5
+          python -m pip install "cibuildwheel==${CIBUILDWHEEL_VERSION}"
 
       # libmemcached is built from a checksum-verified source tarball (see
       # .github/scripts/build-libmemcached.sh). The deployment target is kept
@@ -117,8 +130,9 @@ jobs:
           # musllinux and free-threaded CPython (untested) are skipped. PyPy is
           # opt-in in cibuildwheel 4, which offers PyPy 3.11 and 3.12; CI tests
           # pypy3.11 only, so those are the PyPy wheels we ship. The wheel tests
-          # run on it too.
+          # run on it too. The PyPy 7.3 jobs build only pp311 (see the matrix).
           CIBW_ENABLE: pypy
+          CIBW_BUILD: ${{ matrix.build }}
           # cp314t, cp315t: free-threaded builds are not tested.
           # pp312: not tested in CI.
           CIBW_SKIP: "*-musllinux* cp314t-* cp315t-* pp312-*"
@@ -177,11 +191,25 @@ jobs:
         run: |
           cibuildwheel --output-dir ./wheelhouse
 
-      # Artifact names must be unique per job since upload-artifact v4.
+      # Fail unless this job built PyPy wheels, and only for the PyPy ABI it
+      # is meant to (see the matrix): a new cibuildwheel can move it.
+      - name: Check the PyPy ABI tag of the wheels
+        env:
+          PYPY_ABI: ${{ matrix.pypy_abi }}
+        run: |
+          ls -1 wheelhouse
+          pp=$(ls wheelhouse | grep -c -- '-pp3' || true)
+          bad=$(ls wheelhouse | grep -- '-pp3' | grep -vc -- "-pypy311_${PYPY_ABI}-" || true)
+          echo "PyPy wheels: ${pp}; not pypy311_${PYPY_ABI}: ${bad}"
+          test "${pp}" -ge 1
+          test "${bad}" -eq 0
+
+      # Artifact names must be unique per job since upload-artifact v4. The
+      # release job collects every wheels-* artifact.
       - name: Upload artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         with:
-          name: wheels-${{ matrix.os }}
+          name: wheels-${{ matrix.os }}${{ matrix.artifact_suffix }}
           path: ./wheelhouse/*.whl
 
   # The Linux wheels bundle libsasl2 and the SASL plugins (#289). The wheel

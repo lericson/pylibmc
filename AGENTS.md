@@ -226,7 +226,12 @@ maintainer's explicit go-ahead.
    enabled, unless told to skip them), and pin the cibuildwheel
    version in the release job so a new upstream release can't change what gets
    built. Decide deliberately which Python and libmemcached versions you stop
-   supporting, and say so in the notes.
+   supporting, and say so in the notes. cibuildwheel builds each PyPy with the
+   newest PyPy release it knows, and a PyPy wheel installs only on that PyPy
+   series (`pypy311_pp80` wheels do not install on PyPy 7.3), so a cibuildwheel
+   upgrade can silently drop a PyPy series. Check the PyPy ABI tags of the
+   built wheels against the PyPy versions CI tests (`cd.yml` builds the PyPy
+   7.3 wheels with an older, pinned cibuildwheel).
 3. **Thank the people, after the issue review.** Collect everyone since the last
    tag:
    ```sh

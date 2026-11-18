@@ -12,6 +12,16 @@ Requirements
 * zlib (required for compression support)
 * libsasl2 (required for authentication support)
 
+Wheels
+======
+
+Binary wheels, with libmemcached bundled, are provided for Linux (x86_64 and
+aarch64, ``manylinux_2_28``) and macOS (x86_64 and arm64), for CPython and for
+PyPy 3.11. A PyPy wheel works only with the PyPy series it was built for, so
+there are PyPy 3.11 wheels for both PyPy 7.3 (``pypy311_pp73``) and PyPy 8.0
+(``pypy311_pp80``); pip picks the one that matches. Anywhere else pip builds
+pylibmc from the source distribution, which needs the requirements above.
+
 Building
 ========
 

@@ -65,8 +65,11 @@ fi
 
 echo "test-wheel.sh: memcached is up on $HOST:$PORT"
 python - <<'PY' || exit 1
-import sys, pylibmc, _pylibmc
-print("python", sys.version.split()[0], "| pylibmc", pylibmc.__version__,
+import platform, sys, pylibmc, _pylibmc
+impl = platform.python_implementation()
+if hasattr(sys, "pypy_version_info"):
+    impl += " " + ".".join(map(str, sys.pypy_version_info[:3]))
+print("python", sys.version.split()[0], impl, "| pylibmc", pylibmc.__version__,
       "| libmemcached", _pylibmc.libmemcached_runtime_version,
       "| from", pylibmc.__file__)
 for mod in (pylibmc, _pylibmc):
