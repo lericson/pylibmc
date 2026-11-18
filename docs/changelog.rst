@@ -108,6 +108,8 @@ Fixes:
 Build and platforms:
 
 - Python 3.15 is supported.
+- Wheels are provided for PyPy 3.11 on both PyPy 7.3 (``pypy311_pp73``) and
+  PyPy 8.0 (``pypy311_pp80``).
 - The extension's leftover code for Python 2 and Pythons older than 3.11 is
   gone. The only difference you could notice is that it imports ``pickle``
   directly instead of first trying a module called ``cPickle``.
