@@ -148,6 +148,134 @@ def test_insert_merges_existing_section(frag_dir):
         in out
 
 
+SECTION_WITH_THANKS = """Change Log
+==========
+
+New in version 1.8.0
+--------------------
+
+Intro text.
+
+New:
+
+- A feature
+  that spans lines.
+
+  With a nested paragraph.
+
+Fixes:
+
+- Old fix.
+- Second old fix.
+
+.. a comment
+
+Thanks to Someone for something.
+
+New in version 1.7.0
+--------------------
+
+- Ancient.
+"""
+
+
+def merge(frag_dir, text, version="1.8.0"):
+    frags, errors = cl.load(frag_dir.dir)
+    assert not errors
+    return cl.insert_into_changelog(text, version, frags)
+
+
+def section(out, version="1.8.0"):
+    start = out.index("New in version %s\n" % version)
+    end = out.find("\nNew in version ", start + 1)
+    return out[start:end] if end >= 0 else out[start:]
+
+
+def test_merge_keeps_thanks_last(frag_dir):
+    # The 1.8.0rc4 bug: a fix landed after the thanks paragraph.
+    frag_dir("376.fix.rst", "Newest fix.")
+    frag_dir("+d.docs.rst", "Docs thing.")
+    out = merge(frag_dir, SECTION_WITH_THANKS)
+    assert section(out) == """New in version 1.8.0
+--------------------
+
+Intro text.
+
+New:
+
+- A feature
+  that spans lines.
+
+  With a nested paragraph.
+
+Fixes:
+
+- Old fix.
+- Second old fix.
+- Newest fix (#376).
+
+Documentation:
+
+- Docs thing.
+
+.. a comment
+
+Thanks to Someone for something.
+"""
+    assert out.endswith("New in version 1.7.0\n--------------------\n\n"
+                        "- Ancient.\n")
+
+
+def test_merge_new_heading_between_existing(frag_dir):
+    frag_dir("1.breaking.rst", "Breaks.")
+    frag_dir("2.build.rst", "Builds.")
+    frag_dir("3.new.rst", "Newer feature.")
+    frag_dir("4.docs.rst", "More docs.")
+    text = SECTION_WITH_THANKS.replace(
+        "Fixes:", "Fixes:\n\n- Dummy.\n\nDocumentation:", 1)
+    out = section(merge(frag_dir, text))
+    heads = ["Intro text.", "Changes that can break existing code:", "New:",
+             "Fixes:", "Build and platforms:", "Documentation:", "Thanks to"]
+    positions = [out.index(h) for h in heads]
+    assert positions == sorted(positions)
+    assert ("Intro text.\n\nChanges that can break existing code:\n\n"
+            "- Breaks (#1).\n\nNew:\n") in out
+    assert ("  With a nested paragraph.\n- Newer feature (#3).\n\nFixes:\n"
+            in out)
+    assert "- Dummy.\n\nBuild and platforms:\n\n- Builds (#2).\n\n" \
+        "Documentation:\n\n- Old fix." in out
+    assert out.endswith("- Second old fix.\n- More docs (#4).\n\n.. a comment\n"
+                        "\nThanks to Someone for something.\n")
+
+
+def test_merge_into_last_heading_before_thanks(frag_dir):
+    frag_dir("9.fix.rst", "Ninth.")
+    text = SECTION_WITH_THANKS.replace("\n.. a comment\n", "")
+    out = section(merge(frag_dir, text))
+    assert out.endswith("- Second old fix.\n- Ninth (#9).\n\n"
+                        "Thanks to Someone for something.\n")
+
+
+def test_merge_into_intro_only_section(frag_dir):
+    frag_dir("1.fix.rst", "A fix.")
+    frag_dir("2.new.rst", "A feature.")
+    text = ("Change Log\n==========\n\nNew in version 1.8.0\n"
+            "--------------------\n\nJust an intro.\n\n"
+            "New in version 1.7.0\n--------------------\n\n- Ancient.\n")
+    out = merge(frag_dir, text)
+    assert section(out) == (
+        "New in version 1.8.0\n--------------------\n\nJust an intro.\n\n"
+        "New:\n\n- A feature (#2).\n\nFixes:\n\n- A fix (#1).\n")
+    assert out.endswith("- Ancient.\n")
+
+
+def test_merge_into_last_section_of_file(frag_dir):
+    frag_dir("1.docs.rst", "Docs.")
+    text = "Change Log\n==========\n\nNew in version 1.8.0\n---\n\nIntro.\n"
+    assert merge(frag_dir, text).endswith(
+        "Intro.\n\nDocumentation:\n\n- Docs (#1).\n")
+
+
 @pytest.mark.parametrize("version,patch", [
     ("1.8.0", False), ("1.8.0-dev", False), ("1.8.0rc1", False),
     ("1.8.1", True), ("1.8.1rc1", True), ("1.8.1-dev", True),
