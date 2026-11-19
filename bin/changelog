@@ -103,15 +103,10 @@ def bullets_by_category(frags):
     return out
 
 
-def render_blocks(preamble, blocks):
-    """Join preamble lines and {category: [bullet text]} in release order."""
-    parts = []
-    if preamble:
-        parts.append("\n".join(preamble))
-    for cat, heading in CATEGORIES:
-        if cat in blocks:
-            parts.append(heading + "\n\n" + "\n".join(blocks[cat]))
-    return "\n\n".join(parts) + "\n"
+def render_blocks(blocks):
+    """Join {category: [bullet text]} in release order."""
+    return "\n\n".join(heading + "\n\n" + "\n".join(blocks[cat])
+                       for cat, heading in CATEGORIES if cat in blocks) + "\n"
 
 
 def title(version):
@@ -120,7 +115,7 @@ def title(version):
 
 
 def build_section(version, frags):
-    return title(version) + "\n" + render_blocks([], bullets_by_category(frags))
+    return title(version) + "\n" + render_blocks(bullets_by_category(frags))
 
 
 def insert_into_changelog(text, version, frags):
@@ -150,31 +145,80 @@ def insert_into_changelog(text, version, frags):
                 and re.match(r"^-+$", lines[i + 1])):
             end = i
             break
-    body = lines[start + 2:end]
-    preamble, blocks, cur = [], {}, None
+    lines[start + 2:end] = merge_section_body(lines[start + 2:end], new)
+    return "\n".join(lines)
+
+
+def is_list_line(line):
+    """True for a bullet item or a line inside one (indented text)."""
+    return (line.startswith(("- ", "* ", "+ ", " ", "\t"))
+            or line in ("-", "*", "+"))
+
+
+def list_end(body, h, stop):
+    """Index just past the bullet list under the heading at body[h]."""
+    end = h + 1
+    i = h + 1
+    while i < stop and not body[i].strip():
+        i += 1
+    if i < stop and body[i].startswith(("- ", "* ", "+ ")):
+        while i < stop and (not body[i].strip() or is_list_line(body[i])):
+            if body[i].strip():
+                end = i + 1
+            i += 1
+    return end
+
+
+def merge_section_body(body, new):
+    """Add {category: [bullet]} to the lines of an existing section.
+
+    New bullets go at the end of their category's list; a missing category
+    gets its heading in release order among the existing ones. Everything
+    else (intro, closing paragraphs, comments) stays where it is.
+    """
     by_heading = {h: c for c, h in CATEGORIES}
-    for line in body:
-        if line in by_heading:
-            cur = by_heading[line]
-            blocks[cur] = []
-        elif cur is None:
-            preamble.append(line)
+    heads = [(i, by_heading[l]) for i, l in enumerate(body) if l in by_heading]
+    order = [c for c, _ in CATEGORIES]
+    ends = {}
+    for k, (h, cat) in enumerate(heads):
+        stop = heads[k + 1][0] if k + 1 < len(heads) else len(body)
+        ends[cat] = list_end(body, h, stop)
+    content = [i for i, l in enumerate(body) if l.strip()]
+    tail = content[-1] + 1 if content else 0
+    inserts = {}   # index -> lines, filled in release order
+    for cat in order:
+        if cat not in new:
+            continue
+        bullets = "\n".join(new[cat]).split("\n")
+        if cat in ends:
+            h = [i for i, c in heads if c == cat][0]
+            at = ends[cat]
+            chunk = bullets if at > h + 1 else [""] + bullets
+            inserts.setdefault(at, []).append(chunk)
+            continue
+        later = [i for i, c in heads if order.index(c) > order.index(cat)]
+        earlier = [c for _, c in heads if order.index(c) < order.index(cat)]
+        if later:
+            at = min(later)
+            chunk = [HEADINGS[cat], ""] + bullets + [""]
         else:
-            blocks[cur].append(line)
-    for cat in blocks:
-        text_ = "\n".join(blocks[cat]).strip("\n")
-        blocks[cat] = [text_] if text_ else []
-    for cat, bullets in new.items():
-        blocks.setdefault(cat, []).extend(bullets)
-    while preamble and not preamble[-1].strip():
-        preamble.pop()
-    while preamble and not preamble[0].strip():
-        preamble.pop(0)
-    merged = title(version) + "\n" + render_blocks(preamble, blocks)
-    rest = "\n".join(lines[end:])
-    head_txt = "\n".join(lines[:start])
-    return head_txt + ("\n" if head_txt else "") + merged + \
-        ("\n" + rest if rest else "")
+            at = ends[earlier[-1]] if earlier else tail
+            chunk = ["", HEADINGS[cat], ""] + bullets
+        inserts.setdefault(at, []).append(chunk)
+    for at in sorted(inserts, reverse=True):
+        add = []
+        for chunk in inserts[at]:
+            prev = add[-1] if add else (body[at - 1] if at else "")
+            # A heading needs a blank line before it; bullets join the list.
+            if prev.strip() and chunk[0].strip() and chunk[0] in by_heading:
+                add.append("")
+            add.extend(chunk)
+        if at < len(body) and body[at].strip() and add[-1].strip():
+            add.append("")
+        body[at:at] = add
+    if body and body[-1].strip():
+        body.append("")
+    return body
 
 
 def parse_version(text):
